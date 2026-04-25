@@ -26,6 +26,8 @@ export function ScanPanel({
   setPassword,
   rateLimitPerSecond,
   setRateLimitPerSecond,
+  retryAttempts,
+  setRetryAttempts,
   authorizationConfirmed,
   setAuthorizationConfirmed,
   domainAllowlist,
@@ -141,7 +143,7 @@ export function ScanPanel({
         />
       </div>
       <label htmlFor="rate-limit">Safety Controls</label>
-      <div className="target-row">
+      <div className="target-row safety-row">
         <input
           id="rate-limit"
           type="number"
@@ -151,6 +153,15 @@ export function ScanPanel({
           value={rateLimitPerSecond}
           placeholder="Rate limit / second"
           onChange={(event) => setRateLimitPerSecond(event.target.value)}
+        />
+        <input
+          type="number"
+          min="0"
+          max="5"
+          step="1"
+          value={retryAttempts}
+          placeholder="Retry attempts"
+          onChange={(event) => setRetryAttempts(event.target.value)}
         />
         <input
           type="text"

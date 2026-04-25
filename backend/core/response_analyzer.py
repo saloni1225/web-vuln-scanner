@@ -1,4 +1,5 @@
 import html
+import json
 import re
 
 from backend.core.request_handler import HttpResponse
@@ -61,10 +62,13 @@ class ResponseAnalyzer:
         body = response.text
         contexts: list[str] = []
         escaped_marker = html.escape(marker, quote=True)
+        json_marker = json.dumps(marker)
         if marker in body:
             contexts.append("body")
         if escaped_marker in body and escaped_marker != marker:
             contexts.append("encoded")
+        if json_marker in body:
+            contexts.append("json")
         if re.search(rf"<script[^>]*>[^<]*{re.escape(marker)}", body, re.IGNORECASE):
             contexts.append("script")
         if re.search(rf"\w+\s*=\s*['\"][^'\"]*{re.escape(marker)}[^'\"]*['\"]", body, re.IGNORECASE):
@@ -77,6 +81,64 @@ class ResponseAnalyzer:
             "contexts": list(dict.fromkeys(contexts)),
             "dangerous": bool(dangerous_contexts),
             "encoded_only": contexts == ["encoded"],
+        }
+
+    def classify_confidence(
+        self,
+        *,
+        error_signature: bool = False,
+        boolean_delta: bool = False,
+        time_delay: bool = False,
+        dangerous_reflection: bool = False,
+        stable_reflection: bool = False,
+        stored_indicator: bool = False,
+        anomaly_score: float = 0.0,
+    ) -> dict[str, object]:
+        signals: list[str] = []
+        score = 0.0
+
+        if error_signature:
+            score += 0.42
+            signals.append("error-signature")
+        if boolean_delta:
+            score += 0.34
+            signals.append("boolean-delta")
+        if time_delay:
+            score += 0.34
+            signals.append("time-delay")
+        if dangerous_reflection:
+            score += 0.42
+            signals.append("dangerous-reflection")
+        if stable_reflection:
+            score += 0.24
+            signals.append("stable-reflection")
+        if stored_indicator:
+            score += 0.34
+            signals.append("stored-indicator")
+
+        if anomaly_score >= 0.65:
+            score += 0.2
+            signals.append("high-anomaly")
+        elif anomaly_score >= 0.35:
+            score += 0.1
+            signals.append("moderate-anomaly")
+
+        score = round(min(1.0, score), 2)
+        if score >= 0.75:
+            confidence = "high"
+            validation_state = "validated"
+        elif score >= 0.45:
+            confidence = "medium"
+            validation_state = "triaged"
+        else:
+            confidence = "low"
+            validation_state = "requires-review"
+
+        return {
+            "confidence": confidence,
+            "confidence_score": score,
+            "validation_state": validation_state,
+            "signals": signals,
         }
 
     def summarize_response_diff(self, baseline: HttpResponse, candidate: HttpResponse) -> dict[str, object]:
@@ -108,3 +170,9 @@ class ResponseAnalyzer:
         latency_delta = max(0.0, float(diff["latency_delta_ms"]))
         score += min(0.2, latency_delta / 5000)
         return round(min(1.0, score), 2)
+
+    def snapshot_response(self, response: HttpResponse, limit: int = 220) -> str:
+        body = response.text.strip().replace("\n", " ")
+        if len(body) <= limit:
+            return body
+        return f"{body[:limit]}..."

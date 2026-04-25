@@ -17,6 +17,8 @@ class ScanRequest(BaseModel):
     password: str | None = None
     login_extra_fields: dict[str, str] | None = None
     rate_limit_per_second: float | None = Field(default=None, ge=0.1, le=20.0)
+    retry_attempts: int | None = Field(default=None, ge=0, le=5)
+    retry_backoff_ms: int | None = Field(default=None, ge=0, le=5000)
     authorization_confirmed: bool = False
     domain_allowlist: list[str] | None = None
     detector_names: list[str] | None = None
@@ -46,6 +48,8 @@ class ScanController:
             "password": request.password or "",
             "login_extra_fields": request.login_extra_fields or {},
             "rate_limit_per_second": request.rate_limit_per_second,
+            "retry_attempts": request.retry_attempts,
+            "retry_backoff_ms": request.retry_backoff_ms,
             "authorization_confirmed": request.authorization_confirmed,
             "domain_allowlist": request.domain_allowlist or [],
         }

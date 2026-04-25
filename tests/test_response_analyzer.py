@@ -22,3 +22,15 @@ def test_response_analyzer_summarizes_diff_and_anomaly_score():
     assert diff["status_changed"] is True
     assert diff["length_delta"] > 0
     assert analyzer.anomaly_score(baseline, candidate) > 0.5
+
+
+def test_response_analyzer_classifies_confidence_from_multiple_signals():
+    analyzer = ResponseAnalyzer()
+    confidence = analyzer.classify_confidence(
+        error_signature=True,
+        boolean_delta=True,
+        anomaly_score=0.7,
+    )
+    assert confidence["confidence"] == "high"
+    assert confidence["confidence_score"] >= 0.75
+    assert "error-signature" in confidence["signals"]

@@ -44,12 +44,27 @@ class SessionManager:
             else:
                 response = await client.post(login_url, data=login_body, headers=context.headers, cookies=context.cookies)
             context.cookies.update({str(key): str(value) for key, value in response.cookies.items()})
+            set_cookie = response.headers.get("set-cookie", "")
+            if set_cookie and "=" in set_cookie:
+                for raw_cookie in set_cookie.split(","):
+                    primary = raw_cookie.split(";", 1)[0].strip()
+                    if "=" not in primary:
+                        continue
+                    key, value = primary.split("=", 1)
+                    if key and value:
+                        context.cookies.setdefault(key.strip(), value.strip())
             try:
                 payload = response.json()
             except json.JSONDecodeError:
                 payload = {}
             if isinstance(payload, dict):
-                token = payload.get("authentication") or payload.get("token") or payload.get("jwt")
+                token = (
+                    payload.get("authentication")
+                    or payload.get("token")
+                    or payload.get("jwt")
+                    or payload.get("accessToken")
+                    or payload.get("access_token")
+                )
                 if token and "Authorization" not in context.headers:
                     context.headers["Authorization"] = f"Bearer {token}"
             context.login_performed = response.status_code < 400

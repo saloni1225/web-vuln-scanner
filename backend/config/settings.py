@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     max_workers: int = 8
     default_rate_limit_per_second: float = 3.0
     minimum_rate_limit_per_second: float = 0.5
+    retry_attempts: int = 2
+    retry_backoff_ms: int = 250
     enforce_authorization_for_external: bool = True
     enable_playwright_crawl: bool = True
     enable_api_discovery: bool = True

@@ -21,8 +21,10 @@ export function Dashboard({ result, progress, detectorTimings }) {
   const endpoints = summary.endpoint_count ?? 0;
   const apiEndpoints = summary.api_endpoint_count ?? result?.api_summary?.api_endpoint_count ?? 0;
   const graphqlEndpoints = summary.graphql_endpoint_count ?? result?.api_summary?.graphql_endpoint_count ?? 0;
+  const hiddenEndpoints = result?.api_summary?.hidden_endpoint_count ?? 0;
   const enabledDetectors = result?.detector_registry?.length ?? 0;
   const anomalyScore = result?.behavioral_summary?.average_anomaly_score ?? 0;
+  const validatedFindings = summary.validated_finding_count ?? 0;
   const surfaceTotal = Math.max(1, pages + forms + endpoints);
   const chartCircumference = 314;
   const endpointRatio = endpoints / surfaceTotal;
@@ -62,6 +64,11 @@ export function Dashboard({ result, progress, detectorTimings }) {
           <ShieldCheck />
           <span>Detectors</span>
           <strong>{enabledDetectors}</strong>
+        </article>
+        <article className="metric-card">
+          <ShieldCheck />
+          <span>Validated</span>
+          <strong>{validatedFindings}</strong>
         </article>
       </section>
 
@@ -145,6 +152,7 @@ export function Dashboard({ result, progress, detectorTimings }) {
               <div><span>Endpoints</span><strong>{endpoints}</strong></div>
               <div><span>API</span><strong>{apiEndpoints}</strong></div>
               <div><span>GraphQL</span><strong>{graphqlEndpoints}</strong></div>
+              <div><span>Hidden</span><strong>{hiddenEndpoints}</strong></div>
             </div>
           </div>
         </article>

@@ -24,6 +24,10 @@ class Finding:
     input_location: str | None = None
     reflection_context: str | None = None
     dom_observation: str | None = None
+    confidence_score: float | None = None
+    validation_signals: list[str] | None = None
+    request_snapshot: str | None = None
+    response_snapshot: str | None = None
     cvss_score: float | None = None
     remediation_priority: str | None = None
     poc: str | None = None

@@ -22,6 +22,7 @@ export function ScanPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [rateLimitPerSecond, setRateLimitPerSecond] = useState("3");
+  const [retryAttempts, setRetryAttempts] = useState("2");
   const [authorizationConfirmed, setAuthorizationConfirmed] = useState(false);
   const [domainAllowlist, setDomainAllowlist] = useState("");
   const [availableDetectors, setAvailableDetectors] = useState([]);
@@ -126,6 +127,7 @@ export function ScanPage() {
         username,
         password,
         rateLimitPerSecond: Number(rateLimitPerSecond),
+        retryAttempts: Number(retryAttempts),
         authorizationConfirmed,
         domainAllowlist: domainAllowlist.split(",").map((item) => item.trim()).filter(Boolean),
         detectorNames: selectedDetectors,
@@ -203,6 +205,8 @@ export function ScanPage() {
         setPassword={setPassword}
         rateLimitPerSecond={rateLimitPerSecond}
         setRateLimitPerSecond={setRateLimitPerSecond}
+        retryAttempts={retryAttempts}
+        setRetryAttempts={setRetryAttempts}
         authorizationConfirmed={authorizationConfirmed}
         setAuthorizationConfirmed={setAuthorizationConfirmed}
         domainAllowlist={domainAllowlist}

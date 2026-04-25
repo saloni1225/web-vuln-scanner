@@ -114,6 +114,7 @@ class ScannerEngine:
                 "high_severity_count": sum(1 for finding in findings if finding.severity == "high"),
                 "medium_severity_count": sum(1 for finding in findings if finding.severity == "medium"),
                 "low_severity_count": sum(1 for finding in findings if finding.severity == "low"),
+                "validated_finding_count": sum(1 for finding in findings if finding.validation_state == "validated"),
                 "api_endpoint_count": api_summary.get("api_endpoint_count", 0),
                 "graphql_endpoint_count": api_summary.get("graphql_endpoint_count", 0),
                 "duration_ms": round((datetime.now(timezone.utc) - datetime.fromisoformat(started_at)).total_seconds() * 1000, 2),
@@ -134,7 +135,15 @@ class ScannerEngine:
                 "detector_timings": detector_timings,
                 "detector_registry": describe_loaded_detectors(selected_detector_names),
                 "target_advisory": build_target_advisory(target_url),
-                "auth_used": bool(auth_context and (auth_context.get("headers") or auth_context.get("cookies"))),
+                "auth_used": bool(
+                    auth_context
+                    and (
+                        auth_context.get("headers")
+                        or auth_context.get("cookies")
+                        or auth_context.get("jwt_token")
+                        or auth_context.get("login_url")
+                    )
+                ),
                 "safety_controls": {
                     "rate_limit_per_second": auth_context.get("rate_limit_per_second") if auth_context else settings.default_rate_limit_per_second,
                     "authorization_confirmed": bool(auth_context and auth_context.get("authorization_confirmed")),
@@ -225,12 +234,14 @@ class ScannerEngine:
     @staticmethod
     def _enrich_findings(findings: list[Finding]) -> list[Finding]:
         severity_base = {"high": 8.6, "medium": 6.1, "low": 3.8}
-        confidence_mod = {"high": 0.4, "medium": 0.0, "low": -0.5}
+        confidence_mod = {"high": 0.5, "medium": 0.0, "low": -0.7}
         for finding in findings:
-            score = severity_base.get(finding.severity, 5.0) + confidence_mod.get(finding.confidence or "medium", 0.0)
+            confidence_score = finding.confidence_score if finding.confidence_score is not None else {"high": 0.85, "medium": 0.55, "low": 0.3}.get(finding.confidence or "medium", 0.5)
+            score = severity_base.get(finding.severity, 5.0) + confidence_mod.get(finding.confidence or "medium", 0.0) + (confidence_score - 0.5)
             finding.cvss_score = round(min(10.0, max(0.1, score)), 1)
             finding.remediation_priority = "P1" if finding.cvss_score >= 8.5 else "P2" if finding.cvss_score >= 6.0 else "P3"
-            finding.validation_state = "validated" if finding.confidence == "high" else "requires-review"
+            if not finding.validation_state:
+                finding.validation_state = "validated" if finding.confidence == "high" else "requires-review"
             finding.poc = (
                 f"{finding.method.upper()} {finding.url} with parameter {finding.parameter or '-'} "
                 f"using payload {finding.payload or '-'}"

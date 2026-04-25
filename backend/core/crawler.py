@@ -8,6 +8,8 @@ from backend.core.request_handler import RequestHandler
 
 
 ROUTE_PATTERN = re.compile(r'(?:"|\')((?:/|#)[A-Za-z0-9_?&=./:%+#-]{2,})(?:"|\')')
+API_HINT_PATTERN = re.compile(r'(?:"|\')((?:/|https?://)[A-Za-z0-9_?&=./:%+#-]*(?:api|rest|graphql)[A-Za-z0-9_?&=./:%+#-]*)(?:"|\')', re.IGNORECASE)
+FETCH_PATTERN = re.compile(r'(?:fetch|axios\.(?:get|post|put|patch|delete)|open)\s*\(\s*["\']([^"\']+)["\']', re.IGNORECASE)
 COMMON_ENDPOINT_CANDIDATES = [
     {"path": "/api"},
     {"path": "/rest"},
@@ -33,6 +35,18 @@ def extract_candidates_from_text(text: str) -> list[str]:
         if match.startswith("//"):
             continue
         candidates.add(match)
+    return sorted(candidates)
+
+
+def extract_hidden_api_candidates(text: str) -> list[str]:
+    candidates: set[str] = set()
+    for pattern in (API_HINT_PATTERN, FETCH_PATTERN):
+        for match in pattern.findall(text):
+            if isinstance(match, tuple):
+                match = match[0]
+            if match.startswith("//"):
+                continue
+            candidates.add(str(match))
     return sorted(candidates)
 
 
@@ -159,6 +173,17 @@ class Crawler:
                 if self._same_origin(next_url, parsed_start):
                     queue.append((next_url, depth + 1))
                     self._register_endpoint(next_url, "get", "bundle-candidate", endpoints, guess_query_params(next_url))
+            for api_candidate in extract_hidden_api_candidates(response.text):
+                next_url = canonicalize_url(urljoin(response.url, api_candidate))
+                if self._same_origin(next_url, parsed_start):
+                    self._register_endpoint(
+                        next_url,
+                        "get",
+                        "hidden-api",
+                        endpoints,
+                        guess_query_params(next_url),
+                        endpoint_type=classify_endpoint_type(next_url),
+                    )
 
     async def _expand_from_scripts(
         self,
@@ -180,6 +205,18 @@ class Crawler:
                     continue
                 queue.append((candidate_url, 1))
                 self._register_endpoint(candidate_url, "get", "script-analysis", endpoints, guess_query_params(candidate_url))
+            for api_candidate in extract_hidden_api_candidates(response.text):
+                candidate_url = canonicalize_url(urljoin(script_url, api_candidate))
+                if not self._same_origin(candidate_url, parsed_start):
+                    continue
+                self._register_endpoint(
+                    candidate_url,
+                    "get",
+                    "script-hidden-api",
+                    endpoints,
+                    guess_query_params(candidate_url),
+                    endpoint_type=classify_endpoint_type(candidate_url),
+                )
 
     async def _probe_common_endpoints(
         self,
@@ -439,4 +476,5 @@ class Crawler:
             "parameterized_endpoint_count": parameterized,
             "methods": methods,
             "top_sources": sorted({str(item.get("source", "crawler")) for item in endpoints}),
+            "hidden_endpoint_count": sum(1 for item in endpoints if "hidden" in str(item.get("source", ""))),
         }

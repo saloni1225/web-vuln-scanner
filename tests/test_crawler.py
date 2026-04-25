@@ -1,4 +1,4 @@
-from backend.core.crawler import LinkParser, canonicalize_url, classify_endpoint_type, extract_candidates_from_text
+from backend.core.crawler import LinkParser, canonicalize_url, classify_endpoint_type, extract_candidates_from_text, extract_hidden_api_candidates
 
 
 def test_link_parser_collects_links_and_forms():
@@ -24,3 +24,11 @@ def test_extract_candidates_from_script_like_text():
 def test_classify_endpoint_type_marks_graphql():
     assert classify_endpoint_type("http://127.0.0.1:3000/graphql") == "graphql"
     assert classify_endpoint_type("http://127.0.0.1:3000/rest/products") == "api"
+
+
+def test_extract_hidden_api_candidates_from_fetch_and_strings():
+    text = 'fetch("/api/users"); const gql="/graphql"; axios.get("/rest/items");'
+    candidates = extract_hidden_api_candidates(text)
+    assert "/api/users" in candidates
+    assert "/graphql" in candidates
+    assert "/rest/items" in candidates

@@ -59,11 +59,17 @@ class XSSDetector(BaseDetector):
                 )
                 if script_hits:
                     dom_contexts.append("rendered-script")
+                try:
+                    executed = await page.evaluate("(marker) => window.__awvs === marker", marker)
+                except Exception:
+                    executed = False
+                if executed:
+                    dom_contexts.append("executed-script")
                 await context.close()
                 await browser.close()
-                return {"rendered": bool(dom_contexts), "contexts": list(dict.fromkeys(dom_contexts))}
+                return {"rendered": bool(dom_contexts), "executed": bool(executed), "contexts": list(dict.fromkeys(dom_contexts))}
         except Exception:
-            return {"rendered": False, "contexts": []}
+            return {"rendered": False, "executed": False, "contexts": []}
 
     @classmethod
     def _should_probe_param(cls, url: str, param: str) -> bool:
@@ -104,7 +110,8 @@ class XSSDetector(BaseDetector):
         analyzer = ResponseAnalyzer()
         findings: list[Finding] = []
         marker = f"awvs-{uuid.uuid4().hex[:8]}"
-        payloads = PayloadGenerator().xss_probe_payloads(marker)
+        payload_groups = PayloadGenerator().xss_contextual_payloads(marker)
+        payloads = [payload for group in payload_groups.values() for payload in group]
 
         get_candidates: list[tuple[str, str]] = []
         for page in site_map.get("pages", []):
@@ -146,7 +153,7 @@ class XSSDetector(BaseDetector):
                 content_type = response.headers.get("content-type", "").lower()
                 html_like = "html" in content_type or response.text.lstrip().startswith("<!doctype") or response.text.lstrip().startswith("<html")
                 dangerous_context = reflection["dangerous"] or any(
-                    context in {"rendered-script", "rendered-attribute", "attribute", "script"} for context in contexts
+                    context in {"rendered-script", "rendered-attribute", "attribute", "script", "executed-script"} for context in contexts
                 )
                 stable_html_reflection = (
                     baseline_response.status_code < 400
@@ -156,8 +163,14 @@ class XSSDetector(BaseDetector):
                 )
                 if not dangerous_context and not stable_html_reflection:
                     continue
-                confidence = "high" if dangerous_context else "medium"
-                severity = "high" if dangerous_context else "medium"
+                anomaly_score = analyzer.anomaly_score(baseline_response, response)
+                validation = analyzer.classify_confidence(
+                    dangerous_reflection=dangerous_context or bool(dom_result.get("executed")),
+                    stable_reflection=stable_html_reflection,
+                    anomaly_score=anomaly_score,
+                )
+                confidence = str(validation["confidence"])
+                severity = "high" if dangerous_context or bool(dom_result.get("executed")) else "medium"
                 findings.append(
                     Finding(
                         detector=self.name,
@@ -166,6 +179,8 @@ class XSSDetector(BaseDetector):
                         evidence=f"Query parameter {param} reflected the probe marker in {', '.join(contexts) or 'response body'}.",
                         recommendation="Encode untrusted output by context, validate high-risk inputs, and review client-side sinks that write untrusted data into the DOM.",
                         confidence=confidence,
+                        confidence_score=float(validation["confidence_score"]),
+                        validation_signals=list(validation["signals"]),
                         parameter=param,
                         payload=payload,
                         method="get",
@@ -174,10 +189,13 @@ class XSSDetector(BaseDetector):
                         mutated_status=response.status_code,
                         baseline_length=len(baseline_response.text),
                         mutated_length=len(response.text),
+                        request_snapshot=f"GET {test_url}",
+                        response_snapshot=analyzer.snapshot_response(response),
                         reason="Marker was reflected in a server or browser-rendered context after parameter injection.",
                         input_location=f"query:{param}",
                         reflection_context=", ".join(contexts) if contexts else None,
                         dom_observation=", ".join(dom_result["contexts"]) if dom_result["contexts"] else None,
+                        validation_state=str(validation["validation_state"]),
                     )
                 )
                 break
@@ -231,7 +249,7 @@ class XSSDetector(BaseDetector):
                     content_type = response.headers.get("content-type", "").lower()
                     html_like = "html" in content_type or response.text.lstrip().startswith("<!doctype") or response.text.lstrip().startswith("<html")
                     dangerous_context = reflection["dangerous"] or any(
-                        context in {"rendered-script", "rendered-attribute", "attribute", "script"} for context in contexts
+                        context in {"rendered-script", "rendered-attribute", "attribute", "script", "executed-script"} for context in contexts
                     )
                     stable_html_reflection = (
                         baseline_response.status_code < 400
@@ -241,9 +259,14 @@ class XSSDetector(BaseDetector):
                     )
                     if not stored_indicator and not dangerous_context and not stable_html_reflection:
                         continue
-                    confidence = "high" if dangerous_context else "medium"
-                    if stored_indicator:
-                        confidence = "high"
+                    anomaly_score = analyzer.anomaly_score(baseline_response, response)
+                    validation = analyzer.classify_confidence(
+                        dangerous_reflection=dangerous_context or bool(dom_result.get("executed")),
+                        stable_reflection=stable_html_reflection,
+                        stored_indicator=stored_indicator,
+                        anomaly_score=anomaly_score,
+                    )
+                    confidence = str(validation["confidence"])
                     severity = "high" if dangerous_context or stored_indicator else "medium"
                     findings.append(
                         Finding(
@@ -257,6 +280,8 @@ class XSSDetector(BaseDetector):
                             ),
                             recommendation="Encode server output by context, sanitize rich text, and review client-side DOM writes for untrusted form input.",
                             confidence=confidence,
+                            confidence_score=float(validation["confidence_score"]),
+                            validation_signals=list(validation["signals"]),
                             parameter=param,
                             payload=payload,
                             method="post",
@@ -265,10 +290,13 @@ class XSSDetector(BaseDetector):
                             mutated_status=response.status_code,
                             baseline_length=len(baseline_response.text),
                             mutated_length=len(response.text),
+                            request_snapshot=f"POST {action} body[{param}]={payload}",
+                            response_snapshot=analyzer.snapshot_response(response),
                             reason="Form submission reflected or persisted the probe marker in server or browser-rendered output.",
                             input_location=f"form:{param}",
                             reflection_context=", ".join(dict.fromkeys(contexts)) if contexts else None,
                             dom_observation=", ".join(dom_result["contexts"]) if dom_result["contexts"] else None,
+                            validation_state=str(validation["validation_state"]),
                         )
                     )
                     break

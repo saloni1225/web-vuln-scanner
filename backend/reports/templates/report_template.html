@@ -123,12 +123,15 @@
           <li><strong>URL:</strong> {{ finding.url }}</li>
           <li><strong>Method:</strong> {{ finding.method }}</li>
           <li><strong>Parameter:</strong> {{ finding.parameter or "-" }}</li>
-          <li><strong>Confidence:</strong> {{ finding.confidence }}</li>
+          <li><strong>Confidence:</strong> {{ finding.confidence }} ({{ finding.confidence_score or "-" }})</li>
           <li><strong>Priority:</strong> {{ finding.remediation_priority or "-" }}</li>
           <li><strong>Validation state:</strong> {{ finding.validation_state or "-" }}</li>
+          <li><strong>Validation signals:</strong> {{ (finding.validation_signals or [])|join(", ") or "-" }}</li>
           <li><strong>Reason:</strong> {{ finding.reason or "-" }}</li>
           <li><strong>Request PoC:</strong> <code>{{ finding.poc or "-" }}</code></li>
           <li><strong>Payload:</strong> <code>{{ finding.payload or "-" }}</code></li>
+          <li><strong>Request snapshot:</strong> <code>{{ finding.request_snapshot or "-" }}</code></li>
+          <li><strong>Response snapshot:</strong> <code>{{ finding.response_snapshot or "-" }}</code></li>
           <li><strong>Response evidence:</strong> status {{ finding.baseline_status or "-" }} -> {{ finding.mutated_status or "-" }}, length {{ finding.baseline_length or "-" }} -> {{ finding.mutated_length or "-" }}</li>
           <li><strong>Remediation:</strong> {{ finding.recommendation }}</li>
         </ul>
@@ -142,7 +145,7 @@
       <h2>Raw Findings Table</h2>
     <table>
       <thead>
-        <tr><th>Detector</th><th>Severity</th><th>CVSS</th><th>Priority</th><th>Confidence</th><th>Method</th><th>Parameter</th><th>URL</th><th>Evidence</th><th>PoC</th><th>Technical reason</th><th>Status/Length diff</th><th>Recommendation</th></tr>
+        <tr><th>Detector</th><th>Severity</th><th>CVSS</th><th>Priority</th><th>Confidence</th><th>Signals</th><th>Method</th><th>Parameter</th><th>URL</th><th>Evidence</th><th>PoC</th><th>Technical reason</th><th>Status/Length diff</th><th>Recommendation</th></tr>
       </thead>
       <tbody>
         {% for finding in scan.findings %}
@@ -151,7 +154,8 @@
           <td>{{ finding.severity }}</td>
           <td>{{ finding.cvss_score or "-" }}</td>
           <td>{{ finding.remediation_priority or "-" }}</td>
-          <td>{{ finding.confidence }}</td>
+          <td>{{ finding.confidence }} ({{ finding.confidence_score or "-" }})</td>
+          <td>{{ (finding.validation_signals or [])|join(", ") or "-" }}</td>
           <td>{{ finding.method }}</td>
           <td>{{ finding.parameter or "-" }}</td>
           <td>{{ finding.url }}</td>
@@ -166,7 +170,7 @@
           <td>{{ finding.recommendation }}</td>
         </tr>
         {% else %}
-        <tr><td colspan="13">No findings recorded.</td></tr>
+        <tr><td colspan="14">No findings recorded.</td></tr>
         {% endfor %}
       </tbody>
     </table>

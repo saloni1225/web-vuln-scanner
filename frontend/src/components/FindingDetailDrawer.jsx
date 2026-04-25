@@ -10,6 +10,7 @@ export function FindingDetailDrawer({ finding, open, onClose }) {
     ["Detector", String(finding.detector ?? "generic").toUpperCase()],
     ["Severity", finding.severity ?? "unknown"],
     ["Confidence", finding.confidence ?? "medium"],
+    ["Score", finding.confidence_score ?? "-"],
     ["Priority", finding.remediation_priority ?? "-"],
     ["Method", String(finding.method ?? "get").toUpperCase()],
     ["Parameter", finding.parameter ?? "-"],
@@ -61,8 +62,17 @@ export function FindingDetailDrawer({ finding, open, onClose }) {
             <div><span>Length delta</span><strong>{finding.baseline_length ?? "-"} {"->"} {finding.mutated_length ?? "-"}</strong></div>
             <div><span>CVSS</span><strong>{finding.cvss_score ?? "-"}</strong></div>
           </div>
+          {finding.validation_signals?.length ? (
+            <div className="drawer-chip-row">
+              {finding.validation_signals.map((signal) => (
+                <span key={signal} className="drawer-chip">{signal}</span>
+              ))}
+            </div>
+          ) : null}
           {finding.poc ? <code className="drawer-code">{finding.poc}</code> : null}
           {finding.payload ? <code className="drawer-code">{finding.payload}</code> : null}
+          {finding.request_snapshot ? <code className="drawer-code">{finding.request_snapshot}</code> : null}
+          {finding.response_snapshot ? <code className="drawer-code">{finding.response_snapshot}</code> : null}
         </section>
 
         <section className="drawer-block">

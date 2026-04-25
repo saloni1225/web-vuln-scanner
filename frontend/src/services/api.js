@@ -17,6 +17,8 @@ export async function startScan(targetUrl, options = {}) {
       password: options.password ?? "",
       login_extra_fields: options.loginExtraFields ?? {},
       rate_limit_per_second: options.rateLimitPerSecond ?? null,
+      retry_attempts: options.retryAttempts ?? null,
+      retry_backoff_ms: options.retryBackoffMs ?? null,
       authorization_confirmed: options.authorizationConfirmed ?? false,
       domain_allowlist: options.domainAllowlist ?? [],
       detector_names: options.detectorNames ?? [],

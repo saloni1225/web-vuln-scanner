@@ -123,8 +123,13 @@ class SQLiDetector(BaseDetector):
                 has_error = analyzer.has_error_signature(response)
                 has_status_anomaly = analyzer.has_status_anomaly(baseline, response)
                 has_length_anomaly = analyzer.has_length_anomaly(baseline, response)
+                anomaly_score = analyzer.anomaly_score(baseline, response)
                 triggered = has_error or (has_status_anomaly and has_length_anomaly and response.status_code >= 500)
                 if triggered:
+                    validation = analyzer.classify_confidence(
+                        error_signature=has_error,
+                        anomaly_score=anomaly_score,
+                    )
                     findings.append(
                         Finding(
                             detector=self.name,
@@ -132,7 +137,9 @@ class SQLiDetector(BaseDetector):
                             url=test_url,
                             evidence=f"Query parameter {param} changed behavior after SQLi payload injection.",
                             recommendation="Use parameterized queries and centralized input validation.",
-                            confidence="high" if analyzer.has_error_signature(response) else "medium",
+                            confidence=str(validation["confidence"]),
+                            confidence_score=float(validation["confidence_score"]),
+                            validation_signals=list(validation["signals"]),
                             parameter=param,
                             payload=payload,
                             method="get",
@@ -141,11 +148,14 @@ class SQLiDetector(BaseDetector):
                             mutated_status=response.status_code,
                             baseline_length=len(baseline.text),
                             mutated_length=len(response.text),
+                            request_snapshot=f"GET {test_url}",
+                            response_snapshot=analyzer.snapshot_response(response),
                             reason=(
                                 "Database error signature matched the SQLi payload response."
                                 if has_error
                                 else "Payload caused both a status change and a large response-size anomaly."
                             ),
+                            validation_state=str(validation["validation_state"]),
                         )
                     )
                     break
@@ -198,7 +208,12 @@ class SQLiDetector(BaseDetector):
                     has_error = analyzer.has_error_signature(response)
                     has_status_anomaly = analyzer.has_status_anomaly(baseline, response)
                     has_length_anomaly = analyzer.has_length_anomaly(baseline, response)
+                    anomaly_score = analyzer.anomaly_score(baseline, response)
                     if has_error or (has_status_anomaly and has_length_anomaly and response.status_code >= 500):
+                        validation = analyzer.classify_confidence(
+                            error_signature=has_error,
+                            anomaly_score=anomaly_score,
+                        )
                         findings.append(
                             Finding(
                                 detector=self.name,
@@ -206,7 +221,9 @@ class SQLiDetector(BaseDetector):
                                 url=action,
                                 evidence=f"POST form field {param} produced an anomalous response under SQLi probing.",
                                 recommendation="Sanitize server-side form inputs and use bound query parameters.",
-                                confidence="high" if has_error else "medium",
+                                confidence=str(validation["confidence"]),
+                                confidence_score=float(validation["confidence_score"]),
+                                validation_signals=list(validation["signals"]),
                                 parameter=param,
                                 payload=payload,
                                 method="post",
@@ -215,11 +232,14 @@ class SQLiDetector(BaseDetector):
                                 mutated_status=response.status_code,
                                 baseline_length=len(baseline.text),
                                 mutated_length=len(response.text),
+                                request_snapshot=f"POST {action} body[{param}]={payload}",
+                                response_snapshot=analyzer.snapshot_response(response),
                                 reason=(
                                     "Database error signature matched the SQLi payload response."
                                     if has_error
                                     else "Payload caused both a status change and a large response-size anomaly."
                                 ),
+                                validation_state=str(validation["validation_state"]),
                             )
                         )
                         break
@@ -270,13 +290,19 @@ class SQLiDetector(BaseDetector):
                 continue
             if not analyzer.has_boolean_response_delta(baseline, truthy_response, falsy_response):
                 continue
+            validation = analyzer.classify_confidence(
+                boolean_delta=True,
+                anomaly_score=max(analyzer.anomaly_score(baseline, truthy_response), analyzer.anomaly_score(baseline, falsy_response)),
+            )
             return Finding(
                 detector=self.name,
                 severity="high",
                 url=baseline_url,
                 evidence=f"Boolean SQLi behavior detected on query parameter {param}; truthy and falsy payloads produced divergent responses.",
                 recommendation="Use parameterized queries and enforce strict server-side input validation.",
-                confidence="high",
+                confidence=str(validation["confidence"]),
+                confidence_score=float(validation["confidence_score"]),
+                validation_signals=list(validation["signals"]),
                 parameter=param,
                 payload=f"{truthy_payload} | {falsy_payload}",
                 method="get",
@@ -285,10 +311,13 @@ class SQLiDetector(BaseDetector):
                 mutated_status=truthy_response.status_code,
                 baseline_length=len(baseline.text),
                 mutated_length=len(truthy_response.text),
+                request_snapshot=f"GET {truthy_url}",
+                response_snapshot=analyzer.snapshot_response(truthy_response),
                 reason=(
                     f"Truthy/falsy payload pair caused response divergence. "
                     f"Truthy length={len(truthy_response.text)}, falsy length={len(falsy_response.text)}."
                 ),
+                validation_state=str(validation["validation_state"]),
             )
         return None
 
@@ -309,13 +338,19 @@ class SQLiDetector(BaseDetector):
                 continue
             if not analyzer.has_time_delay_anomaly(baseline, response):
                 continue
+            validation = analyzer.classify_confidence(
+                time_delay=True,
+                anomaly_score=analyzer.anomaly_score(baseline, response),
+            )
             return Finding(
                 detector=self.name,
                 severity="high",
                 url=test_url,
                 evidence=f"Time-based SQLi signal detected on query parameter {param}; delayed payload increased response time significantly.",
                 recommendation="Block SQL meta-characters at validation boundaries and use prepared statements.",
-                confidence="high",
+                confidence=str(validation["confidence"]),
+                confidence_score=float(validation["confidence_score"]),
+                validation_signals=list(validation["signals"]),
                 parameter=param,
                 payload=payload,
                 method="get",
@@ -324,10 +359,13 @@ class SQLiDetector(BaseDetector):
                 mutated_status=response.status_code,
                 baseline_length=len(baseline.text),
                 mutated_length=len(response.text),
+                request_snapshot=f"GET {test_url}",
+                response_snapshot=analyzer.snapshot_response(response),
                 reason=(
                     f"Observed latency delta of {round(response.elapsed_ms - baseline.elapsed_ms, 2)} ms "
                     "after injecting a DB sleep payload."
                 ),
+                validation_state=str(validation["validation_state"]),
             )
         return None
 
@@ -353,13 +391,19 @@ class SQLiDetector(BaseDetector):
                 continue
             if not analyzer.has_boolean_response_delta(baseline, truthy_response, falsy_response):
                 continue
+            validation = analyzer.classify_confidence(
+                boolean_delta=True,
+                anomaly_score=max(analyzer.anomaly_score(baseline, truthy_response), analyzer.anomaly_score(baseline, falsy_response)),
+            )
             return Finding(
                 detector=self.name,
                 severity="high",
                 url=action,
                 evidence=f"Boolean SQLi behavior detected on form field {param}; truthy/falsy SQL conditions altered form response content.",
                 recommendation="Use parameterized SQL for form processing and centralize server-side input validation.",
-                confidence="high",
+                confidence=str(validation["confidence"]),
+                confidence_score=float(validation["confidence_score"]),
+                validation_signals=list(validation["signals"]),
                 parameter=param,
                 payload=f"{truthy_payload} | {falsy_payload}",
                 method="post",
@@ -368,10 +412,13 @@ class SQLiDetector(BaseDetector):
                 mutated_status=truthy_response.status_code,
                 baseline_length=len(baseline.text),
                 mutated_length=len(truthy_response.text),
+                request_snapshot=f"POST {action} body[{param}]={truthy_payload}",
+                response_snapshot=analyzer.snapshot_response(truthy_response),
                 reason=(
                     f"Truthy/falsy payload pair caused response divergence. "
                     f"Truthy length={len(truthy_response.text)}, falsy length={len(falsy_response.text)}."
                 ),
+                validation_state=str(validation["validation_state"]),
             )
         return None
 
@@ -394,13 +441,19 @@ class SQLiDetector(BaseDetector):
                 continue
             if not analyzer.has_time_delay_anomaly(baseline, response):
                 continue
+            validation = analyzer.classify_confidence(
+                time_delay=True,
+                anomaly_score=analyzer.anomaly_score(baseline, response),
+            )
             return Finding(
                 detector=self.name,
                 severity="high",
                 url=action,
                 evidence=f"Time-based SQLi signal detected on form field {param}; delay payload produced a significant response lag.",
                 recommendation="Use prepared statements and reject suspicious SQL control input in form fields.",
-                confidence="high",
+                confidence=str(validation["confidence"]),
+                confidence_score=float(validation["confidence_score"]),
+                validation_signals=list(validation["signals"]),
                 parameter=param,
                 payload=payload,
                 method="post",
@@ -409,9 +462,12 @@ class SQLiDetector(BaseDetector):
                 mutated_status=response.status_code,
                 baseline_length=len(baseline.text),
                 mutated_length=len(response.text),
+                request_snapshot=f"POST {action} body[{param}]={payload}",
+                response_snapshot=analyzer.snapshot_response(response),
                 reason=(
                     f"Observed latency delta of {round(response.elapsed_ms - baseline.elapsed_ms, 2)} ms "
                     "after injecting a DB sleep payload."
                 ),
+                validation_state=str(validation["validation_state"]),
             )
         return None
