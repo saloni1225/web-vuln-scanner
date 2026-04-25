@@ -49,3 +49,26 @@ pytest
 ```
 
 Only scan systems you own or have explicit permission to test.
+# Web Vulnerability Scanner
+
+## Features
+- SQL Injection detection
+- XSS detection
+- Automated crawling
+- Real-time dashboard
+
+## Tech Stack
+- FastAPI
+- React
+- Docker
+
+## How to Run
+1. Backend:
+   uvicorn backend.app:app --reload
+
+2. Frontend:
+   npm install
+   npm run dev
+
+3. Juice Shop:
+   docker compose up -d
