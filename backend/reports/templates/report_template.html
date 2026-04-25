@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Scan Report</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 32px; color: #172033; }
+      table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+      th, td { border: 1px solid #d7dce5; padding: 10px; text-align: left; }
+      th { background: #eef2f7; }
+    </style>
+  </head>
+  <body>
+    <h1>Scan Report</h1>
+    <p><strong>Target:</strong> {{ scan.target_url }}</p>
+    <p><strong>Scan ID:</strong> {{ scan.scan_id }}</p>
+    <p><strong>Pages:</strong> {{ scan.summary.page_count }} | <strong>Forms:</strong> {{ scan.summary.form_count }} | <strong>Findings:</strong> {{ scan.summary.finding_count }}</p>
+    <h2>Detector Timings</h2>
+    <table>
+      <thead>
+        <tr><th>Detector</th><th>Elapsed (ms)</th><th>Findings</th></tr>
+      </thead>
+      <tbody>
+        {% for timing in scan.detector_timings %}
+        <tr>
+          <td>{{ timing.detector }}</td>
+          <td>{{ timing.elapsed_ms }}</td>
+          <td>{{ timing.finding_count }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3">No detector timing data recorded.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <table>
+      <thead>
+        <tr><th>Detector</th><th>Severity</th><th>Confidence</th><th>Method</th><th>Parameter</th><th>URL</th><th>Evidence</th><th>Recommendation</th></tr>
+      </thead>
+      <tbody>
+        {% for finding in scan.findings %}
+        <tr>
+          <td>{{ finding.detector }}</td>
+          <td>{{ finding.severity }}</td>
+          <td>{{ finding.confidence }}</td>
+          <td>{{ finding.method }}</td>
+          <td>{{ finding.parameter or "-" }}</td>
+          <td>{{ finding.url }}</td>
+          <td>{{ finding.evidence }}</td>
+          <td>{{ finding.recommendation }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8">No findings recorded.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </body>
+</html>
