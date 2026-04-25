@@ -45,8 +45,9 @@ class ResponseAnalyzer:
         truthy_delta = abs(truthy_length - baseline_length) / baseline_length
         falsy_delta = abs(falsy_length - baseline_length) / baseline_length
         truthy_falsy_delta = abs(truthy_length - falsy_length) / baseline_length
+        status_split = truthy.status_code != falsy.status_code
         statuses_stable = truthy.status_code < 500 and falsy.status_code < 500
-        return statuses_stable and truthy_falsy_delta >= ratio and truthy_delta < falsy_delta
+        return status_split or (statuses_stable and truthy_falsy_delta >= ratio and abs(truthy_delta - falsy_delta) >= 0.08)
 
     def has_time_delay_anomaly(
         self,
@@ -77,3 +78,33 @@ class ResponseAnalyzer:
             "dangerous": bool(dangerous_contexts),
             "encoded_only": contexts == ["encoded"],
         }
+
+    def summarize_response_diff(self, baseline: HttpResponse, candidate: HttpResponse) -> dict[str, object]:
+        baseline_length = len(baseline.text)
+        candidate_length = len(candidate.text)
+        delta = candidate_length - baseline_length
+        ratio = round(abs(delta) / max(1, baseline_length), 3)
+        changed_headers = sorted(
+            {
+                key.lower()
+                for key in set(baseline.headers) | set(candidate.headers)
+                if baseline.headers.get(key) != candidate.headers.get(key)
+            }
+        )
+        return {
+            "status_changed": baseline.status_code != candidate.status_code,
+            "length_delta": delta,
+            "length_ratio": ratio,
+            "latency_delta_ms": round(candidate.elapsed_ms - baseline.elapsed_ms, 2),
+            "changed_headers": changed_headers[:8],
+        }
+
+    def anomaly_score(self, baseline: HttpResponse, candidate: HttpResponse) -> float:
+        diff = self.summarize_response_diff(baseline, candidate)
+        score = 0.0
+        if diff["status_changed"]:
+            score += 0.45
+        score += min(0.35, float(diff["length_ratio"]) * 0.7)
+        latency_delta = max(0.0, float(diff["latency_delta_ms"]))
+        score += min(0.2, latency_delta / 5000)
+        return round(min(1.0, score), 2)

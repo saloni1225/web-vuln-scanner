@@ -1,0 +1,40 @@
+{
+  "detectors": [
+    {
+      "name": "sqli",
+      "module": "backend.detection.sqli_detector",
+      "class": "SQLiDetector",
+      "enabled": true,
+      "category": "injection",
+      "description": "Tests query parameters, forms, and API-like inputs for error-based, boolean-based, and time-delay SQL injection signals.",
+      "supports": ["query", "form", "api"]
+    },
+    {
+      "name": "xss",
+      "module": "backend.detection.xss_detector",
+      "class": "XSSDetector",
+      "enabled": true,
+      "category": "client-side",
+      "description": "Checks reflected, DOM-rendered, and persistence-oriented XSS indicators across common input surfaces.",
+      "supports": ["query", "form", "api", "dom"]
+    },
+    {
+      "name": "csrf",
+      "module": "backend.detection.csrf_detector",
+      "class": "CsrfDetector",
+      "enabled": true,
+      "category": "workflow",
+      "description": "Flags state-changing forms and endpoints that appear to lack anti-CSRF protections.",
+      "supports": ["form"]
+    },
+    {
+      "name": "auth_bypass",
+      "module": "backend.detection.auth_bypass",
+      "class": "AuthBypassDetector",
+      "enabled": true,
+      "category": "authorization",
+      "description": "Looks for privileged or admin-style resources that are reachable without expected access controls.",
+      "supports": ["page", "api"]
+    }
+  ]
+}

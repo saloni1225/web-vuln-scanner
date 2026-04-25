@@ -19,3 +19,4 @@ backend/reports/exports/*.html
 venv/
 .venv/
 __pycache__/
+.env

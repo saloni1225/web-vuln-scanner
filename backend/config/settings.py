@@ -13,10 +13,17 @@ class Settings(BaseSettings):
     max_depth: int = 1
     max_pages: int = 25
     max_workers: int = 8
+    default_rate_limit_per_second: float = 3.0
+    minimum_rate_limit_per_second: float = 0.5
+    enforce_authorization_for_external: bool = True
     enable_playwright_crawl: bool = True
+    enable_api_discovery: bool = True
+    enable_graphql_discovery: bool = True
+    enable_behavioral_analysis: bool = True
     playwright_timeout_ms: int = 10000
     playwright_render_wait_ms: int = 1200
     max_script_bundles: int = 6
+    max_api_candidates: int = 30
     user_agent: str = "AdaptiveWebVulnScanner/0.1"
     database_url: str = f"sqlite:///{ROOT_DIR / 'scanner.db'}"
     cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]

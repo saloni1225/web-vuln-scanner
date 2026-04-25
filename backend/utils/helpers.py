@@ -6,9 +6,13 @@ def normalize_url(url: str) -> str:
     return parsed.geturl().rstrip("/")
 
 
-def build_target_advisory(url: str) -> dict[str, object]:
+def is_private_host(url: str) -> bool:
     host = urlparse(url).hostname or ""
-    is_local = host in {"127.0.0.1", "localhost"} or host.startswith("192.168.") or host.startswith("10.")
+    return host in {"127.0.0.1", "localhost"} or host.startswith("192.168.") or host.startswith("10.") or host.startswith("172.16.")
+
+
+def build_target_advisory(url: str) -> dict[str, object]:
+    is_local = is_private_host(url)
     if is_local:
         return {
             "safe_for_demo": True,

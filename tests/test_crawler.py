@@ -1,4 +1,4 @@
-from backend.core.crawler import LinkParser, canonicalize_url, extract_candidates_from_text
+from backend.core.crawler import LinkParser, canonicalize_url, classify_endpoint_type, extract_candidates_from_text
 
 
 def test_link_parser_collects_links_and_forms():
@@ -19,3 +19,8 @@ def test_extract_candidates_from_script_like_text():
     assert "/#/search" in candidates
     assert "/rest/products/search" in candidates
     assert "/api/Products" in candidates
+
+
+def test_classify_endpoint_type_marks_graphql():
+    assert classify_endpoint_type("http://127.0.0.1:3000/graphql") == "graphql"
+    assert classify_endpoint_type("http://127.0.0.1:3000/rest/products") == "api"

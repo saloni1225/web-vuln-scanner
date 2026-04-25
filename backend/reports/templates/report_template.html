@@ -4,27 +4,97 @@
     <meta charset="utf-8" />
     <title>Scan Report</title>
     <style>
-      body { font-family: Arial, sans-serif; margin: 32px; color: #172033; }
-      table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-      th, td { border: 1px solid #d7dce5; padding: 10px; text-align: left; }
+      body { font-family: Arial, sans-serif; margin: 32px; color: #172033; background: #f4f6fb; }
+      .hero, .section, .finding-card { background: white; border-radius: 18px; padding: 20px; margin-bottom: 20px; box-shadow: 0 12px 32px rgba(29, 41, 77, 0.08); }
+      .hero-grid, .summary-grid, .registry-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+      .pill { display: inline-block; padding: 4px 10px; border-radius: 999px; background: #e8eefc; color: #3654b3; font-size: 12px; }
+      .metric { border: 1px solid #e2e7f2; border-radius: 14px; padding: 12px; }
+      .metric strong, .metric span { display: block; }
+      table { width: 100%; border-collapse: collapse; margin-top: 16px; background: white; }
+      th, td { border: 1px solid #d7dce5; padding: 10px; text-align: left; vertical-align: top; }
       th { background: #eef2f7; }
+      code { white-space: pre-wrap; word-break: break-word; background: #f5f7fc; padding: 2px 6px; border-radius: 8px; }
+      .mini-list { margin: 8px 0 0; padding-left: 18px; }
+      @media print {
+        body { background: white; margin: 16px; }
+        .hero, .section, .finding-card { box-shadow: none; border: 1px solid #d7dce5; }
+      }
     </style>
   </head>
   <body>
-    <h1>Scan Report</h1>
-    <p><strong>Target:</strong> {{ scan.target_url }}</p>
-    <p><strong>Scan ID:</strong> {{ scan.scan_id }}</p>
-    <p><strong>Pages:</strong> {{ scan.summary.page_count }} | <strong>Forms:</strong> {{ scan.summary.form_count }} | <strong>Findings:</strong> {{ scan.summary.finding_count }}</p>
-    <p>
-      <strong>Severity split:</strong>
-      High {{ scan.summary.high_severity_count }},
-      Medium {{ scan.summary.medium_severity_count }},
-      Low {{ scan.summary.low_severity_count or 0 }}
-      {% if scan.auth_used %}
-      | <strong>Authenticated context:</strong> yes
-      {% endif %}
-    </p>
-    <h2>Detector Timings</h2>
+    <section class="hero">
+      <h1>Adaptive Web Vulnerability Scan Report</h1>
+      <p><strong>Target:</strong> {{ scan.target_url }}</p>
+      <p><strong>Scan ID:</strong> {{ scan.scan_id }}</p>
+      <div class="hero-grid">
+        <div class="metric"><span>Pages</span><strong>{{ scan.summary.page_count }}</strong></div>
+        <div class="metric"><span>Forms</span><strong>{{ scan.summary.form_count }}</strong></div>
+        <div class="metric"><span>Endpoints</span><strong>{{ scan.summary.endpoint_count }}</strong></div>
+        <div class="metric"><span>Findings</span><strong>{{ scan.summary.finding_count }}</strong></div>
+        <div class="metric"><span>API endpoints</span><strong>{{ scan.summary.api_endpoint_count or 0 }}</strong></div>
+        <div class="metric"><span>GraphQL endpoints</span><strong>{{ scan.summary.graphql_endpoint_count or 0 }}</strong></div>
+        <div class="metric"><span>Average anomaly</span><strong>{{ scan.behavioral_summary.average_anomaly_score or 0 }}</strong></div>
+        <div class="metric"><span>Authenticated context</span><strong>{% if scan.auth_used %}Yes{% else %}No{% endif %}</strong></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Scan Profile</h2>
+      <div class="summary-grid">
+        <div class="metric">
+          <span>Detectors</span>
+          <strong>{{ (scan.scan_options.detector_names or [])|join(", ") or "default" }}</strong>
+        </div>
+        <div class="metric">
+          <span>API fuzzing</span>
+          <strong>{% if scan.scan_options.enable_api_fuzzing %}Enabled{% else %}Disabled{% endif %}</strong>
+        </div>
+        <div class="metric">
+          <span>GraphQL checks</span>
+          <strong>{% if scan.scan_options.enable_graphql_checks %}Enabled{% else %}Disabled{% endif %}</strong>
+        </div>
+        <div class="metric">
+          <span>Rate limit / sec</span>
+          <strong>{{ scan.safety_controls.rate_limit_per_second }}</strong>
+        </div>
+      </div>
+      <p>
+        <strong>Severity split:</strong>
+        High {{ scan.summary.high_severity_count }},
+        Medium {{ scan.summary.medium_severity_count }},
+        Low {{ scan.summary.low_severity_count or 0 }}
+      </p>
+    </section>
+
+    <section class="section">
+      <h2>Detector Registry</h2>
+      <div class="registry-grid">
+        {% for detector in scan.detector_registry %}
+        <div class="metric">
+          <span>{{ detector.name }}</span>
+          <strong>{{ detector.category }}</strong>
+          <div class="pill">{{ (detector.supports or [])|join(" / ") }}</div>
+          <p>{{ detector.description }}</p>
+        </div>
+        {% else %}
+        <div class="metric"><strong>No detector metadata recorded.</strong></div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>API Surface</h2>
+      <div class="summary-grid">
+        <div class="metric"><span>API endpoints</span><strong>{{ scan.api_summary.api_endpoint_count or 0 }}</strong></div>
+        <div class="metric"><span>GraphQL endpoints</span><strong>{{ scan.api_summary.graphql_endpoint_count or 0 }}</strong></div>
+        <div class="metric"><span>Parameterized endpoints</span><strong>{{ scan.api_summary.parameterized_endpoint_count or 0 }}</strong></div>
+        <div class="metric"><span>Methods</span><strong>{{ (scan.api_summary.methods or [])|join(", ") or "none" }}</strong></div>
+      </div>
+      <p><strong>Discovery sources:</strong> {{ (scan.api_summary.top_sources or [])|join(", ") or "none" }}</p>
+    </section>
+
+    <section class="section">
+      <h2>Detector Timings</h2>
     <table>
       <thead>
         <tr><th>Detector</th><th>Elapsed (ms)</th><th>Findings</th></tr>
@@ -41,20 +111,52 @@
         {% endfor %}
       </tbody>
     </table>
+    </section>
+
+    <section class="section">
+      <h2>Findings</h2>
+      {% for finding in scan.findings %}
+      <article class="finding-card">
+        <h3>{{ finding.detector|upper }} | {{ finding.severity|upper }} | CVSS {{ finding.cvss_score or "-" }}</h3>
+        <p>{{ finding.evidence }}</p>
+        <ul class="mini-list">
+          <li><strong>URL:</strong> {{ finding.url }}</li>
+          <li><strong>Method:</strong> {{ finding.method }}</li>
+          <li><strong>Parameter:</strong> {{ finding.parameter or "-" }}</li>
+          <li><strong>Confidence:</strong> {{ finding.confidence }}</li>
+          <li><strong>Priority:</strong> {{ finding.remediation_priority or "-" }}</li>
+          <li><strong>Validation state:</strong> {{ finding.validation_state or "-" }}</li>
+          <li><strong>Reason:</strong> {{ finding.reason or "-" }}</li>
+          <li><strong>Request PoC:</strong> <code>{{ finding.poc or "-" }}</code></li>
+          <li><strong>Payload:</strong> <code>{{ finding.payload or "-" }}</code></li>
+          <li><strong>Response evidence:</strong> status {{ finding.baseline_status or "-" }} -> {{ finding.mutated_status or "-" }}, length {{ finding.baseline_length or "-" }} -> {{ finding.mutated_length or "-" }}</li>
+          <li><strong>Remediation:</strong> {{ finding.recommendation }}</li>
+        </ul>
+      </article>
+      {% else %}
+      <div class="metric"><strong>No findings recorded.</strong></div>
+      {% endfor %}
+    </section>
+
+    <section class="section">
+      <h2>Raw Findings Table</h2>
     <table>
       <thead>
-        <tr><th>Detector</th><th>Severity</th><th>Confidence</th><th>Method</th><th>Parameter</th><th>URL</th><th>Evidence</th><th>Technical reason</th><th>Status/Length diff</th><th>Recommendation</th></tr>
+        <tr><th>Detector</th><th>Severity</th><th>CVSS</th><th>Priority</th><th>Confidence</th><th>Method</th><th>Parameter</th><th>URL</th><th>Evidence</th><th>PoC</th><th>Technical reason</th><th>Status/Length diff</th><th>Recommendation</th></tr>
       </thead>
       <tbody>
         {% for finding in scan.findings %}
         <tr>
           <td>{{ finding.detector }}</td>
           <td>{{ finding.severity }}</td>
+          <td>{{ finding.cvss_score or "-" }}</td>
+          <td>{{ finding.remediation_priority or "-" }}</td>
           <td>{{ finding.confidence }}</td>
           <td>{{ finding.method }}</td>
           <td>{{ finding.parameter or "-" }}</td>
           <td>{{ finding.url }}</td>
           <td>{{ finding.evidence }}</td>
+          <td>{{ finding.poc or "-" }}</td>
           <td>{{ finding.reason or "-" }}</td>
           <td>
             {{ finding.baseline_status or "-" }} -> {{ finding.mutated_status or "-" }}
@@ -64,9 +166,10 @@
           <td>{{ finding.recommendation }}</td>
         </tr>
         {% else %}
-        <tr><td colspan="10">No findings recorded.</td></tr>
+        <tr><td colspan="13">No findings recorded.</td></tr>
         {% endfor %}
       </tbody>
     </table>
+    </section>
   </body>
 </html>

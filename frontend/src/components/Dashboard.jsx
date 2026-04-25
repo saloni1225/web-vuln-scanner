@@ -19,6 +19,10 @@ export function Dashboard({ result, progress, detectorTimings }) {
   const pages = summary.page_count ?? 0;
   const forms = summary.form_count ?? 0;
   const endpoints = summary.endpoint_count ?? 0;
+  const apiEndpoints = summary.api_endpoint_count ?? result?.api_summary?.api_endpoint_count ?? 0;
+  const graphqlEndpoints = summary.graphql_endpoint_count ?? result?.api_summary?.graphql_endpoint_count ?? 0;
+  const enabledDetectors = result?.detector_registry?.length ?? 0;
+  const anomalyScore = result?.behavioral_summary?.average_anomaly_score ?? 0;
   const surfaceTotal = Math.max(1, pages + forms + endpoints);
   const chartCircumference = 314;
   const endpointRatio = endpoints / surfaceTotal;
@@ -48,6 +52,16 @@ export function Dashboard({ result, progress, detectorTimings }) {
           <Timer />
           <span>Status</span>
           <strong>{result ? "Complete" : "Ready"}</strong>
+        </article>
+        <article className="metric-card">
+          <ActivitySquare />
+          <span>API / GraphQL</span>
+          <strong>{apiEndpoints} / {graphqlEndpoints}</strong>
+        </article>
+        <article className="metric-card">
+          <ShieldCheck />
+          <span>Detectors</span>
+          <strong>{enabledDetectors}</strong>
         </article>
       </section>
 
@@ -94,6 +108,7 @@ export function Dashboard({ result, progress, detectorTimings }) {
             <div className="scan-progress-meta">
               <div><span>Status</span><strong>{progress?.status ?? (result ? "completed" : "idle")}</strong></div>
               <div><span>Duration</span><strong>{result?.summary?.duration_ms ?? 0} ms</strong></div>
+              <div><span>Avg anomaly</span><strong>{anomalyScore}</strong></div>
             </div>
           </div>
         </article>
@@ -128,6 +143,8 @@ export function Dashboard({ result, progress, detectorTimings }) {
               <div><span>Pages</span><strong>{pages}</strong></div>
               <div><span>Forms</span><strong>{forms}</strong></div>
               <div><span>Endpoints</span><strong>{endpoints}</strong></div>
+              <div><span>API</span><strong>{apiEndpoints}</strong></div>
+              <div><span>GraphQL</span><strong>{graphqlEndpoints}</strong></div>
             </div>
           </div>
         </article>

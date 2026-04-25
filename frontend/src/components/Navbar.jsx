@@ -1,11 +1,17 @@
 import React from "react";
-import { Activity, FileText, Radar, Shield } from "lucide-react";
+import { Activity, FileText, Moon, Palette, Radar, Shield, Sun } from "lucide-react";
 
-export function Navbar({ page, onNavigate }) {
+export function Navbar({ page, onNavigate, theme, backgroundMode, onSelectBackgroundMode, onToggleTheme }) {
   const items = [
     ["home", Activity, "Overview"],
     ["scan", Radar, "Scan"],
     ["reports", FileText, "Reports"],
+  ];
+  const backgroundModes = [
+    ["grid", "Grid"],
+    ["soft", "Soft"],
+    ["aurora", "Aurora"],
+    ["ops", "Ops"],
   ];
 
   return (
@@ -20,8 +26,28 @@ export function Navbar({ page, onNavigate }) {
         </div>
       </div>
       <div className="nav-actions">
+        <div className="mode-switch" title="Background style">
+          <div className="mode-switch-label">
+            <Palette size={16} />
+            <span>Background</span>
+          </div>
+          <div className="mode-switch-options">
+            {backgroundModes.map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                className={backgroundMode === key ? "active" : ""}
+                onClick={() => onSelectBackgroundMode(key)}
+                title={label}
+              >
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
         {items.map(([key, Icon, label]) => (
           <button
+            type="button"
             key={key}
             className={page === key ? "active" : ""}
             onClick={() => onNavigate(key)}
@@ -31,6 +57,10 @@ export function Navbar({ page, onNavigate }) {
             <span>{label}</span>
           </button>
         ))}
+        <button type="button" className="theme-toggle" onClick={onToggleTheme} title="Toggle theme">
+          {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
+          <span>{theme === "light" ? "Dark" : "Light"}</span>
+        </button>
       </div>
     </nav>
   );

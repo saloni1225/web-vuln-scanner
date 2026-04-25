@@ -4,6 +4,8 @@ import { LoaderCircle, Play } from "lucide-react";
 export function ScanPanel({
   targetUrl,
   setTargetUrl,
+  jwtToken,
+  setJwtToken,
   authHeaderName,
   setAuthHeaderName,
   authHeaderValue,
@@ -12,10 +14,39 @@ export function ScanPanel({
   setAuthCookieName,
   authCookieValue,
   setAuthCookieValue,
+  loginUrl,
+  setLoginUrl,
+  usernameField,
+  setUsernameField,
+  passwordField,
+  setPasswordField,
+  username,
+  setUsername,
+  password,
+  setPassword,
+  rateLimitPerSecond,
+  setRateLimitPerSecond,
+  authorizationConfirmed,
+  setAuthorizationConfirmed,
+  domainAllowlist,
+  setDomainAllowlist,
+  availableDetectors,
+  selectedDetectors,
+  setSelectedDetectors,
+  enableApiFuzzing,
+  setEnableApiFuzzing,
+  enableGraphqlChecks,
+  setEnableGraphqlChecks,
   isScanning,
   onScan,
   progress,
 }) {
+  function toggleDetector(name) {
+    setSelectedDetectors((current) =>
+      current.includes(name) ? current.filter((item) => item !== name) : [...current, name]
+    );
+  }
+
   return (
     <form className="scan-panel" onSubmit={onScan}>
       <label htmlFor="target-url">Target URL</label>
@@ -50,6 +81,14 @@ export function ScanPanel({
           onChange={(event) => setAuthHeaderValue(event.target.value)}
         />
       </div>
+      <label htmlFor="jwt-token">JWT Token (optional)</label>
+      <input
+        id="jwt-token"
+        type="text"
+        value={jwtToken}
+        placeholder="eyJhbGciOi..."
+        onChange={(event) => setJwtToken(event.target.value)}
+      />
       <label htmlFor="auth-cookie-name">Session Cookie (optional)</label>
       <div className="target-row">
         <input
@@ -66,6 +105,105 @@ export function ScanPanel({
           placeholder="session-value"
           onChange={(event) => setAuthCookieValue(event.target.value)}
         />
+      </div>
+      <label htmlFor="login-url">Login Flow (optional)</label>
+      <div className="auth-grid">
+        <input
+          id="login-url"
+          type="url"
+          value={loginUrl}
+          placeholder="https://target.example/login"
+          onChange={(event) => setLoginUrl(event.target.value)}
+        />
+        <input
+          type="text"
+          value={usernameField}
+          placeholder="username field"
+          onChange={(event) => setUsernameField(event.target.value)}
+        />
+        <input
+          type="text"
+          value={passwordField}
+          placeholder="password field"
+          onChange={(event) => setPasswordField(event.target.value)}
+        />
+        <input
+          type="text"
+          value={username}
+          placeholder="username"
+          onChange={(event) => setUsername(event.target.value)}
+        />
+        <input
+          type="password"
+          value={password}
+          placeholder="password"
+          onChange={(event) => setPassword(event.target.value)}
+        />
+      </div>
+      <label htmlFor="rate-limit">Safety Controls</label>
+      <div className="target-row">
+        <input
+          id="rate-limit"
+          type="number"
+          min="0.5"
+          max="20"
+          step="0.5"
+          value={rateLimitPerSecond}
+          placeholder="Rate limit / second"
+          onChange={(event) => setRateLimitPerSecond(event.target.value)}
+        />
+        <input
+          type="text"
+          value={domainAllowlist}
+          placeholder="Domain allowlist, comma separated"
+          onChange={(event) => setDomainAllowlist(event.target.value)}
+        />
+      </div>
+      <label className="checkbox-row">
+        <input
+          type="checkbox"
+          checked={authorizationConfirmed}
+          onChange={(event) => setAuthorizationConfirmed(event.target.checked)}
+        />
+        <span>I confirm I own this target or have explicit authorization to test it.</span>
+      </label>
+      <div className="options-grid">
+        <div>
+          <label>Detector Plugins</label>
+          <div className="detector-chip-grid">
+            {availableDetectors.length ? (
+              availableDetectors.map((detector) => {
+                const active = selectedDetectors.includes(detector.name);
+                return (
+                  <button
+                    key={detector.name}
+                    type="button"
+                    className={`detector-chip ${active ? "active" : ""}`}
+                    onClick={() => toggleDetector(detector.name)}
+                  >
+                    <strong>{detector.name}</strong>
+                    <small>{detector.category}</small>
+                  </button>
+                );
+              })
+            ) : (
+              <div className="empty-inline">Loading detectors...</div>
+            )}
+          </div>
+        </div>
+        <div>
+          <label>API / GraphQL</label>
+          <div className="toggle-stack">
+            <label className="checkbox-row">
+              <input type="checkbox" checked={enableApiFuzzing} onChange={(event) => setEnableApiFuzzing(event.target.checked)} />
+              <span>Enable API fuzzing</span>
+            </label>
+            <label className="checkbox-row">
+              <input type="checkbox" checked={enableGraphqlChecks} onChange={(event) => setEnableGraphqlChecks(event.target.checked)} />
+              <span>Enable GraphQL checks</span>
+            </label>
+          </div>
+        </div>
       </div>
       <div className="inline-progress">
         <div className="inline-progress-track">

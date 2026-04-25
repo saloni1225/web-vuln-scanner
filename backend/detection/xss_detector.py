@@ -84,6 +84,17 @@ class XSSDetector(BaseDetector):
                 deduped[key] = finding
         return list(deduped.values())
 
+    @staticmethod
+    async def _submit_body(
+        request_handler: RequestHandler,
+        action: str,
+        body: dict[str, str],
+        content_type: str,
+    ):
+        if content_type == "json":
+            return await request_handler.post_json(action, body)
+        return await request_handler.post(action, body)
+
     async def detect(
         self,
         target_url: str,
@@ -178,6 +189,7 @@ class XSSDetector(BaseDetector):
             method = str(form.get("method", "get")).lower()
             source_page = str(form.get("page", action))
             inputs = [name for name in form.get("inputs", []) if name]
+            content_type = str(form.get("content_type", "form")).lower()
             if method != "post" or not action or not inputs:
                 continue
             for param in inputs:
@@ -185,14 +197,14 @@ class XSSDetector(BaseDetector):
                     continue
                 body = {name: "baseline" for name in inputs}
                 try:
-                    baseline_response = await request_handler.post(action, body)
+                    baseline_response = await self._submit_body(request_handler, action, body, content_type)
                 except Exception:
                     continue
                 for payload in payloads:
                     mutated_body = {name: "baseline" for name in inputs}
                     mutated_body[param] = payload
                     try:
-                        response = await request_handler.post(action, mutated_body)
+                        response = await self._submit_body(request_handler, action, mutated_body, content_type)
                     except Exception:
                         continue
                     reflection = analyzer.classify_reflection_context(response, marker)

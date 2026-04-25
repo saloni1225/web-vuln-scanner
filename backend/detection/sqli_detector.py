@@ -68,6 +68,17 @@ class SQLiDetector(BaseDetector):
                 deduped[key] = finding
         return list(deduped.values())
 
+    @staticmethod
+    async def _submit_body(
+        request_handler: RequestHandler,
+        action: str,
+        body: dict[str, str],
+        content_type: str,
+    ):
+        if content_type == "json":
+            return await request_handler.post_json(action, body)
+        return await request_handler.post(action, body)
+
     async def detect(
         self,
         target_url: str,
@@ -168,11 +179,12 @@ class SQLiDetector(BaseDetector):
             action = str(form.get("action", ""))
             method = str(form.get("method", "get")).lower()
             inputs = [name for name in form.get("inputs", []) if name]
+            content_type = str(form.get("content_type", "form")).lower()
             if method != "post" or not action or not inputs:
                 continue
             safe_baseline = {name: "baseline" for name in inputs}
             try:
-                baseline = await request_handler.post(action, safe_baseline)
+                baseline = await self._submit_body(request_handler, action, safe_baseline, content_type)
             except Exception:
                 continue
             for param in inputs:
@@ -180,7 +192,7 @@ class SQLiDetector(BaseDetector):
                     body = {name: "baseline" for name in inputs}
                     body[param] = payload
                     try:
-                        response = await request_handler.post(action, body)
+                        response = await self._submit_body(request_handler, action, body, content_type)
                     except Exception:
                         continue
                     has_error = analyzer.has_error_signature(response)
@@ -219,6 +231,7 @@ class SQLiDetector(BaseDetector):
                         inputs=inputs,
                         baseline=baseline,
                         param=param,
+                        content_type=content_type,
                     )
                     if boolean_finding:
                         findings.append(boolean_finding)
@@ -230,6 +243,7 @@ class SQLiDetector(BaseDetector):
                         inputs=inputs,
                         baseline=baseline,
                         param=param,
+                        content_type=content_type,
                     )
                     if time_finding:
                         findings.append(time_finding)
@@ -325,6 +339,7 @@ class SQLiDetector(BaseDetector):
         inputs: list[str],
         baseline,
         param: str,
+        content_type: str,
     ) -> Finding | None:
         for truthy_payload, falsy_payload in self.BOOLEAN_TEST_PAIRS:
             truthy_body = {name: "baseline" for name in inputs}
@@ -332,8 +347,8 @@ class SQLiDetector(BaseDetector):
             truthy_body[param] = truthy_payload
             falsy_body[param] = falsy_payload
             try:
-                truthy_response = await request_handler.post(action, truthy_body)
-                falsy_response = await request_handler.post(action, falsy_body)
+                truthy_response = await self._submit_body(request_handler, action, truthy_body, content_type)
+                falsy_response = await self._submit_body(request_handler, action, falsy_body, content_type)
             except Exception:
                 continue
             if not analyzer.has_boolean_response_delta(baseline, truthy_response, falsy_response):
@@ -368,12 +383,13 @@ class SQLiDetector(BaseDetector):
         inputs: list[str],
         baseline,
         param: str,
+        content_type: str,
     ) -> Finding | None:
         for payload in self.TIME_DELAY_PAYLOADS:
             body = {name: "baseline" for name in inputs}
             body[param] = payload
             try:
-                response = await request_handler.post(action, body)
+                response = await self._submit_body(request_handler, action, body, content_type)
             except Exception:
                 continue
             if not analyzer.has_time_delay_anomaly(baseline, response):

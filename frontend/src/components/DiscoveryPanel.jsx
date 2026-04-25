@@ -5,6 +5,7 @@ export function DiscoveryPanel({ result }) {
   const pages = result?.page_details ?? [];
   const forms = result?.forms ?? [];
   const endpoints = result?.endpoints ?? [];
+  const apiSummary = result?.api_summary ?? {};
 
   return (
     <section className="discovery-grid">
@@ -66,13 +67,18 @@ export function DiscoveryPanel({ result }) {
           </div>
           <span>{endpoints.length}</span>
         </header>
+        <div className="discovery-summary-strip">
+          <small>API {apiSummary.api_endpoint_count ?? 0}</small>
+          <small>GraphQL {apiSummary.graphql_endpoint_count ?? 0}</small>
+          <small>Parameterized {apiSummary.parameterized_endpoint_count ?? 0}</small>
+        </div>
         <div className="panel-list">
           {endpoints.length ? (
             endpoints.map((endpoint, index) => (
               <article key={`${endpoint.type}-${endpoint.url}-${index}`} className="panel-row">
                 <div>
                   <strong>{endpoint.url}</strong>
-                  <small>{String(endpoint.method).toUpperCase()} · {endpoint.type}</small>
+                  <small>{String(endpoint.method).toUpperCase()} · {endpoint.type} · {endpoint.source}</small>
                 </div>
                 <small>
                   {(endpoint.query_params ?? endpoint.inputs ?? []).join(", ") || "No parameters discovered"}

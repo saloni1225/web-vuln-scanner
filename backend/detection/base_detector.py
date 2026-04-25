@@ -24,6 +24,10 @@ class Finding:
     input_location: str | None = None
     reflection_context: str | None = None
     dom_observation: str | None = None
+    cvss_score: float | None = None
+    remediation_priority: str | None = None
+    poc: str | None = None
+    validation_state: str | None = None
 
     def to_dict(self) -> dict[str, str | None]:
         return asdict(self)

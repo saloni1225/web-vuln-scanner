@@ -15,6 +15,8 @@ COMMON_ENDPOINT_CANDIDATES = [
     {"path": "/rest/products"},
     {"path": "/rest/products/search?q=apple", "query_params": ["q"]},
     {"path": "/rest/user/login", "method": "post", "inputs": ["email", "password"]},
+    {"path": "/graphql", "method": "post", "inputs": ["query", "variables"], "type": "graphql"},
+    {"path": "/api/graphql", "method": "post", "inputs": ["query", "variables"], "type": "graphql"},
 ]
 
 
@@ -44,6 +46,15 @@ def guess_query_params(url: str) -> list[str]:
     if "user" in lowered and "id" in lowered:
         guessed.add("id")
     return sorted(guessed)
+
+
+def classify_endpoint_type(url: str) -> str:
+    lowered = url.lower()
+    if "graphql" in lowered:
+        return "graphql"
+    if any(token in lowered for token in ("/api", "/rest", ".json")):
+        return "api"
+    return "page"
 
 
 class LinkParser(HTMLParser):
@@ -97,12 +108,14 @@ class Crawler:
         await self._crawl_queue(queue, seen, parsed_start, pages, page_details, forms, endpoints, script_sources)
         await self._probe_common_endpoints(start_url, parsed_start, endpoints, forms)
         await self._crawl_dynamic(start_url, parsed_start, pages, page_details, forms, endpoints)
+        api_summary = self._summarize_api_surface(endpoints)
 
         return {
             "pages": self._dedupe_strings(pages),
             "page_details": self._dedupe_dicts(page_details, "url"),
             "forms": self._dedupe_forms(forms),
             "endpoints": self._dedupe_endpoints(endpoints),
+            "api_summary": api_summary,
         }
 
     async def _crawl_queue(
@@ -181,13 +194,25 @@ class Crawler:
                 continue
             method = str(candidate.get("method", "get")).lower()
             try:
-                response = await self.request_handler.get(candidate_url) if method == "get" else await self.request_handler.head(candidate_url)
+                if method == "get":
+                    response = await self.request_handler.get(candidate_url)
+                else:
+                    response = await self.request_handler.options(candidate_url)
             except Exception:
                 continue
             if response.status_code >= 500:
                 continue
             query_params = list(candidate.get("query_params", [])) or guess_query_params(candidate_url)
-            self._register_endpoint(candidate_url, method, "common-probe", endpoints, query_params, response.status_code)
+            self._register_endpoint(
+                candidate_url,
+                method,
+                "common-probe",
+                endpoints,
+                query_params,
+                response.status_code,
+                endpoint_type=str(candidate.get("type") or classify_endpoint_type(candidate_url)),
+                content_type=response.headers.get("content-type"),
+            )
             if method == "post":
                 forms.append(
                     {
@@ -195,6 +220,7 @@ class Crawler:
                         "method": "post",
                         "inputs": list(candidate.get("inputs", [])),
                         "page": start_url,
+                        "content_type": "json" if candidate.get("type") == "graphql" else "form",
                     }
                 )
 
@@ -274,7 +300,14 @@ class Crawler:
                     normalized = canonicalize_url(request_url)
                     if self._same_origin(normalized, parsed_start):
                         query_params = [name for name, _ in parse_qsl(urlparse(normalized).query)] or guess_query_params(normalized)
-                        self._register_endpoint(normalized, "get", "playwright-network", endpoints, query_params)
+                        self._register_endpoint(
+                            normalized,
+                            "get",
+                            "playwright-network",
+                            endpoints,
+                            query_params,
+                            endpoint_type=classify_endpoint_type(normalized),
+                        )
 
                 await context.close()
                 await browser.close()
@@ -321,9 +354,17 @@ class Crawler:
             "action": action,
             "inputs": normalized_inputs,
             "source": source,
+            "content_type": str(form.get("content_type", "form")),
         }
         forms.append(form_entry)
-        self._register_endpoint(action, str(form.get("method", "get")).lower(), source, endpoints, normalized_inputs)
+        self._register_endpoint(
+            action,
+            str(form.get("method", "get")).lower(),
+            source,
+            endpoints,
+            normalized_inputs,
+            endpoint_type=classify_endpoint_type(action),
+        )
 
     def _register_endpoint(
         self,
@@ -333,16 +374,19 @@ class Crawler:
         endpoints: list[dict[str, object]],
         params: list[str] | None = None,
         status_code: int | None = None,
+        endpoint_type: str | None = None,
+        content_type: str | None = None,
     ) -> None:
         normalized = canonicalize_url(url)
         endpoints.append(
             {
-                "type": "api" if "/api" in normalized or "/rest" in normalized else "page",
+                "type": endpoint_type or classify_endpoint_type(normalized),
                 "url": normalized,
                 "method": method,
                 "source": source,
                 "query_params": params or [],
                 "status_code": status_code,
+                "content_type": content_type or "",
             }
         )
 
@@ -382,3 +426,17 @@ class Crawler:
             if current is None or len(value.get("query_params", [])) > len(current.get("query_params", [])):
                 deduped[endpoint_key] = value
         return list(deduped.values())
+
+    @staticmethod
+    def _summarize_api_surface(endpoints: list[dict[str, object]]) -> dict[str, object]:
+        api_endpoints = [item for item in endpoints if str(item.get("type")) == "api"]
+        graphql_endpoints = [item for item in endpoints if str(item.get("type")) == "graphql"]
+        methods = sorted({str(item.get("method", "get")).upper() for item in endpoints})
+        parameterized = sum(1 for item in endpoints if item.get("query_params"))
+        return {
+            "api_endpoint_count": len(api_endpoints),
+            "graphql_endpoint_count": len(graphql_endpoints),
+            "parameterized_endpoint_count": parameterized,
+            "methods": methods,
+            "top_sources": sorted({str(item.get("source", "crawler")) for item in endpoints}),
+        }
