@@ -27,11 +27,13 @@ class ScannerEngine:
         target_url: str,
         scan_id: str | None = None,
         progress_callback: ProgressCallback | None = None,
+        auth_context: dict[str, object] | None = None,
     ) -> dict[str, object]:
         scan_id = scan_id or str(uuid.uuid4())
         started_at = datetime.now(timezone.utc).isoformat()
-        request_handler = RequestHandler()
+        request_handler = RequestHandler(auth=auth_context)
         try:
+            await self._ensure_target_reachable(target_url, request_handler, progress_callback)
             if progress_callback:
                 await progress_callback(
                     {
@@ -101,6 +103,7 @@ class ScannerEngine:
                 "finding_count": len(findings),
                 "high_severity_count": sum(1 for finding in findings if finding.severity == "high"),
                 "medium_severity_count": sum(1 for finding in findings if finding.severity == "medium"),
+                "low_severity_count": sum(1 for finding in findings if finding.severity == "low"),
                 "duration_ms": round((datetime.now(timezone.utc) - datetime.fromisoformat(started_at)).total_seconds() * 1000, 2),
             }
             result = {
@@ -116,6 +119,7 @@ class ScannerEngine:
                 "summary": summary,
                 "detector_timings": detector_timings,
                 "target_advisory": build_target_advisory(target_url),
+                "auth_used": bool(auth_context and (auth_context.get("headers") or auth_context.get("cookies"))),
             }
             save_scan(result)
             if progress_callback:
@@ -133,5 +137,48 @@ class ScannerEngine:
         finally:
             await request_handler.close()
 
-    def scan_sync(self, target_url: str) -> dict[str, object]:
-        return asyncio.run(self.scan(target_url))
+    async def _ensure_target_reachable(
+        self,
+        target_url: str,
+        request_handler: RequestHandler,
+        progress_callback: ProgressCallback | None = None,
+    ) -> None:
+        try:
+            response = await request_handler.get(target_url)
+        except Exception as exc:
+            if progress_callback:
+                await progress_callback(
+                    {
+                        "event": "scan_failed",
+                        "status": "failed",
+                        "progress": 100,
+                        "message": (
+                            f"Target is unreachable: {target_url}. "
+                            "Start the target app/container and retry."
+                        ),
+                    }
+                )
+            raise RuntimeError(
+                f"Target is unreachable: {target_url}. "
+                "Ensure Juice Shop (or your target app) is running before scanning."
+            ) from exc
+        if response.status_code >= 500:
+            if progress_callback:
+                await progress_callback(
+                    {
+                        "event": "scan_failed",
+                        "status": "failed",
+                        "progress": 100,
+                        "message": (
+                            f"Target responded with HTTP {response.status_code} at startup check. "
+                            "Resolve server-side errors and retry the scan."
+                        ),
+                    }
+                )
+            raise RuntimeError(
+                f"Target startup check failed with HTTP {response.status_code} for {target_url}. "
+                "Resolve server errors before scanning."
+            )
+
+    def scan_sync(self, target_url: str, auth_context: dict[str, object] | None = None) -> dict[str, object]:
+        return asyncio.run(self.scan(target_url, auth_context=auth_context))

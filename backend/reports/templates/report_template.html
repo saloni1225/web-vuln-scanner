@@ -15,6 +15,15 @@
     <p><strong>Target:</strong> {{ scan.target_url }}</p>
     <p><strong>Scan ID:</strong> {{ scan.scan_id }}</p>
     <p><strong>Pages:</strong> {{ scan.summary.page_count }} | <strong>Forms:</strong> {{ scan.summary.form_count }} | <strong>Findings:</strong> {{ scan.summary.finding_count }}</p>
+    <p>
+      <strong>Severity split:</strong>
+      High {{ scan.summary.high_severity_count }},
+      Medium {{ scan.summary.medium_severity_count }},
+      Low {{ scan.summary.low_severity_count or 0 }}
+      {% if scan.auth_used %}
+      | <strong>Authenticated context:</strong> yes
+      {% endif %}
+    </p>
     <h2>Detector Timings</h2>
     <table>
       <thead>
@@ -34,7 +43,7 @@
     </table>
     <table>
       <thead>
-        <tr><th>Detector</th><th>Severity</th><th>Confidence</th><th>Method</th><th>Parameter</th><th>URL</th><th>Evidence</th><th>Recommendation</th></tr>
+        <tr><th>Detector</th><th>Severity</th><th>Confidence</th><th>Method</th><th>Parameter</th><th>URL</th><th>Evidence</th><th>Technical reason</th><th>Status/Length diff</th><th>Recommendation</th></tr>
       </thead>
       <tbody>
         {% for finding in scan.findings %}
@@ -46,10 +55,16 @@
           <td>{{ finding.parameter or "-" }}</td>
           <td>{{ finding.url }}</td>
           <td>{{ finding.evidence }}</td>
+          <td>{{ finding.reason or "-" }}</td>
+          <td>
+            {{ finding.baseline_status or "-" }} -> {{ finding.mutated_status or "-" }}
+            /
+            {{ finding.baseline_length or "-" }} -> {{ finding.mutated_length or "-" }}
+          </td>
           <td>{{ finding.recommendation }}</td>
         </tr>
         {% else %}
-        <tr><td colspan="8">No findings recorded.</td></tr>
+        <tr><td colspan="10">No findings recorded.</td></tr>
         {% endfor %}
       </tbody>
     </table>

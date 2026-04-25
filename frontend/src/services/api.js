@@ -1,10 +1,14 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api";
 
-export async function startScan(targetUrl) {
+export async function startScan(targetUrl, auth = {}) {
   const response = await fetch(`${API_BASE_URL}/scan`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ target_url: targetUrl }),
+    body: JSON.stringify({
+      target_url: targetUrl,
+      auth_headers: auth.headers ?? {},
+      auth_cookies: auth.cookies ?? {},
+    }),
   });
   if (!response.ok) {
     let message = `API returned ${response.status}`;

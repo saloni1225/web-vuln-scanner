@@ -24,7 +24,10 @@ async def scan(request: ScanRequest) -> dict[str, object]:
     async def emit_progress(event: dict[str, object]) -> None:
         await scan_hub.broadcast_to_scan(scan_id, event)
 
-    result = await controller.start_scan(request, scan_id=scan_id, progress_callback=emit_progress)
+    try:
+        result = await controller.start_scan(request, scan_id=scan_id, progress_callback=emit_progress)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     result["report_path"] = controller.create_report(result)
     result["report_url"] = controller.create_report_url(result)
     return result

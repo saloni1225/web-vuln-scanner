@@ -96,6 +96,9 @@ export function ReportsPage() {
                 <div><span>Forms</span><strong>{selectedReport.summary?.form_count ?? 0}</strong></div>
                 <div><span>Endpoints</span><strong>{selectedReport.summary?.endpoint_count ?? 0}</strong></div>
                 <div><span>Duration</span><strong>{selectedReport.summary?.duration_ms ?? 0} ms</strong></div>
+                <div><span>High</span><strong>{selectedReport.summary?.high_severity_count ?? 0}</strong></div>
+                <div><span>Medium</span><strong>{selectedReport.summary?.medium_severity_count ?? 0}</strong></div>
+                <div><span>Low</span><strong>{selectedReport.summary?.low_severity_count ?? 0}</strong></div>
               </div>
               <a
                 className="report-link"

@@ -15,10 +15,20 @@ class HttpResponse:
 
 
 class RequestHandler:
-    def __init__(self) -> None:
+    def __init__(self, auth: dict[str, object] | None = None) -> None:
+        headers = {"User-Agent": settings.user_agent}
+        cookies: dict[str, str] = {}
+        auth = auth or {}
+        for key, value in (auth.get("headers") or {}).items():
+            if key and value:
+                headers[str(key)] = str(value)
+        for key, value in (auth.get("cookies") or {}).items():
+            if key and value:
+                cookies[str(key)] = str(value)
         self._client = httpx.AsyncClient(
             timeout=settings.request_timeout,
-            headers={"User-Agent": settings.user_agent},
+            headers=headers,
+            cookies=cookies,
             follow_redirects=True,
         )
 

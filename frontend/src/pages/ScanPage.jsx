@@ -10,6 +10,10 @@ import { createScanSocket } from "../services/socket.js";
 
 export function ScanPage() {
   const [targetUrl, setTargetUrl] = useState("http://127.0.0.1:3000");
+  const [authHeaderName, setAuthHeaderName] = useState("Authorization");
+  const [authHeaderValue, setAuthHeaderValue] = useState("");
+  const [authCookieName, setAuthCookieName] = useState("");
+  const [authCookieValue, setAuthCookieValue] = useState("");
   const [result, setResult] = useState(null);
   const [logs, setLogs] = useState([
     "Scanner ready.",
@@ -59,7 +63,15 @@ export function ScanPage() {
     setDetectorTimings([]);
     setLogs((current) => [...current, `Starting scan for ${targetUrl}`, "Crawling pages and enumerating forms..."]);
     try {
-      const scan = await startScan(targetUrl);
+      const authHeaders = {};
+      const authCookies = {};
+      if (authHeaderName.trim() && authHeaderValue.trim()) {
+        authHeaders[authHeaderName.trim()] = authHeaderValue.trim();
+      }
+      if (authCookieName.trim() && authCookieValue.trim()) {
+        authCookies[authCookieName.trim()] = authCookieValue.trim();
+      }
+      const scan = await startScan(targetUrl, { headers: authHeaders, cookies: authCookies });
       setResult(scan);
       setProgress({ progress: 100, status: "completed", message: `Scan completed in ${scan.summary.duration_ms} ms` });
       setDetectorTimings(scan.detector_timings ?? []);
@@ -93,7 +105,21 @@ export function ScanPage() {
           </div>
         </div>
       </section>
-      <ScanPanel targetUrl={targetUrl} setTargetUrl={setTargetUrl} isScanning={isScanning} onScan={onScan} progress={progress} />
+      <ScanPanel
+        targetUrl={targetUrl}
+        setTargetUrl={setTargetUrl}
+        authHeaderName={authHeaderName}
+        setAuthHeaderName={setAuthHeaderName}
+        authHeaderValue={authHeaderValue}
+        setAuthHeaderValue={setAuthHeaderValue}
+        authCookieName={authCookieName}
+        setAuthCookieName={setAuthCookieName}
+        authCookieValue={authCookieValue}
+        setAuthCookieValue={setAuthCookieValue}
+        isScanning={isScanning}
+        onScan={onScan}
+        progress={progress}
+      />
       <Dashboard result={result} progress={progress} detectorTimings={mergedDetectorTimings} />
       <ScanGuidance result={result} targetUrl={targetUrl} />
       <section className="findings-section">

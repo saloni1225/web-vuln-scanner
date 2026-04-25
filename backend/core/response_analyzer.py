@@ -32,6 +32,30 @@ class ResponseAnalyzer:
         candidate_length = len(candidate.text)
         return abs(candidate_length - baseline_length) / baseline_length >= ratio
 
+    def has_boolean_response_delta(
+        self,
+        baseline: HttpResponse,
+        truthy: HttpResponse,
+        falsy: HttpResponse,
+        ratio: float = 0.18,
+    ) -> bool:
+        truthy_length = len(truthy.text)
+        falsy_length = len(falsy.text)
+        baseline_length = max(1, len(baseline.text))
+        truthy_delta = abs(truthy_length - baseline_length) / baseline_length
+        falsy_delta = abs(falsy_length - baseline_length) / baseline_length
+        truthy_falsy_delta = abs(truthy_length - falsy_length) / baseline_length
+        statuses_stable = truthy.status_code < 500 and falsy.status_code < 500
+        return statuses_stable and truthy_falsy_delta >= ratio and truthy_delta < falsy_delta
+
+    def has_time_delay_anomaly(
+        self,
+        baseline: HttpResponse,
+        candidate: HttpResponse,
+        threshold_ms: float = 3500,
+    ) -> bool:
+        return candidate.elapsed_ms - baseline.elapsed_ms >= threshold_ms and candidate.status_code < 500
+
     def classify_reflection_context(self, response: HttpResponse, marker: str) -> dict[str, object]:
         body = response.text
         contexts: list[str] = []

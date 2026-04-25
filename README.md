@@ -42,6 +42,23 @@ http://127.0.0.1:3000
 python scripts/run_scanner.py https://example.com
 ```
 
+Authenticated scan example:
+
+```bash
+python scripts/run_scanner.py http://127.0.0.1:3000 --auth-header "Authorization=Bearer <token>" --auth-cookie "token=<session>"
+```
+
+## Juice Shop Validation
+
+Run the local lab target and scan it with the default scanner profile:
+
+```bash
+docker compose -f docker/docker-compose.yml up -d juice-shop
+python scripts/run_scanner.py http://127.0.0.1:3000
+```
+
+You should now see richer finding evidence in both the API result and exported HTML report, including severity split and response diff metadata.
+
 ## Tests
 
 ```bash

@@ -130,6 +130,8 @@ class XSSDetector(BaseDetector):
                 contexts = [*reflection["contexts"], *dom_result["contexts"]]
                 if not reflection["reflected"] and not dom_result["rendered"]:
                     continue
+                if reflection.get("encoded_only") and not dom_result["rendered"]:
+                    continue
                 content_type = response.headers.get("content-type", "").lower()
                 html_like = "html" in content_type or response.text.lstrip().startswith("<!doctype") or response.text.lstrip().startswith("<html")
                 dangerous_context = reflection["dangerous"] or any(
@@ -144,10 +146,11 @@ class XSSDetector(BaseDetector):
                 if not dangerous_context and not stable_html_reflection:
                     continue
                 confidence = "high" if dangerous_context else "medium"
+                severity = "high" if dangerous_context else "medium"
                 findings.append(
                     Finding(
                         detector=self.name,
-                        severity="medium",
+                        severity=severity,
                         url=test_url,
                         evidence=f"Query parameter {param} reflected the probe marker in {', '.join(contexts) or 'response body'}.",
                         recommendation="Encode untrusted output by context, validate high-risk inputs, and review client-side sinks that write untrusted data into the DOM.",
@@ -206,6 +209,10 @@ class XSSDetector(BaseDetector):
                         contexts.extend([f"persistence-{context}" for context in persistent_page_reflection["contexts"]])
                     if not contexts:
                         continue
+                    if reflection.get("encoded_only") and not dom_result["rendered"] and not (
+                        persistent_page_reflection and persistent_page_reflection["reflected"]
+                    ):
+                        continue
                     stored_indicator = bool(
                         persistent_page_reflection and persistent_page_reflection["reflected"] and "encoded" not in persistent_page_reflection["contexts"]
                     )
@@ -225,10 +232,11 @@ class XSSDetector(BaseDetector):
                     confidence = "high" if dangerous_context else "medium"
                     if stored_indicator:
                         confidence = "high"
+                    severity = "high" if dangerous_context or stored_indicator else "medium"
                     findings.append(
                         Finding(
                             detector=self.name,
-                            severity="medium",
+                            severity=severity,
                             url=action,
                             evidence=(
                                 f"POST form field {param} reflected the probe marker in {', '.join(contexts)}."
