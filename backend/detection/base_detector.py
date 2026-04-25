@@ -28,6 +28,8 @@ class Finding:
     validation_signals: list[str] | None = None
     request_snapshot: str | None = None
     response_snapshot: str | None = None
+    cwe_id: str | None = None
+    cwe_title: str | None = None
     cvss_score: float | None = None
     remediation_priority: str | None = None
     poc: str | None = None

@@ -15,6 +15,7 @@ from backend.detection.registry import describe_loaded_detectors
 from backend.detection.registry import load_detectors
 from backend.utils.helpers import build_target_advisory
 from backend.utils.helpers import is_private_host
+from backend.utils.helpers import map_cwe
 
 
 ProgressCallback = Callable[[dict[str, object]], Awaitable[None]]
@@ -106,6 +107,8 @@ class ScannerEngine:
             findings = self._enrich_findings(findings)
             api_summary = site_map.get("api_summary", {})
             behavioral_summary = self._build_behavioral_summary(site_map, findings)
+            auth_summary = self._build_auth_summary(request_handler, detector_site_map)
+            attack_chain_summary = self._build_attack_chain_summary(detector_site_map, findings, auth_summary)
             summary = {
                 "page_count": len(site_map["pages"]),
                 "form_count": len(site_map["forms"]),
@@ -117,6 +120,7 @@ class ScannerEngine:
                 "validated_finding_count": sum(1 for finding in findings if finding.validation_state == "validated"),
                 "api_endpoint_count": api_summary.get("api_endpoint_count", 0),
                 "graphql_endpoint_count": api_summary.get("graphql_endpoint_count", 0),
+                "schema_modeled_endpoint_count": api_summary.get("schema_modeled_endpoint_count", 0),
                 "duration_ms": round((datetime.now(timezone.utc) - datetime.fromisoformat(started_at)).total_seconds() * 1000, 2),
             }
             result = {
@@ -132,6 +136,8 @@ class ScannerEngine:
                 "summary": summary,
                 "api_summary": api_summary,
                 "behavioral_summary": behavioral_summary,
+                "auth_summary": auth_summary,
+                "attack_chain_summary": attack_chain_summary,
                 "detector_timings": detector_timings,
                 "detector_registry": describe_loaded_detectors(selected_detector_names),
                 "target_advisory": build_target_advisory(target_url),
@@ -242,6 +248,9 @@ class ScannerEngine:
             finding.remediation_priority = "P1" if finding.cvss_score >= 8.5 else "P2" if finding.cvss_score >= 6.0 else "P3"
             if not finding.validation_state:
                 finding.validation_state = "validated" if finding.confidence == "high" else "requires-review"
+            cwe = map_cwe(finding.detector, finding.category)
+            finding.cwe_id = cwe["cwe_id"]
+            finding.cwe_title = cwe["title"]
             finding.poc = (
                 f"{finding.method.upper()} {finding.url} with parameter {finding.parameter or '-'} "
                 f"using payload {finding.payload or '-'}"
@@ -271,6 +280,40 @@ class ScannerEngine:
                 "forms": len(site_map.get("forms", [])),
                 "endpoints": len(site_map.get("endpoints", [])),
             },
+        }
+
+    @staticmethod
+    def _build_auth_summary(request_handler: RequestHandler, site_map: dict[str, object]) -> dict[str, object]:
+        session_context = request_handler.session_context
+        login_performed = bool(session_context and getattr(session_context, "login_performed", False))
+        cookie_count = len(getattr(session_context, "cookies", {}) or {}) if session_context else 0
+        header_count = len(getattr(session_context, "headers", {}) or {}) if session_context else 0
+        return {
+            "login_performed": login_performed,
+            "cookie_count": cookie_count,
+            "header_count": header_count,
+            "authenticated_forms": sum(1 for form in site_map.get("forms", []) if "login" in str(form.get("action", "")).lower()),
+        }
+
+    @staticmethod
+    def _build_attack_chain_summary(site_map: dict[str, object], findings: list[Finding], auth_summary: dict[str, object]) -> dict[str, object]:
+        privileged_endpoints = [
+            endpoint for endpoint in site_map.get("endpoints", [])
+            if isinstance(endpoint, dict) and any(token in str(endpoint.get("url", "")).lower() for token in ("/admin", "/account", "/profile", "/settings"))
+        ]
+        chain_candidates: list[str] = []
+        if auth_summary.get("login_performed"):
+            chain_candidates.append("authenticated-session-established")
+        if privileged_endpoints:
+            chain_candidates.append("privileged-surface-discovered")
+        if any(finding.detector == "auth_bypass" for finding in findings):
+            chain_candidates.append("authorization-gap-identified")
+        if any(finding.detector == "sqli" for finding in findings):
+            chain_candidates.append("data-access-pivot-possible")
+        return {
+            "candidate_count": len(chain_candidates),
+            "candidates": chain_candidates,
+            "privileged_endpoint_count": len(privileged_endpoints),
         }
 
     @staticmethod

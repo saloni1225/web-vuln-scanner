@@ -32,11 +32,13 @@ class RequestHandler:
             headers={"User-Agent": settings.user_agent},
             follow_redirects=True,
         )
+        self.session_context = None
 
     async def _initialize(self) -> None:
         if self._initialized:
             return
         context = await self._session_manager.build(self._client)
+        self.session_context = context
         self._client.headers.update(context.headers)
         self._client.cookies.update(context.cookies)
         self._initialized = True

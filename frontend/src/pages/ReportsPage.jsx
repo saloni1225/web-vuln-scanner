@@ -138,6 +138,7 @@ export function ReportsPage() {
                   <div><span>Endpoints</span><strong>{summary.endpoint_count ?? 0}</strong></div>
                   <div><span>API</span><strong>{summary.api_endpoint_count ?? 0}</strong></div>
                   <div><span>GraphQL</span><strong>{summary.graphql_endpoint_count ?? 0}</strong></div>
+                  <div><span>Schema modeled</span><strong>{summary.schema_modeled_endpoint_count ?? 0}</strong></div>
                   <div><span>Findings</span><strong>{summary.finding_count ?? 0}</strong></div>
                 </section>
 
@@ -191,18 +192,37 @@ export function ReportsPage() {
                           <span>{timing.elapsed_ms} ms</span>
                         </div>
                       ))}
+                      <div className="timing-row">
+                        <div>
+                          <strong>Attack-chain signals</strong>
+                          <small>{(selectedReport.attack_chain_summary?.candidates ?? []).join(", ") || "none"}</small>
+                        </div>
+                        <span>{selectedReport.attack_chain_summary?.candidate_count ?? 0}</span>
+                      </div>
                     </div>
                   </article>
                 </section>
 
-                <a
-                  className="report-link"
-                  href={`http://127.0.0.1:8000${selectedReport.report_url}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open HTML report
-                </a>
+                <div className="report-export-row">
+                  <a
+                    className="report-link"
+                    href={`http://127.0.0.1:8000${selectedReport.report_url}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open HTML report
+                  </a>
+                  {selectedReport.pdf_report_url ? (
+                    <a
+                      className="report-link secondary"
+                      href={`http://127.0.0.1:8000${selectedReport.pdf_report_url}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Open PDF report
+                    </a>
+                  ) : null}
+                </div>
               </div>
             ) : (
               <div className="empty-panel">Select a saved scan to inspect detector timings and findings.</div>

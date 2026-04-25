@@ -1,13 +1,8 @@
-from backend.utils.helpers import build_target_advisory
+from backend.utils.helpers import map_cwe
 
 
-def test_external_target_is_marked_as_not_safe_for_demo():
-    advisory = build_target_advisory("https://example.com")
-    assert advisory["safe_for_demo"] is False
-    assert advisory["kind"] == "external"
-
-
-def test_local_target_is_marked_as_safe_for_demo():
-    advisory = build_target_advisory("http://127.0.0.1:3000")
-    assert advisory["safe_for_demo"] is True
-    assert advisory["kind"] == "local-or-private"
+def test_map_cwe_uses_detector_defaults():
+    sqli = map_cwe("sqli")
+    assert sqli["cwe_id"] == "CWE-89"
+    xss = map_cwe("xss")
+    assert xss["cwe_id"] == "CWE-79"

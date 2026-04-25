@@ -12,6 +12,7 @@ export function FindingDetailDrawer({ finding, open, onClose }) {
     ["Confidence", finding.confidence ?? "medium"],
     ["Score", finding.confidence_score ?? "-"],
     ["Priority", finding.remediation_priority ?? "-"],
+    ["CWE", finding.cwe_id ?? "-"],
     ["Method", String(finding.method ?? "get").toUpperCase()],
     ["Parameter", finding.parameter ?? "-"],
     ["Input", finding.input_location ?? "-"],
@@ -79,6 +80,7 @@ export function FindingDetailDrawer({ finding, open, onClose }) {
           <div className="drawer-title">
             <strong>Recommended Action</strong>
           </div>
+          {finding.cwe_title ? <small>{finding.cwe_title}</small> : null}
           <p>{finding.recommendation}</p>
         </section>
       </aside>

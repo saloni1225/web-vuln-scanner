@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field, HttpUrl
 
 from backend.core.scanner_engine import ScannerEngine
 from backend.reports.report_generator import generate_html_report
+from backend.reports.report_generator import generate_pdf_report
 
 
 class ScanRequest(BaseModel):
@@ -66,8 +67,16 @@ class ScanController:
             scan_options=scan_options,
         )
 
-    def create_report(self, scan: dict[str, object]) -> str:
-        return str(generate_html_report(scan))
+    async def create_report_bundle(self, scan: dict[str, object]) -> dict[str, str | None]:
+        html_path = generate_html_report(scan)
+        pdf_path = await generate_pdf_report(scan, html_path=html_path)
+        return {
+            "html_path": str(html_path),
+            "pdf_path": str(pdf_path) if pdf_path else None,
+        }
 
-    def create_report_url(self, scan: dict[str, object]) -> str:
-        return f"/exports/{scan['scan_id']}.html"
+    def create_report_urls(self, scan: dict[str, object]) -> dict[str, str | None]:
+        return {
+            "html": f"/exports/{scan['scan_id']}.html",
+            "pdf": f"/exports/{scan['scan_id']}.pdf",
+        }

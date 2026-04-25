@@ -1,6 +1,7 @@
 import re
 from collections import deque
 from html.parser import HTMLParser
+import json
 from urllib.parse import parse_qsl, urljoin, urlparse, urlunparse
 
 from backend.config.settings import settings
@@ -122,6 +123,7 @@ class Crawler:
         await self._crawl_queue(queue, seen, parsed_start, pages, page_details, forms, endpoints, script_sources)
         await self._probe_common_endpoints(start_url, parsed_start, endpoints, forms)
         await self._crawl_dynamic(start_url, parsed_start, pages, page_details, forms, endpoints)
+        await self._discover_api_shapes(endpoints, forms)
         api_summary = self._summarize_api_surface(endpoints)
 
         return {
@@ -278,6 +280,48 @@ class Crawler:
         except Exception:
             return
 
+    async def _discover_api_shapes(self, endpoints: list[dict[str, object]], forms: list[dict[str, object]]) -> None:
+        inspected = 0
+        for endpoint in endpoints:
+            if inspected >= settings.max_api_candidates:
+                break
+            endpoint_type = str(endpoint.get("type", "page"))
+            if endpoint_type not in {"api", "graphql"}:
+                continue
+            url = str(endpoint.get("url", ""))
+            method = str(endpoint.get("method", "get")).lower()
+            if not url or method != "get":
+                continue
+            inspected += 1
+            try:
+                response = await self.request_handler.get(url)
+            except Exception:
+                continue
+            body = response.text.strip()
+            content_type = response.headers.get("content-type", "").lower()
+            schema_fields: list[str] = []
+            if "json" in content_type or body.startswith("{") or body.startswith("["):
+                try:
+                    payload = json.loads(body)
+                except json.JSONDecodeError:
+                    payload = None
+                schema_fields = self._extract_schema_fields(payload)
+                if endpoint_type == "graphql":
+                    endpoint["graphql_summary"] = self._summarize_graphql_payload(payload)
+            if schema_fields:
+                endpoint["schema_fields"] = schema_fields
+                if endpoint_type in {"api", "graphql"} and method == "get":
+                    forms.append(
+                        {
+                            "action": url,
+                            "method": "post",
+                            "inputs": schema_fields[:8],
+                            "page": url,
+                            "source": "schema-discovery",
+                            "content_type": "json",
+                        }
+                    )
+
         network_requests: set[str] = set()
 
         try:
@@ -422,6 +466,7 @@ class Crawler:
                 "method": method,
                 "source": source,
                 "query_params": params or [],
+                "schema_fields": [],
                 "status_code": status_code,
                 "content_type": content_type or "",
             }
@@ -470,11 +515,35 @@ class Crawler:
         graphql_endpoints = [item for item in endpoints if str(item.get("type")) == "graphql"]
         methods = sorted({str(item.get("method", "get")).upper() for item in endpoints})
         parameterized = sum(1 for item in endpoints if item.get("query_params"))
+        schema_modeled = sum(1 for item in endpoints if item.get("schema_fields"))
         return {
             "api_endpoint_count": len(api_endpoints),
             "graphql_endpoint_count": len(graphql_endpoints),
             "parameterized_endpoint_count": parameterized,
+            "schema_modeled_endpoint_count": schema_modeled,
             "methods": methods,
             "top_sources": sorted({str(item.get("source", "crawler")) for item in endpoints}),
             "hidden_endpoint_count": sum(1 for item in endpoints if "hidden" in str(item.get("source", ""))),
+        }
+
+    @staticmethod
+    def _extract_schema_fields(payload: object) -> list[str]:
+        if isinstance(payload, dict):
+            keys = [str(key) for key in payload.keys()]
+            if "data" in payload and isinstance(payload.get("data"), dict):
+                keys.extend(str(key) for key in payload["data"].keys())
+            return list(dict.fromkeys(keys))
+        if isinstance(payload, list) and payload and isinstance(payload[0], dict):
+            return [str(key) for key in payload[0].keys()]
+        return []
+
+    @staticmethod
+    def _summarize_graphql_payload(payload: object) -> dict[str, object]:
+        if not isinstance(payload, dict):
+            return {"introspection_enabled": False, "top_level_keys": []}
+        top_level_keys = [str(key) for key in payload.keys()]
+        introspection_enabled = "__schema" in json.dumps(payload)
+        return {
+            "introspection_enabled": introspection_enabled,
+            "top_level_keys": top_level_keys,
         }

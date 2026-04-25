@@ -38,8 +38,10 @@ async def scan(request: ScanRequest) -> dict[str, object]:
     except RuntimeError as exc:
         job_registry.update(scan_id, status="failed", progress=100, message=str(exc))
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    result["report_path"] = controller.create_report(result)
-    result["report_url"] = controller.create_report_url(result)
+    result["report_paths"] = await controller.create_report_bundle(result)
+    result["report_urls"] = controller.create_report_urls(result)
+    result["report_url"] = result["report_urls"]["html"]
+    result["pdf_report_url"] = result["report_urls"]["pdf"]
     return result
 
 
@@ -63,7 +65,9 @@ async def report_detail(scan_id: str) -> dict[str, object]:
     scan = get_scan(scan_id)
     if scan is None:
         raise HTTPException(status_code=404, detail="Scan report not found")
-    scan["report_url"] = controller.create_report_url(scan)
+    scan["report_urls"] = controller.create_report_urls(scan)
+    scan["report_url"] = scan["report_urls"]["html"]
+    scan["pdf_report_url"] = scan["report_urls"]["pdf"]
     return scan
 
 
