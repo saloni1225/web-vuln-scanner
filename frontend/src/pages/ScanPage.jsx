@@ -6,7 +6,7 @@ import { LogsViewer } from "../components/LogsViewer.jsx";
 import { ScanGuidance } from "../components/ScanGuidance.jsx";
 import { ScanPanel } from "../components/ScanPanel.jsx";
 import { VulnerabilityCard } from "../components/VulnerabilityCard.jsx";
-import { fetchActiveScans, fetchDetectors, startScan } from "../services/api.js";
+import { fetchActiveScans, fetchDetectors, fetchScanProfiles, startScan } from "../services/api.js";
 import { createScanSocket } from "../services/socket.js";
 
 export function ScanPage() {
@@ -23,9 +23,11 @@ export function ScanPage() {
   const [password, setPassword] = useState("");
   const [rateLimitPerSecond, setRateLimitPerSecond] = useState("3");
   const [retryAttempts, setRetryAttempts] = useState("2");
+  const [scanProfile, setScanProfile] = useState("deep");
   const [authorizationConfirmed, setAuthorizationConfirmed] = useState(false);
   const [domainAllowlist, setDomainAllowlist] = useState("");
   const [availableDetectors, setAvailableDetectors] = useState([]);
+  const [scanProfiles, setScanProfiles] = useState([]);
   const [selectedDetectors, setSelectedDetectors] = useState([]);
   const [enableApiFuzzing, setEnableApiFuzzing] = useState(true);
   const [enableGraphqlChecks, setEnableGraphqlChecks] = useState(true);
@@ -53,6 +55,12 @@ export function ScanPage() {
         setAvailableDetectors([]);
         setSelectedDetectors([]);
       });
+  }, []);
+
+  useEffect(() => {
+    fetchScanProfiles()
+      .then(setScanProfiles)
+      .catch(() => setScanProfiles([]));
   }, []);
 
   useEffect(() => {
@@ -130,6 +138,7 @@ export function ScanPage() {
         password,
         rateLimitPerSecond: Number(rateLimitPerSecond),
         retryAttempts: Number(retryAttempts),
+        scanProfile,
         authorizationConfirmed,
         domainAllowlist: domainAllowlist.split(",").map((item) => item.trim()).filter(Boolean),
         detectorNames: selectedDetectors,
@@ -150,7 +159,7 @@ export function ScanPage() {
     } catch (error) {
       const message = String(error.message || "Unknown scan error");
       setScanError(message);
-      setProgress({ progress: 100, status: "failed", message: "Scan failed before crawl could complete." });
+      setProgress({ progress: 100, status: "failed", message });
       setLogs((current) => {
         if (message.toLowerCase().includes("target is unreachable")) {
           return [
@@ -180,7 +189,7 @@ export function ScanPage() {
           </div>
           <div>
             <span>Mode</span>
-            <strong>Local Lab</strong>
+            <strong>{scanProfiles.find((profile) => profile.name === scanProfile)?.label ?? "Deep Scan"}</strong>
           </div>
         </div>
       </section>
@@ -211,6 +220,9 @@ export function ScanPage() {
         setRateLimitPerSecond={setRateLimitPerSecond}
         retryAttempts={retryAttempts}
         setRetryAttempts={setRetryAttempts}
+        scanProfile={scanProfile}
+        setScanProfile={setScanProfile}
+        scanProfiles={scanProfiles}
         authorizationConfirmed={authorizationConfirmed}
         setAuthorizationConfirmed={setAuthorizationConfirmed}
         domainAllowlist={domainAllowlist}

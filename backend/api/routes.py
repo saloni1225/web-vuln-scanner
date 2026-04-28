@@ -6,6 +6,9 @@ from starlette.websockets import WebSocketDisconnect
 from backend.api.scan_controller import ScanController, ScanRequest
 from backend.api.websocket import scan_hub
 from backend.api.job_registry import job_registry
+from backend.core.recon import build_replay_plan
+from backend.core.role_analysis import compare_roles
+from backend.core.scan_profiles import list_scan_profiles
 from backend.database.db import get_scan, list_scans
 from backend.database.db import compare_scans
 from backend.detection.registry import describe_loaded_detectors
@@ -56,9 +59,42 @@ async def detectors() -> list[dict[str, object]]:
     return describe_loaded_detectors()
 
 
+@router.get("/plugins/marketplace")
+async def plugin_marketplace() -> dict[str, object]:
+    detectors = describe_loaded_detectors()
+    return {
+        "detectors": detectors,
+        "install_mode": "local-registry",
+        "registry_path": "backend/detection/detectors.json",
+        "template_path": "backend/detection/PLUGIN_TEMPLATE.md",
+        "guidance": "Add detector classes that inherit BaseDetector, then register module/class metadata here.",
+    }
+
+
+@router.get("/scan-profiles")
+async def scan_profiles() -> list[dict[str, object]]:
+    return list_scan_profiles()
+
+
 @router.get("/scans/active")
 async def active_scans() -> list[dict[str, object]]:
     return job_registry.list_jobs()
+
+
+@router.get("/reports/compare/{left_scan_id}/{right_scan_id}")
+async def report_compare(left_scan_id: str, right_scan_id: str) -> dict[str, object]:
+    comparison = compare_scans(left_scan_id, right_scan_id)
+    if comparison is None:
+        raise HTTPException(status_code=404, detail="One or both scan reports were not found")
+    return comparison
+
+
+@router.get("/roles/compare/{left_scan_id}/{right_scan_id}")
+async def role_compare(left_scan_id: str, right_scan_id: str) -> dict[str, object]:
+    comparison = compare_roles(left_scan_id, right_scan_id)
+    if comparison is None:
+        raise HTTPException(status_code=404, detail="One or both scan reports were not found")
+    return comparison
 
 
 @router.get("/reports/{scan_id}")
@@ -72,12 +108,52 @@ async def report_detail(scan_id: str) -> dict[str, object]:
     return scan
 
 
-@router.get("/reports/compare/{left_scan_id}/{right_scan_id}")
-async def report_compare(left_scan_id: str, right_scan_id: str) -> dict[str, object]:
-    comparison = compare_scans(left_scan_id, right_scan_id)
-    if comparison is None:
-        raise HTTPException(status_code=404, detail="One or both scan reports were not found")
-    return comparison
+@router.get("/replay/{scan_id}/{finding_index}")
+async def replay_finding(scan_id: str, finding_index: int) -> dict[str, object]:
+    scan = get_scan(scan_id)
+    if scan is None:
+        raise HTTPException(status_code=404, detail="Scan report not found")
+    findings = list(scan.get("findings", []))
+    if finding_index < 0 or finding_index >= len(findings):
+        raise HTTPException(status_code=404, detail="Finding not found")
+    finding = findings[finding_index]
+    if not isinstance(finding, dict):
+        raise HTTPException(status_code=400, detail="Finding is not replayable")
+    return finding.get("replay_plan") or build_replay_plan(finding)
+
+
+@router.post("/scans/{scan_id}/resume")
+async def resume_scan(scan_id: str) -> dict[str, object]:
+    previous = get_scan(scan_id)
+    if previous is None:
+        raise HTTPException(status_code=404, detail="Scan report not found")
+    resume_state = previous.get("resume_state", {})
+    if not isinstance(resume_state, dict) or not resume_state.get("available"):
+        raise HTTPException(status_code=400, detail="This scan does not contain a resumable state")
+    request = ScanRequest(
+        target_url=str(resume_state.get("target_url") or previous.get("target_url")),
+        authorization_confirmed=bool(previous.get("safety_controls", {}).get("authorization_confirmed", False)),
+        domain_allowlist=list(previous.get("safety_controls", {}).get("domain_allowlist", [])),
+        scan_profile=str(resume_state.get("scan_options", {}).get("scan_profile", "deep")),
+        detector_names=list(resume_state.get("scan_options", {}).get("detector_names", [])),
+    )
+    request_scan_options = resume_state.get("scan_options", {})
+    if isinstance(request_scan_options, dict):
+        request_scan_options["resume_from_scan_id"] = str(resume_state.get("checkpoint_scan_id") or scan_id)
+    result = await controller.engine.scan(
+        str(request.target_url),
+        scan_id=str(uuid.uuid4()),
+        auth_context={
+            "authorization_confirmed": request.authorization_confirmed,
+            "domain_allowlist": request.domain_allowlist or [],
+        },
+        scan_options=request_scan_options if isinstance(request_scan_options, dict) else {},
+    )
+    result["report_paths"] = await controller.create_report_bundle(result)
+    result["report_urls"] = controller.create_report_urls(result)
+    result["report_url"] = result["report_urls"]["html"]
+    result["pdf_report_url"] = result["report_urls"]["pdf"]
+    return result
 
 
 @router.websocket("/ws/scans")

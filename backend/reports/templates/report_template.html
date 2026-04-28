@@ -4,11 +4,14 @@
     <meta charset="utf-8" />
     <title>Scan Report</title>
     <style>
-      body { font-family: Arial, sans-serif; margin: 32px; color: #172033; background: #f4f6fb; }
-      .hero, .section, .finding-card { background: white; border-radius: 18px; padding: 20px; margin-bottom: 20px; box-shadow: 0 12px 32px rgba(29, 41, 77, 0.08); }
+      body { font-family: Arial, sans-serif; margin: 32px; color: #172033; background: #eef3f9; }
+      .hero { color: white; background: linear-gradient(135deg, #111b2e, #203d68); }
+      .hero, .section, .finding-card { border-radius: 18px; padding: 20px; margin-bottom: 20px; box-shadow: 0 12px 32px rgba(29, 41, 77, 0.08); }
+      .section, .finding-card { background: white; }
       .hero-grid, .summary-grid, .registry-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
       .pill { display: inline-block; padding: 4px 10px; border-radius: 999px; background: #e8eefc; color: #3654b3; font-size: 12px; }
-      .metric { border: 1px solid #e2e7f2; border-radius: 14px; padding: 12px; }
+      .metric { border: 1px solid #e2e7f2; border-radius: 14px; padding: 12px; background: rgba(255,255,255,0.72); }
+      .hero .metric { color: #eff6ff; background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.16); }
       .metric strong, .metric span { display: block; }
       table { width: 100%; border-collapse: collapse; margin-top: 16px; background: white; }
       th, td { border: 1px solid #d7dce5; padding: 10px; text-align: left; vertical-align: top; }
@@ -34,6 +37,10 @@
         <div class="metric"><span>API endpoints</span><strong>{{ scan.summary.api_endpoint_count or 0 }}</strong></div>
         <div class="metric"><span>GraphQL endpoints</span><strong>{{ scan.summary.graphql_endpoint_count or 0 }}</strong></div>
         <div class="metric"><span>Average anomaly</span><strong>{{ scan.behavioral_summary.average_anomaly_score or 0 }}</strong></div>
+        <div class="metric"><span>Passive score</span><strong>{{ scan.summary.passive_security_score or 0 }}</strong></div>
+        <div class="metric"><span>High-risk endpoints</span><strong>{{ scan.summary.high_risk_endpoint_count or 0 }}</strong></div>
+        <div class="metric"><span>Schema fuzz probes</span><strong>{{ scan.summary.schema_fuzz_probe_count or 0 }}</strong></div>
+        <div class="metric"><span>Open ports</span><strong>{{ scan.summary.open_port_count or 0 }}</strong></div>
         <div class="metric"><span>Authenticated context</span><strong>{% if scan.auth_used %}Yes{% else %}No{% endif %}</strong></div>
       </div>
     </section>
@@ -41,6 +48,10 @@
     <section class="section">
       <h2>Scan Profile</h2>
       <div class="summary-grid">
+        <div class="metric">
+          <span>Profile</span>
+          <strong>{{ scan.scan_options.scan_profile_label or "Deep Scan" }}</strong>
+        </div>
         <div class="metric">
           <span>Detectors</span>
           <strong>{{ (scan.scan_options.detector_names or [])|join(", ") or "default" }}</strong>
@@ -64,6 +75,73 @@
         Medium {{ scan.summary.medium_severity_count }},
         Low {{ scan.summary.low_severity_count or 0 }}
       </p>
+    </section>
+
+    <section class="section">
+      <h2>Recon Intelligence</h2>
+      <div class="summary-grid">
+        <div class="metric"><span>WAF</span><strong>{% if scan.recon_summary.waf_detection.detected %}{{ scan.recon_summary.waf_detection.matches[0].name }}{% else %}Not detected{% endif %}</strong></div>
+        <div class="metric"><span>TLS</span><strong>{{ scan.recon_summary.tls_summary.tls_version or scan.recon_summary.tls_summary.reason or "Not checked" }}</strong></div>
+        <div class="metric"><span>Screenshot</span><strong>{{ scan.recon_summary.screenshot_recon.status or "pending" }}</strong></div>
+        <div class="metric"><span>Missing headers</span><strong>{{ (scan.recon_summary.passive_security.missing_headers or [])|length }}</strong></div>
+      </div>
+      <p><strong>Technologies:</strong>
+        {% for item in scan.recon_summary.technology_fingerprint.technologies or [] %}
+          <span class="pill">{{ item.technology }}</span>
+        {% else %}
+          none
+        {% endfor %}
+      </p>
+      <p><strong>Open ports:</strong>
+        {% for item in scan.recon_summary.port_summary.open_ports or [] %}
+          <span class="pill">{{ item.port }} {{ item.service_hint }}</span>
+        {% else %}
+          none
+        {% endfor %}
+      </p>
+    </section>
+
+    <section class="section">
+      <h2>Endpoint Risk Ranking</h2>
+      <table>
+        <thead>
+          <tr><th>Risk</th><th>Method</th><th>Source</th><th>URL</th><th>Reasons</th></tr>
+        </thead>
+        <tbody>
+          {% for endpoint in scan.recon_summary.endpoint_risk_ranking or [] %}
+          <tr>
+            <td>{{ endpoint.risk_score }}</td>
+            <td>{{ endpoint.method }}</td>
+            <td>{{ endpoint.source }}</td>
+            <td>{{ endpoint.url }}</td>
+            <td>{{ (endpoint.reasons or [])|join(", ") }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5">No endpoint risk data recorded.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>Scan Timeline</h2>
+      <table>
+        <thead>
+          <tr><th>Progress</th><th>Phase</th><th>Message</th><th>Timestamp</th></tr>
+        </thead>
+        <tbody>
+          {% for item in scan.timeline or [] %}
+          <tr>
+            <td>{{ item.progress }}%</td>
+            <td>{{ item.phase }}</td>
+            <td>{{ item.message }}</td>
+            <td>{{ item.timestamp }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4">No timeline events recorded.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </section>
 
     <section class="section">
@@ -91,6 +169,46 @@
         <div class="metric"><span>Methods</span><strong>{{ (scan.api_summary.methods or [])|join(", ") or "none" }}</strong></div>
       </div>
       <p><strong>Discovery sources:</strong> {{ (scan.api_summary.top_sources or [])|join(", ") or "none" }}</p>
+    </section>
+
+    <section class="section">
+      <h2>Schema-Aware Fuzzing</h2>
+      <table>
+        <thead>
+          <tr><th>Method</th><th>URL</th><th>Fields</th><th>Status</th><th>Reflected Fields</th></tr>
+        </thead>
+        <tbody>
+          {% for probe in scan.schema_fuzz_summary.probes or [] %}
+          <tr>
+            <td>{{ probe.method }}</td>
+            <td>{{ probe.url }}</td>
+            <td>{{ (probe.fields or [])|join(", ") }}</td>
+            <td>{{ probe.status_code or probe.status }}</td>
+            <td>{{ (probe.reflected_fields or [])|join(", ") or "-" }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5">No REST schema fuzz probes recorded.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <table>
+        <thead>
+          <tr><th>GraphQL URL</th><th>Fields</th><th>Status</th><th>Data Keys</th><th>Errors</th></tr>
+        </thead>
+        <tbody>
+          {% for probe in scan.schema_fuzz_summary.graphql or [] %}
+          <tr>
+            <td>{{ probe.url }}</td>
+            <td>{{ (probe.fields or [])|join(", ") }}</td>
+            <td>{{ probe.status_code or probe.status }}</td>
+            <td>{{ (probe.data_keys or [])|join(", ") or "-" }}</td>
+            <td>{{ (probe.errors or [])|length }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5">No GraphQL schema probes recorded.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </section>
 
     <section class="section">

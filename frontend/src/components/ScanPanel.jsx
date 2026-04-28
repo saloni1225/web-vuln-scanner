@@ -28,6 +28,9 @@ export function ScanPanel({
   setRateLimitPerSecond,
   retryAttempts,
   setRetryAttempts,
+  scanProfile,
+  setScanProfile,
+  scanProfiles,
   authorizationConfirmed,
   setAuthorizationConfirmed,
   domainAllowlist,
@@ -145,6 +148,19 @@ export function ScanPanel({
           placeholder="password"
           onChange={(event) => setPassword(event.target.value)}
         />
+      </div>
+      <label htmlFor="scan-profile">Scan Profile</label>
+      <div className="target-row profile-row">
+        <select id="scan-profile" value={scanProfile} onChange={(event) => setScanProfile(event.target.value)}>
+          {(scanProfiles?.length ? scanProfiles : [{ name: "deep", label: "Deep Scan", description: "Broad discovery and validation." }]).map((profile) => (
+            <option key={profile.name} value={profile.name}>
+              {profile.label}
+            </option>
+          ))}
+        </select>
+        <div className="profile-description">
+          {scanProfiles?.find((profile) => profile.name === scanProfile)?.description ?? "Broader discovery, API fuzzing, validation, and recon."}
+        </div>
       </div>
       <label htmlFor="rate-limit">Safety Controls</label>
       <div className="target-row safety-row">

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Archive, FileCheck2, ShieldAlert, Sparkles } from "lucide-react";
 import { FindingDetailDrawer } from "../components/FindingDetailDrawer.jsx";
 import { VulnerabilityCard } from "../components/VulnerabilityCard.jsx";
-import { fetchReportComparison, fetchReportDetail, fetchReports } from "../services/api.js";
+import { fetchReportComparison, fetchReportDetail, fetchReports, fetchRoleComparison, resumeScan } from "../services/api.js";
 
 export function ReportsPage() {
   const [reports, setReports] = useState([]);
@@ -12,6 +12,8 @@ export function ReportsPage() {
   const [compareLeftId, setCompareLeftId] = useState("");
   const [compareRightId, setCompareRightId] = useState("");
   const [comparison, setComparison] = useState(null);
+  const [roleComparison, setRoleComparison] = useState(null);
+  const [resumeMessage, setResumeMessage] = useState("");
 
   useEffect(() => {
     fetchReports()
@@ -40,7 +42,24 @@ export function ReportsPage() {
       return;
     }
     fetchReportComparison(compareLeftId, compareRightId).then(setComparison).catch(() => setComparison(null));
+    fetchRoleComparison(compareLeftId, compareRightId).then(setRoleComparison).catch(() => setRoleComparison(null));
   }, [compareLeftId, compareRightId]);
+
+  async function onResumeSelected() {
+    if (!selectedReport?.scan_id) {
+      return;
+    }
+    setResumeMessage("Resuming scan...");
+    try {
+      const resumed = await resumeScan(selectedReport.scan_id);
+      setResumeMessage(`Resumed as ${resumed.scan_id}`);
+      const items = await fetchReports();
+      setReports(items);
+      setSelectedReportId(resumed.scan_id);
+    } catch (error) {
+      setResumeMessage(String(error.message || "Could not resume scan"));
+    }
+  }
 
   const totalFindings = reports.reduce((sum, report) => sum + (report.findings_count ?? 0), 0);
   const latestTarget = reports[0]?.target_url ?? "No scans yet";
@@ -260,6 +279,10 @@ export function ReportsPage() {
                       Open PDF report
                     </a>
                   ) : null}
+                  <button className="report-link secondary" type="button" onClick={onResumeSelected}>
+                    Resume scan
+                  </button>
+                  {resumeMessage ? <small>{resumeMessage}</small> : null}
                 </div>
               </div>
             ) : (
@@ -337,6 +360,24 @@ export function ReportsPage() {
             ) : (
               <div className="empty-panel">Select two different reports to compare changes in coverage and findings.</div>
             )}
+            {roleComparison ? (
+              <div className="timing-list">
+                <div className="timing-row">
+                  <div>
+                    <strong>Role compare</strong>
+                    <small>{roleComparison.left_role} vs {roleComparison.right_role}</small>
+                  </div>
+                  <span>{roleComparison.shared_endpoint_count}</span>
+                </div>
+                <div className="timing-row">
+                  <div>
+                    <strong>Privileged overlap</strong>
+                    <small>{(roleComparison.suspicious_shared_privileged_endpoints ?? []).slice(0, 2).join(", ") || "none"}</small>
+                  </div>
+                  <span>{roleComparison.suspicious_shared_privileged_endpoints?.length ?? 0}</span>
+                </div>
+              </div>
+            ) : null}
           </article>
         </section>
       </section>

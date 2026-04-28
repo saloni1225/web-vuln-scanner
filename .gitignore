@@ -10,6 +10,7 @@ dist/
 
 scanner.db
 backend/reports/exports/*.html
+backend/.scan_state/
 *-server.log
 *-server.err
 

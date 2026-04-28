@@ -16,6 +16,7 @@ class ScanRequest(BaseModel):
     password_field: str | None = "password"
     username: str | None = None
     password: str | None = None
+    role_name: str | None = "default"
     login_extra_fields: dict[str, str] | None = None
     rate_limit_per_second: float | None = Field(default=None, ge=0.1, le=20.0)
     retry_attempts: int | None = Field(default=None, ge=0, le=5)
@@ -27,6 +28,11 @@ class ScanRequest(BaseModel):
     enable_graphql_checks: bool = True
     enable_finding_validator: bool | None = None
     enable_openapi_discovery: bool | None = None
+    scan_profile: str | None = "deep"
+    enable_directory_fuzzing: bool | None = None
+    enable_safe_port_scan: bool | None = None
+    enable_subdomain_recon: bool | None = None
+    enable_screenshot_recon: bool | None = None
 
 
 class ScanController:
@@ -50,6 +56,7 @@ class ScanController:
             "username": request.username or "",
             "password": request.password or "",
             "login_extra_fields": request.login_extra_fields or {},
+            "role_name": request.role_name or "default",
             "rate_limit_per_second": request.rate_limit_per_second,
             "retry_attempts": request.retry_attempts,
             "retry_backoff_ms": request.retry_backoff_ms,
@@ -62,6 +69,11 @@ class ScanController:
             "enable_graphql_checks": request.enable_graphql_checks,
             "enable_finding_validator": request.enable_finding_validator,
             "enable_openapi_discovery": request.enable_openapi_discovery,
+            "scan_profile": request.scan_profile or "deep",
+            "enable_directory_fuzzing": request.enable_directory_fuzzing,
+            "enable_safe_port_scan": request.enable_safe_port_scan,
+            "enable_subdomain_recon": request.enable_subdomain_recon,
+            "enable_screenshot_recon": request.enable_screenshot_recon,
         }
         return await self.engine.scan(
             str(request.target_url),

@@ -72,6 +72,13 @@ export function FindingDetailDrawer({ finding, open, onClose }) {
           ) : null}
           {finding.poc ? <code className="drawer-code">{finding.poc}</code> : null}
           {finding.payload ? <code className="drawer-code">{finding.payload}</code> : null}
+          {finding.replay_plan?.curl ? (
+            <>
+              <strong>Replay Plan</strong>
+              <code className="drawer-code">{finding.replay_plan.curl}</code>
+              <small>{finding.replay_plan.note}</small>
+            </>
+          ) : null}
           {finding.request_snapshot ? <code className="drawer-code">{finding.request_snapshot}</code> : null}
           {finding.response_snapshot ? <code className="drawer-code">{finding.response_snapshot}</code> : null}
         </section>

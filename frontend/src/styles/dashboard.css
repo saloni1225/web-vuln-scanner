@@ -62,7 +62,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -501,7 +502,8 @@ a {
 
 .target-row input,
 .scan-panel > input,
-.auth-grid input {
+.auth-grid input,
+.profile-row select {
   min-width: 0;
   padding: 14px 16px;
   border: 1px solid var(--border);
@@ -514,10 +516,30 @@ a {
 
 .scan-panel .target-row input,
 .scan-panel > input,
-.scan-panel .auth-grid input {
+.scan-panel .auth-grid input,
+.scan-panel .profile-row select {
   background: rgba(255, 255, 255, 0.08);
   color: #edf3ff;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.profile-row {
+  grid-template-columns: minmax(220px, 0.38fr) 1fr;
+}
+
+.profile-row select option {
+  color: #18253f;
+}
+
+.profile-description {
+  display: grid;
+  align-items: center;
+  min-height: 50px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  color: #d5dff2;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .checkbox-row {
@@ -990,6 +1012,55 @@ a {
   margin-top: 12px;
 }
 
+.timeline-list {
+  display: grid;
+  gap: 10px;
+  max-height: 290px;
+  overflow: auto;
+}
+
+.timeline-row {
+  display: grid;
+  grid-template-columns: 0.28fr 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.timeline-row strong {
+  text-transform: capitalize;
+}
+
+.timeline-row small {
+  color: #cbd8ee;
+}
+
+.timeline-row span {
+  color: #89d8ff;
+  font-weight: 800;
+}
+
+.recon-chips {
+  margin-top: 14px;
+}
+
+.recon-chips span {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(104, 226, 191, 0.12);
+  color: #9cefd2;
+  font-weight: 800;
+}
+
+.risk-row {
+  border-left: 4px solid #f1c37b;
+}
+
 .options-grid {
   display: grid;
   grid-template-columns: 1.15fr 0.85fr;
@@ -1310,6 +1381,7 @@ a {
 @media (max-width: 720px) {
   .navbar,
   .target-row,
+  .profile-row,
   .report-row,
   .metrics-grid {
     grid-template-columns: 1fr;

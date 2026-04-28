@@ -9,6 +9,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from backend.core.scanner_engine import ScannerEngine
+from backend.reports.report_generator import generate_html_report
 
 
 def main() -> None:
@@ -22,6 +23,7 @@ def main() -> None:
     parser.add_argument("--password", default="", help="Login password.")
     parser.add_argument("--rate-limit", type=float, default=None, help="Requests per second.")
     parser.add_argument("--retry-attempts", type=int, default=None, help="Retry count for transient request failures.")
+    parser.add_argument("--profile", default="deep", choices=["quick", "deep", "passive", "api", "stealth", "authenticated"], help="Scan profile.")
     args = parser.parse_args()
     auth_headers = _parse_kv_pairs(args.auth_header)
     auth_cookies = _parse_kv_pairs(args.auth_cookie)
@@ -37,7 +39,10 @@ def main() -> None:
             "rate_limit_per_second": args.rate_limit,
             "retry_attempts": args.retry_attempts,
         },
+        scan_options={"scan_profile": args.profile},
     )
+    html_path = generate_html_report(result)
+    result["report_path"] = str(html_path)
     print(json.dumps(result, indent=2))
 
 

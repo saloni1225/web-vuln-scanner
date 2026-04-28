@@ -1,0 +1,67 @@
+name: Security Scan
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: Authorized target URL
+        required: false
+        default: http://127.0.0.1:3000
+
+jobs:
+  validate-and-scan:
+    runs-on: ubuntu-latest
+    env:
+      SCAN_TARGET_URL: ${{ github.event.inputs.target_url || 'http://127.0.0.1:3000' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run backend tests
+        run: python -m pytest
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Start Juice Shop demo target
+        if: env.SCAN_TARGET_URL == 'http://127.0.0.1:3000'
+        run: docker compose -f docker/docker-compose.yml up -d juice-shop
+
+      - name: Wait for demo target
+        if: env.SCAN_TARGET_URL == 'http://127.0.0.1:3000'
+        run: |
+          for i in {1..40}; do
+            curl -fsS "$SCAN_TARGET_URL" && exit 0
+            sleep 3
+          done
+          exit 1
+
+      - name: Run quick scanner profile
+        run: python scripts/run_scanner.py "$SCAN_TARGET_URL" --profile quick
+
+      - name: Upload report artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scan-reports
+          path: backend/reports/exports

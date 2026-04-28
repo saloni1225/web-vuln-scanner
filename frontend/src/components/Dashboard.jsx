@@ -25,6 +25,14 @@ export function Dashboard({ result, progress, detectorTimings }) {
   const enabledDetectors = result?.detector_registry?.length ?? 0;
   const anomalyScore = result?.behavioral_summary?.average_anomaly_score ?? 0;
   const validatedFindings = summary.validated_finding_count ?? 0;
+  const passiveSecurityScore = summary.passive_security_score ?? result?.recon_summary?.passive_security?.score ?? 0;
+  const highRiskEndpoints = summary.high_risk_endpoint_count ?? 0;
+  const openPortCount = summary.open_port_count ?? 0;
+  const schemaFuzzProbeCount = summary.schema_fuzz_probe_count ?? result?.schema_fuzz_summary?.probe_count ?? 0;
+  const technologies = result?.recon_summary?.technology_fingerprint?.technologies ?? [];
+  const waf = result?.recon_summary?.waf_detection ?? {};
+  const tls = result?.recon_summary?.tls_summary ?? {};
+  const timeline = result?.timeline ?? [];
   const surfaceTotal = Math.max(1, pages + forms + endpoints);
   const chartCircumference = 314;
   const endpointRatio = endpoints / surfaceTotal;
@@ -69,6 +77,26 @@ export function Dashboard({ result, progress, detectorTimings }) {
           <ShieldCheck />
           <span>Validated</span>
           <strong>{validatedFindings}</strong>
+        </article>
+        <article className="metric-card">
+          <ShieldCheck />
+          <span>Passive Score</span>
+          <strong>{passiveSecurityScore}</strong>
+        </article>
+        <article className="metric-card">
+          <Siren />
+          <span>Risky Endpoints</span>
+          <strong>{highRiskEndpoints}</strong>
+        </article>
+        <article className="metric-card">
+          <Radar />
+          <span>Open Ports</span>
+          <strong>{openPortCount}</strong>
+        </article>
+        <article className="metric-card">
+          <ActivitySquare />
+          <span>Schema Fuzz</span>
+          <strong>{schemaFuzzProbeCount}</strong>
         </article>
       </section>
 
@@ -179,6 +207,46 @@ export function Dashboard({ result, progress, detectorTimings }) {
             ) : (
               <div className="empty-panel">Detector timings will appear during or after a scan.</div>
             )}
+          </div>
+        </article>
+
+        <article className="panel analytics-panel">
+          <header className="panel-header">
+            <div>
+              <ShieldCheck size={18} />
+              <strong>Recon Intelligence</strong>
+            </div>
+            <span>{technologies.length} tech</span>
+          </header>
+          <div className="scan-progress-meta">
+            <div><span>WAF</span><strong>{waf.detected ? waf.matches?.[0]?.name ?? "Detected" : "Not detected"}</strong></div>
+            <div><span>TLS</span><strong>{tls.tls_version ?? tls.reason ?? "Not checked"}</strong></div>
+            <div><span>Screenshot</span><strong>{result?.recon_summary?.screenshot_recon?.status ?? "pending"}</strong></div>
+            <div><span>Profile</span><strong>{result?.scan_options?.scan_profile_label ?? "Deep Scan"}</strong></div>
+          </div>
+          <div className="chip-list recon-chips">
+            {technologies.length ? technologies.slice(0, 8).map((item) => (
+              <span key={`${item.technology}-${item.evidence}`}>{item.technology}</span>
+            )) : <small>No technology fingerprint yet.</small>}
+          </div>
+        </article>
+
+        <article className="panel analytics-panel">
+          <header className="panel-header">
+            <div>
+              <ActivitySquare size={18} />
+              <strong>Scan Timeline</strong>
+            </div>
+            <span>{timeline.length} phases</span>
+          </header>
+          <div className="timeline-list">
+            {timeline.length ? timeline.map((item, index) => (
+              <div key={`${item.phase}-${index}`} className="timeline-row">
+                <strong>{item.phase}</strong>
+                <small>{item.message}</small>
+                <span>{item.progress}%</span>
+              </div>
+            )) : <div className="empty-panel">Timeline appears after the next scan.</div>}
           </div>
         </article>
       </section>

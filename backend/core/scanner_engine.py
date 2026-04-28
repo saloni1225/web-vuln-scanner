@@ -7,8 +7,14 @@ from urllib.parse import urlparse
 
 from backend.config.settings import settings
 from backend.core.crawler import Crawler
+from backend.core.recon import build_replay_plan
+from backend.core.recon import run_recon
 from backend.core.request_handler import RequestHandler
 from backend.core.response_analyzer import ResponseAnalyzer
+from backend.core.resume_store import load_checkpoint
+from backend.core.resume_store import save_checkpoint
+from backend.core.scan_profiles import apply_scan_profile
+from backend.core.schema_fuzzer import run_schema_fuzzing
 from backend.database.db import save_scan
 from backend.database.db import list_scans
 from backend.detection.base_detector import Finding
@@ -17,6 +23,7 @@ from backend.detection.registry import load_detectors
 from backend.utils.helpers import is_private_host
 from backend.utils.helpers import map_cwe
 from backend.detection.validator import FindingValidator
+from backend.utils.helpers import build_target_advisory
 from backend.utils.remediation import get_remediation
 
 
@@ -37,8 +44,10 @@ class ScannerEngine:
     ) -> dict[str, object]:
         scan_id = scan_id or str(uuid.uuid4())
         started_at = datetime.now(timezone.utc).isoformat()
+        scan_options = apply_scan_profile(scan_options or {})
+        auth_context = self._apply_profile_to_auth_context(auth_context, scan_options)
         request_handler = RequestHandler(auth=auth_context)
-        scan_options = scan_options or {}
+        timeline: list[dict[str, object]] = []
         selected_detectors = load_detectors(list(scan_options.get("detector_names", [])) or None)
         selected_detector_names = [detector.name for detector in selected_detectors]
         try:
@@ -52,9 +61,28 @@ class ScannerEngine:
                         "message": f"Initializing scan for {target_url}",
                     }
                 )
-            crawler = Crawler(request_handler)
-            site_map = await crawler.crawl(target_url)
+            self._timeline(timeline, "startup", "Target reachable and scan initialized", 5)
+            checkpoint = load_checkpoint(str(scan_options.get("resume_from_scan_id", ""))) if scan_options.get("resume_from_scan_id") else None
+            cached_site_map = checkpoint.get("crawl") if isinstance(checkpoint, dict) else None
+            if isinstance(cached_site_map, dict):
+                site_map = cached_site_map
+                self._timeline(timeline, "resume", "Loaded crawl checkpoint and resumed from detection phase", 24)
+            else:
+                crawler = Crawler(request_handler, scan_options=scan_options)
+                site_map = await crawler.crawl(target_url)
+                save_checkpoint(scan_id, "crawl", site_map)
             detector_site_map = self._apply_scan_options_to_site_map(site_map, scan_options)
+            schema_fuzz_summary = await run_schema_fuzzing(
+                detector_site_map,
+                request_handler,
+                enabled=bool(scan_options.get("enable_api_fuzzing", True)),
+            )
+            self._timeline(
+                timeline,
+                "crawl",
+                f"Mapped {len(site_map['pages'])} pages, {len(site_map['forms'])} forms, and {len(site_map.get('endpoints', []))} endpoints",
+                30,
+            )
             if progress_callback:
                 await progress_callback(
                     {
@@ -109,8 +137,15 @@ class ScannerEngine:
             if scan_options.get("enable_finding_validator", settings.enable_finding_validator):
                 validator = FindingValidator(request_handler)
                 await validator.validate_all(findings)
+                self._timeline(timeline, "validation", f"Validated {len(findings)} candidate findings", 88)
                 
             findings = self._enrich_findings(findings)
+            finding_dicts = [finding.to_dict() for finding in findings]
+            for index, finding in enumerate(finding_dicts):
+                finding["replay_plan"] = build_replay_plan(finding)
+                finding["finding_index"] = index
+            recon_summary = await run_recon(target_url, request_handler, site_map, scan_id, scan_options)
+            self._timeline(timeline, "recon", "Passive recon, endpoint risk, TLS, and low-impact discovery completed", 92)
             api_summary = site_map.get("api_summary", {})
             behavioral_summary = self._build_behavioral_summary(site_map, findings)
             auth_summary = self._build_auth_summary(request_handler, detector_site_map)
@@ -124,9 +159,13 @@ class ScannerEngine:
                 "medium_severity_count": sum(1 for finding in findings if finding.severity == "medium"),
                 "low_severity_count": sum(1 for finding in findings if finding.severity == "low"),
                 "validated_finding_count": sum(1 for finding in findings if finding.validation_state == "validated"),
+                "passive_security_score": recon_summary.get("passive_security", {}).get("score", 0),
+                "open_port_count": len(recon_summary.get("port_summary", {}).get("open_ports", [])),
+                "high_risk_endpoint_count": sum(1 for item in recon_summary.get("endpoint_risk_ranking", []) if int(item.get("risk_score", 0)) >= 50),
                 "api_endpoint_count": api_summary.get("api_endpoint_count", 0),
                 "graphql_endpoint_count": api_summary.get("graphql_endpoint_count", 0),
                 "schema_modeled_endpoint_count": api_summary.get("schema_modeled_endpoint_count", 0),
+                "schema_fuzz_probe_count": schema_fuzz_summary.get("probe_count", 0),
                 "duration_ms": round((datetime.now(timezone.utc) - datetime.fromisoformat(started_at)).total_seconds() * 1000, 2),
             }
             result = {
@@ -138,9 +177,11 @@ class ScannerEngine:
                 "page_details": site_map.get("page_details", []),
                 "forms": site_map["forms"],
                 "endpoints": site_map.get("endpoints", []),
-                "findings": [finding.to_dict() for finding in findings],
+                "findings": finding_dicts,
                 "summary": summary,
                 "api_summary": api_summary,
+                "schema_fuzz_summary": schema_fuzz_summary,
+                "recon_summary": recon_summary,
                 "behavioral_summary": behavioral_summary,
                 "auth_summary": auth_summary,
                 "attack_chain_summary": attack_chain_summary,
@@ -164,9 +205,25 @@ class ScannerEngine:
                 },
                 "scan_options": {
                     "detector_names": selected_detector_names,
+                    "scan_profile": scan_options.get("scan_profile"),
+                    "scan_profile_label": scan_options.get("scan_profile_label"),
+                    "scan_profile_description": scan_options.get("scan_profile_description"),
                     "enable_api_fuzzing": bool(scan_options.get("enable_api_fuzzing", True)),
                     "enable_graphql_checks": bool(scan_options.get("enable_graphql_checks", True)),
                     "enable_finding_validator": bool(scan_options.get("enable_finding_validator", settings.enable_finding_validator)),
+                    "enable_directory_fuzzing": bool(scan_options.get("enable_directory_fuzzing", settings.enable_directory_fuzzing)),
+                    "enable_safe_port_scan": bool(scan_options.get("enable_safe_port_scan", settings.enable_safe_port_scan)),
+                    "enable_subdomain_recon": bool(scan_options.get("enable_subdomain_recon", settings.enable_subdomain_recon)),
+                    "enable_screenshot_recon": bool(scan_options.get("enable_screenshot_recon", settings.enable_screenshot_recon)),
+                },
+                "timeline": timeline,
+                "resume_state": {
+                    "available": True,
+                    "last_completed_phase": "reporting",
+                    "target_url": target_url,
+                    "scan_options": scan_options,
+                    "checkpoint_scan_id": scan_id,
+                    "checkpoint_phases": ["crawl"],
                 },
             }
             save_scan(result)
@@ -243,8 +300,34 @@ class ScannerEngine:
                 "Resolve server errors before scanning."
             )
 
-    def scan_sync(self, target_url: str, auth_context: dict[str, object] | None = None) -> dict[str, object]:
-        return asyncio.run(self.scan(target_url, auth_context=auth_context))
+    def scan_sync(
+        self,
+        target_url: str,
+        auth_context: dict[str, object] | None = None,
+        scan_options: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        return asyncio.run(self.scan(target_url, auth_context=auth_context, scan_options=scan_options))
+
+    @staticmethod
+    def _apply_profile_to_auth_context(
+        auth_context: dict[str, object] | None,
+        scan_options: dict[str, object],
+    ) -> dict[str, object]:
+        context = dict(auth_context or {})
+        if context.get("rate_limit_per_second") in {None, ""}:
+            context["rate_limit_per_second"] = scan_options.get("rate_limit_per_second", settings.default_rate_limit_per_second)
+        return context
+
+    @staticmethod
+    def _timeline(timeline: list[dict[str, object]], phase: str, message: str, progress: int) -> None:
+        timeline.append(
+            {
+                "phase": phase,
+                "message": message,
+                "progress": progress,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        )
 
     @staticmethod
     def _enrich_findings(findings: list[Finding]) -> list[Finding]:

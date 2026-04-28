@@ -284,48 +284,6 @@ class Crawler:
         except Exception:
             return
 
-    async def _discover_api_shapes(self, endpoints: list[dict[str, object]], forms: list[dict[str, object]]) -> None:
-        inspected = 0
-        for endpoint in endpoints:
-            if inspected >= settings.max_api_candidates:
-                break
-            endpoint_type = str(endpoint.get("type", "page"))
-            if endpoint_type not in {"api", "graphql"}:
-                continue
-            url = str(endpoint.get("url", ""))
-            method = str(endpoint.get("method", "get")).lower()
-            if not url or method != "get":
-                continue
-            inspected += 1
-            try:
-                response = await self.request_handler.get(url)
-            except Exception:
-                continue
-            body = response.text.strip()
-            content_type = response.headers.get("content-type", "").lower()
-            schema_fields: list[str] = []
-            if "json" in content_type or body.startswith("{") or body.startswith("["):
-                try:
-                    payload = json.loads(body)
-                except json.JSONDecodeError:
-                    payload = None
-                schema_fields = self._extract_schema_fields(payload)
-                if endpoint_type == "graphql":
-                    endpoint["graphql_summary"] = self._summarize_graphql_payload(payload)
-            if schema_fields:
-                endpoint["schema_fields"] = schema_fields
-                if endpoint_type in {"api", "graphql"} and method == "get":
-                    forms.append(
-                        {
-                            "action": url,
-                            "method": "post",
-                            "inputs": schema_fields[:8],
-                            "page": url,
-                            "source": "schema-discovery",
-                            "content_type": "json",
-                        }
-                    )
-
         network_requests: set[str] = set()
 
         try:
@@ -399,6 +357,82 @@ class Crawler:
         except Exception:
             return
 
+    async def _discover_api_shapes(self, endpoints: list[dict[str, object]], forms: list[dict[str, object]]) -> None:
+        inspected = 0
+        for endpoint in endpoints:
+            if inspected >= settings.max_api_candidates:
+                break
+            endpoint_type = str(endpoint.get("type", "page"))
+            if endpoint_type not in {"api", "graphql"}:
+                continue
+            url = str(endpoint.get("url", ""))
+            method = str(endpoint.get("method", "get")).lower()
+            if not url:
+                continue
+            inspected += 1
+            if endpoint_type == "graphql":
+                await self._discover_graphql_shape(url, endpoint, forms)
+                continue
+            if method != "get":
+                continue
+            try:
+                response = await self.request_handler.get(url)
+            except Exception:
+                continue
+            body = response.text.strip()
+            content_type = response.headers.get("content-type", "").lower()
+            schema_fields: list[str] = []
+            if "json" in content_type or body.startswith("{") or body.startswith("["):
+                try:
+                    payload = json.loads(body)
+                except json.JSONDecodeError:
+                    payload = None
+                schema_fields = self._extract_schema_fields(payload)
+            if schema_fields:
+                endpoint["schema_fields"] = schema_fields
+                forms.append(
+                    {
+                        "action": url,
+                        "method": "post",
+                        "inputs": schema_fields[:8],
+                        "page": url,
+                        "source": "schema-discovery",
+                        "content_type": "json",
+                    }
+                )
+
+    async def _discover_graphql_shape(
+        self,
+        url: str,
+        endpoint: dict[str, object],
+        forms: list[dict[str, object]],
+    ) -> None:
+        introspection_query = "{__schema{queryType{name}mutationType{name}types{name kind fields{name args{name type{name kind ofType{name kind}}}}}}}"
+        try:
+            response = await self.request_handler.post_json(url, {"query": introspection_query, "variables": {}})
+        except Exception:
+            endpoint["graphql_summary"] = {"introspection_enabled": False, "top_level_keys": []}
+            forms.append({"action": url, "method": "post", "inputs": ["query", "variables"], "page": url, "source": "graphql-probe", "content_type": "json"})
+            return
+        try:
+            payload = json.loads(response.text)
+        except json.JSONDecodeError:
+            payload = {}
+        summary = self._summarize_graphql_payload(payload)
+        fields = self._extract_graphql_fields(payload)
+        endpoint["graphql_summary"] = summary | {"operation_fields": fields[:20]}
+        endpoint["schema_fields"] = ["query", "variables", *fields[:8]]
+        forms.append(
+            {
+                "action": url,
+                "method": "post",
+                "inputs": ["query", "variables", *fields[:8]],
+                "page": url,
+                "source": "graphql-introspection" if summary.get("introspection_enabled") else "graphql-probe",
+                "content_type": "json",
+            }
+        )
+
     async def _discover_openapi_spec(self, start_url: str, parsed_start, endpoints: list[dict[str, object]], forms: list[dict[str, object]]) -> None:
         spec_paths = ["/openapi.json", "/swagger.json", "/api-docs", "/v1/api-docs"]
         spec_payload = None
@@ -426,12 +460,16 @@ class Crawler:
                     continue
                 parameters = details.get("parameters", [])
                 query_params = [p.get("name") for p in parameters if p.get("in") == "query" and p.get("name")]
-                self._register_endpoint(base_url, method_name, "openapi-spec", endpoints, query_params, endpoint_type="api")
+                body_fields = self._extract_openapi_request_fields(details, spec_payload)
+                field_types = self._extract_openapi_request_field_types(details, spec_payload)
+                self._register_endpoint(base_url, method_name, "openapi-spec", endpoints, [*query_params, *body_fields], endpoint_type="api")
+                if endpoints:
+                    endpoints[-1]["schema_field_types"] = field_types
                 if method_name in {"post", "put", "patch"}:
                     forms.append({
                         "action": base_url,
                         "method": method_name,
-                        "inputs": query_params, # Simplified, ideally parse requestBody too
+                        "inputs": [*query_params, *body_fields],
                         "page": start_url,
                         "source": "openapi-spec",
                         "content_type": "json"
@@ -593,6 +631,108 @@ class Crawler:
         if isinstance(payload, list) and payload and isinstance(payload[0], dict):
             return [str(key) for key in payload[0].keys()]
         return []
+
+    @classmethod
+    def _extract_openapi_request_fields(cls, operation: dict[str, object], spec: dict[str, object]) -> list[str]:
+        request_body = operation.get("requestBody", {})
+        if not isinstance(request_body, dict):
+            return []
+        content = request_body.get("content", {})
+        if not isinstance(content, dict):
+            return []
+        fields: list[str] = []
+        for media in content.values():
+            if not isinstance(media, dict):
+                continue
+            schema = media.get("schema", {})
+            fields.extend(cls._extract_openapi_schema_fields(schema, spec))
+        return list(dict.fromkeys(fields))
+
+    @classmethod
+    def _extract_openapi_request_field_types(cls, operation: dict[str, object], spec: dict[str, object]) -> dict[str, str]:
+        request_body = operation.get("requestBody", {})
+        if not isinstance(request_body, dict):
+            return {}
+        content = request_body.get("content", {})
+        if not isinstance(content, dict):
+            return {}
+        field_types: dict[str, str] = {}
+        for media in content.values():
+            if not isinstance(media, dict):
+                continue
+            schema = media.get("schema", {})
+            field_types.update(cls._extract_openapi_schema_field_types(schema, spec))
+        return field_types
+
+    @classmethod
+    def _extract_openapi_schema_fields(cls, schema: object, spec: dict[str, object]) -> list[str]:
+        if not isinstance(schema, dict):
+            return []
+        if "$ref" in schema:
+            resolved = cls._resolve_openapi_ref(str(schema["$ref"]), spec)
+            return cls._extract_openapi_schema_fields(resolved, spec)
+        fields: list[str] = []
+        properties = schema.get("properties", {})
+        if isinstance(properties, dict):
+            fields.extend(str(key) for key in properties.keys())
+        for nested_key in ("items", "allOf", "anyOf", "oneOf"):
+            nested = schema.get(nested_key)
+            if isinstance(nested, dict):
+                fields.extend(cls._extract_openapi_schema_fields(nested, spec))
+            elif isinstance(nested, list):
+                for item in nested:
+                    fields.extend(cls._extract_openapi_schema_fields(item, spec))
+        return list(dict.fromkeys(fields))
+
+    @classmethod
+    def _extract_openapi_schema_field_types(cls, schema: object, spec: dict[str, object]) -> dict[str, str]:
+        if not isinstance(schema, dict):
+            return {}
+        if "$ref" in schema:
+            resolved = cls._resolve_openapi_ref(str(schema["$ref"]), spec)
+            return cls._extract_openapi_schema_field_types(resolved, spec)
+        field_types: dict[str, str] = {}
+        properties = schema.get("properties", {})
+        if isinstance(properties, dict):
+            for key, value in properties.items():
+                if isinstance(value, dict):
+                    field_types[str(key)] = str(value.get("type") or value.get("format") or "string")
+        for nested_key in ("allOf", "anyOf", "oneOf"):
+            nested = schema.get(nested_key)
+            if isinstance(nested, list):
+                for item in nested:
+                    field_types.update(cls._extract_openapi_schema_field_types(item, spec))
+        return field_types
+
+    @staticmethod
+    def _resolve_openapi_ref(ref: str, spec: dict[str, object]) -> object:
+        if not ref.startswith("#/"):
+            return {}
+        current: object = spec
+        for part in ref[2:].split("/"):
+            if not isinstance(current, dict):
+                return {}
+            current = current.get(part, {})
+        return current
+
+    @staticmethod
+    def _extract_graphql_fields(payload: object) -> list[str]:
+        if not isinstance(payload, dict):
+            return []
+        schema = payload.get("data", {}).get("__schema", {}) if isinstance(payload.get("data"), dict) else {}
+        if not isinstance(schema, dict):
+            return []
+        fields: list[str] = []
+        for type_info in schema.get("types", []) or []:
+            if not isinstance(type_info, dict) or type_info.get("kind") not in {"OBJECT", "INPUT_OBJECT"}:
+                continue
+            for field in type_info.get("fields", []) or []:
+                if isinstance(field, dict) and field.get("name"):
+                    fields.append(str(field["name"]))
+                    for arg in field.get("args", []) or []:
+                        if isinstance(arg, dict) and arg.get("name"):
+                            fields.append(str(arg["name"]))
+        return list(dict.fromkeys(fields))
 
     @staticmethod
     def _summarize_graphql_payload(payload: object) -> dict[str, object]:
