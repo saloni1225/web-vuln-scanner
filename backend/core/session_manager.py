@@ -1,4 +1,5 @@
 import json
+import re
 from dataclasses import dataclass, field
 
 import httpx
@@ -8,6 +9,7 @@ import httpx
 class SessionContext:
     headers: dict[str, str] = field(default_factory=dict)
     cookies: dict[str, str] = field(default_factory=dict)
+    csrf_token: dict[str, str] = field(default_factory=dict)
     login_performed: bool = False
 
 
@@ -67,6 +69,17 @@ class SessionManager:
                 )
                 if token and "Authorization" not in context.headers:
                     context.headers["Authorization"] = f"Bearer {token}"
+            
+            # Extract CSRF token from HTML response
+            if "html" in response.headers.get("content-type", "").lower():
+                match = re.search(r'<input[^>]+name=[\'"]?(csrf[^>\'"]*|_token|authenticity_token)[\'"]?[^>]+value=[\'"]?([^\'">\s]+)', response.text, re.IGNORECASE)
+                if not match:
+                    match = re.search(r'<input[^>]+value=[\'"]?([^\'">\s]+)[\'"]?[^>]+name=[\'"]?(csrf[^>\'"]*|_token|authenticity_token)[\'"]?', response.text, re.IGNORECASE)
+                    if match:
+                        context.csrf_token[match.group(2)] = match.group(1)
+                else:
+                    context.csrf_token[match.group(1)] = match.group(2)
+
             context.login_performed = response.status_code < 400
 
         return context

@@ -34,6 +34,8 @@ class Finding:
     remediation_priority: str | None = None
     poc: str | None = None
     validation_state: str | None = None
+    owasp_category: str | None = None
+    code_snippet: str | None = None
 
     def to_dict(self) -> dict[str, str | None]:
         return asdict(self)

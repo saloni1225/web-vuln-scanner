@@ -15,6 +15,7 @@ export async function startScan(targetUrl, options = {}) {
       password_field: options.passwordField ?? "password",
       username: options.username ?? "",
       password: options.password ?? "",
+      role_name: options.roleName ?? "default",
       login_extra_fields: options.loginExtraFields ?? {},
       rate_limit_per_second: options.rateLimitPerSecond ?? null,
       retry_attempts: options.retryAttempts ?? null,
@@ -49,6 +50,14 @@ export async function fetchReports() {
 
 export async function fetchReportDetail(scanId) {
   const response = await fetch(`${API_BASE_URL}/reports/${scanId}`);
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchReportComparison(leftScanId, rightScanId) {
+  const response = await fetch(`${API_BASE_URL}/reports/compare/${leftScanId}/${rightScanId}`);
   if (!response.ok) {
     throw new Error(`API returned ${response.status}`);
   }

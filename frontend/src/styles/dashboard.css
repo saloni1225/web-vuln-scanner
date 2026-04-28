@@ -495,7 +495,7 @@ a {
 
 .auth-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -768,6 +768,23 @@ a {
 [data-theme="light"] .report-link.secondary {
   background: rgba(10, 132, 255, 0.1);
   color: var(--accent);
+}
+
+.compare-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.compare-controls select {
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--input-bg);
+  color: inherit;
+  box-shadow: var(--input-shadow);
 }
 
 .findings-section,

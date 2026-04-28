@@ -128,12 +128,16 @@
           <li><strong>Validation state:</strong> {{ finding.validation_state or "-" }}</li>
           <li><strong>Validation signals:</strong> {{ (finding.validation_signals or [])|join(", ") or "-" }}</li>
           <li><strong>Reason:</strong> {{ finding.reason or "-" }}</li>
+          <li><strong>OWASP Category:</strong> {{ finding.owasp_category or "-" }}</li>
           <li><strong>Request PoC:</strong> <code>{{ finding.poc or "-" }}</code></li>
           <li><strong>Payload:</strong> <code>{{ finding.payload or "-" }}</code></li>
           <li><strong>Request snapshot:</strong> <code>{{ finding.request_snapshot or "-" }}</code></li>
           <li><strong>Response snapshot:</strong> <code>{{ finding.response_snapshot or "-" }}</code></li>
           <li><strong>Response evidence:</strong> status {{ finding.baseline_status or "-" }} -> {{ finding.mutated_status or "-" }}, length {{ finding.baseline_length or "-" }} -> {{ finding.mutated_length or "-" }}</li>
           <li><strong>Remediation:</strong> {{ finding.recommendation }}</li>
+          {% if finding.code_snippet %}
+          <li><strong>Code Snippet:</strong> <pre><code>{{ finding.code_snippet }}</code></pre></li>
+          {% endif %}
         </ul>
       </article>
       {% else %}

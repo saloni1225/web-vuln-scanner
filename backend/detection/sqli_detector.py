@@ -30,11 +30,28 @@ class SQLiDetector(BaseDetector):
         ("1' AND '1'='1", "1' AND '1'='2"),
         ('1" AND "1"="1', '1" AND "1"="2'),
         ("1 OR 1=1--", "1 OR 1=2--"),
+        ("1' AND 1=1--", "1' AND 1=2--"),
+        ("1 AND 1=1", "1 AND 1=2"),
+        ("1' AND 'a'='a", "1' AND 'a'='b"),
     ]
     TIME_DELAY_PAYLOADS = [
         "1' AND SLEEP(5)--",
         "1); WAITFOR DELAY '0:0:5'--",
         "1'||pg_sleep(5)--",
+        "1' AND (SELECT * FROM (SELECT(SLEEP(5)))a)--",
+        "1 AND SLEEP(5)",
+        "1 AND WAITFOR DELAY '0:0:5'",
+        "1 AND DBMS_PIPE.RECEIVE_MESSAGE('a',5)=1",
+    ]
+    UNION_PAYLOADS = [
+        "1 UNION SELECT NULL--",
+        "1' UNION SELECT NULL--",
+        "1 UNION SELECT NULL,NULL--",
+        "1' UNION SELECT NULL,NULL--",
+        "1 UNION SELECT NULL,NULL,NULL--",
+        "1' UNION SELECT NULL,NULL,NULL--",
+        "1 UNION SELECT NULL,NULL,NULL,NULL--",
+        "1' UNION SELECT NULL,NULL,NULL,NULL--",
     ]
 
     @staticmethod
@@ -182,6 +199,17 @@ class SQLiDetector(BaseDetector):
                 )
                 if time_finding:
                     findings.append(time_finding)
+                    continue
+                union_finding = await self._probe_union_sqli_get(
+                    request_handler=request_handler,
+                    analyzer=analyzer,
+                    parsed=parsed,
+                    baseline_params=baseline_params,
+                    baseline=baseline,
+                    param=param,
+                )
+                if union_finding:
+                    findings.append(union_finding)
 
         for form in site_map.get("forms", []):
             if not isinstance(form, dict):
@@ -267,6 +295,18 @@ class SQLiDetector(BaseDetector):
                     )
                     if time_finding:
                         findings.append(time_finding)
+                        continue
+                    union_finding = await self._probe_union_sqli_post(
+                        request_handler=request_handler,
+                        analyzer=analyzer,
+                        action=action,
+                        inputs=inputs,
+                        baseline=baseline,
+                        param=param,
+                        content_type=content_type,
+                    )
+                    if union_finding:
+                        findings.append(union_finding)
 
         return self._dedupe_findings(findings)
 
@@ -470,4 +510,98 @@ class SQLiDetector(BaseDetector):
                 ),
                 validation_state=str(validation["validation_state"]),
             )
+        return None
+
+    async def _probe_union_sqli_get(
+        self,
+        request_handler: RequestHandler,
+        analyzer: ResponseAnalyzer,
+        parsed,
+        baseline_params: dict[str, str],
+        baseline,
+        param: str,
+    ) -> Finding | None:
+        for payload in self.UNION_PAYLOADS:
+            test_url = urlunparse(parsed._replace(query=urlencode(baseline_params | {param: payload})))
+            try:
+                response = await request_handler.get(test_url)
+            except Exception:
+                continue
+            has_status_anomaly = analyzer.has_status_anomaly(baseline, response)
+            has_length_anomaly = analyzer.has_length_anomaly(baseline, response)
+            if not has_status_anomaly and has_length_anomaly and response.status_code < 500:
+                validation = analyzer.classify_confidence(
+                    boolean_delta=True,
+                    anomaly_score=analyzer.anomaly_score(baseline, response),
+                )
+                return Finding(
+                    detector=self.name,
+                    severity="high",
+                    url=test_url,
+                    evidence=f"UNION-based SQLi behavior detected on query parameter {param}.",
+                    recommendation="Use parameterized queries and avoid concatenating inputs in UNION clauses.",
+                    confidence=str(validation["confidence"]),
+                    confidence_score=float(validation["confidence_score"]),
+                    validation_signals=list(validation["signals"]),
+                    parameter=param,
+                    payload=payload,
+                    method="get",
+                    category="union-based-query-parameter",
+                    baseline_status=baseline.status_code,
+                    mutated_status=response.status_code,
+                    baseline_length=len(baseline.text),
+                    mutated_length=len(response.text),
+                    request_snapshot=f"GET {test_url}",
+                    response_snapshot=analyzer.snapshot_response(response),
+                    reason="Payload caused a significant content length anomaly typical of UNION SELECT injection.",
+                    validation_state=str(validation["validation_state"]),
+                )
+        return None
+
+    async def _probe_union_sqli_post(
+        self,
+        request_handler: RequestHandler,
+        analyzer: ResponseAnalyzer,
+        action: str,
+        inputs: list[str],
+        baseline,
+        param: str,
+        content_type: str,
+    ) -> Finding | None:
+        for payload in self.UNION_PAYLOADS:
+            body = {name: "baseline" for name in inputs}
+            body[param] = payload
+            try:
+                response = await self._submit_body(request_handler, action, body, content_type)
+            except Exception:
+                continue
+            has_status_anomaly = analyzer.has_status_anomaly(baseline, response)
+            has_length_anomaly = analyzer.has_length_anomaly(baseline, response)
+            if not has_status_anomaly and has_length_anomaly and response.status_code < 500:
+                validation = analyzer.classify_confidence(
+                    boolean_delta=True,
+                    anomaly_score=analyzer.anomaly_score(baseline, response),
+                )
+                return Finding(
+                    detector=self.name,
+                    severity="high",
+                    url=action,
+                    evidence=f"UNION-based SQLi behavior detected on form field {param}.",
+                    recommendation="Use parameterized queries and avoid concatenating inputs in UNION clauses.",
+                    confidence=str(validation["confidence"]),
+                    confidence_score=float(validation["confidence_score"]),
+                    validation_signals=list(validation["signals"]),
+                    parameter=param,
+                    payload=payload,
+                    method="post",
+                    category="union-based-form-field",
+                    baseline_status=baseline.status_code,
+                    mutated_status=response.status_code,
+                    baseline_length=len(baseline.text),
+                    mutated_length=len(response.text),
+                    request_snapshot=f"POST {action} body[{param}]={payload}",
+                    response_snapshot=analyzer.snapshot_response(response),
+                    reason="Payload caused a significant content length anomaly typical of UNION SELECT injection.",
+                    validation_state=str(validation["validation_state"]),
+                )
         return None

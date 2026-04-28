@@ -10,12 +10,14 @@ from backend.core.crawler import Crawler
 from backend.core.request_handler import RequestHandler
 from backend.core.response_analyzer import ResponseAnalyzer
 from backend.database.db import save_scan
+from backend.database.db import list_scans
 from backend.detection.base_detector import Finding
 from backend.detection.registry import describe_loaded_detectors
 from backend.detection.registry import load_detectors
-from backend.utils.helpers import build_target_advisory
 from backend.utils.helpers import is_private_host
 from backend.utils.helpers import map_cwe
+from backend.detection.validator import FindingValidator
+from backend.utils.remediation import get_remediation
 
 
 ProgressCallback = Callable[[dict[str, object]], Awaitable[None]]
@@ -104,6 +106,10 @@ class ScannerEngine:
                         }
                     )
 
+            if scan_options.get("enable_finding_validator", settings.enable_finding_validator):
+                validator = FindingValidator(request_handler)
+                await validator.validate_all(findings)
+                
             findings = self._enrich_findings(findings)
             api_summary = site_map.get("api_summary", {})
             behavioral_summary = self._build_behavioral_summary(site_map, findings)
@@ -138,6 +144,7 @@ class ScannerEngine:
                 "behavioral_summary": behavioral_summary,
                 "auth_summary": auth_summary,
                 "attack_chain_summary": attack_chain_summary,
+                "role_summary": self._build_role_summary(auth_context, target_url),
                 "detector_timings": detector_timings,
                 "detector_registry": describe_loaded_detectors(selected_detector_names),
                 "target_advisory": build_target_advisory(target_url),
@@ -159,6 +166,7 @@ class ScannerEngine:
                     "detector_names": selected_detector_names,
                     "enable_api_fuzzing": bool(scan_options.get("enable_api_fuzzing", True)),
                     "enable_graphql_checks": bool(scan_options.get("enable_graphql_checks", True)),
+                    "enable_finding_validator": bool(scan_options.get("enable_finding_validator", settings.enable_finding_validator)),
                 },
             }
             save_scan(result)
@@ -200,6 +208,7 @@ class ScannerEngine:
         try:
             response = await request_handler.get(target_url)
         except Exception as exc:
+            diagnostics = self._diagnose_target_url(target_url)
             if progress_callback:
                 await progress_callback(
                     {
@@ -208,13 +217,13 @@ class ScannerEngine:
                         "progress": 100,
                         "message": (
                             f"Target is unreachable: {target_url}. "
-                            "Start the target app/container and retry."
+                            f"{diagnostics}"
                         ),
                     }
                 )
             raise RuntimeError(
                 f"Target is unreachable: {target_url}. "
-                "Ensure Juice Shop (or your target app) is running before scanning."
+                f"{diagnostics}"
             ) from exc
         if response.status_code >= 500:
             if progress_callback:
@@ -255,6 +264,11 @@ class ScannerEngine:
                 f"{finding.method.upper()} {finding.url} with parameter {finding.parameter or '-'} "
                 f"using payload {finding.payload or '-'}"
             )
+            remediation = get_remediation(finding.detector)
+            finding.owasp_category = remediation["owasp_category"]
+            if not finding.recommendation or finding.recommendation == "Sanitize input.":
+                finding.recommendation = remediation["fix"]
+            finding.code_snippet = remediation["code_snippet"]
         return findings
 
     @staticmethod
@@ -315,6 +329,29 @@ class ScannerEngine:
             "candidates": chain_candidates,
             "privileged_endpoint_count": len(privileged_endpoints),
         }
+
+    @staticmethod
+    def _build_role_summary(auth_context: dict[str, object] | None, target_url: str) -> dict[str, object]:
+        auth_context = auth_context or {}
+        role_name = str(auth_context.get("role_name") or "default")
+        historical = [item for item in list_scans() if item.get("target_url") == target_url]
+        return {
+            "role_name": role_name,
+            "historical_scan_count_for_target": len(historical),
+            "uses_authenticated_context": bool(
+                auth_context.get("headers")
+                or auth_context.get("cookies")
+                or auth_context.get("jwt_token")
+                or auth_context.get("login_url")
+            ),
+        }
+
+    @staticmethod
+    def _diagnose_target_url(target_url: str) -> str:
+        host = urlparse(target_url).hostname or ""
+        if host in {"127.0.0.1", "localhost"}:
+            return "Ensure the local target app is running on the requested port and retry."
+        return "Verify DNS, network reachability, and that the target is accepting HTTP requests."
 
     @staticmethod
     def _apply_scan_options_to_site_map(site_map: dict[str, object], scan_options: dict[str, object]) -> dict[str, object]:

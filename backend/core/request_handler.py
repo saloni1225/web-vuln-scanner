@@ -22,6 +22,7 @@ class RequestHandler:
         self._session_manager = SessionManager(auth)
         self._initialized = False
         self._last_request_started = 0.0
+        self._total_requests = 0
         auth = auth or {}
         configured_rate_limit = float(auth.get("rate_limit_per_second") or settings.default_rate_limit_per_second)
         self._rate_limit_per_second = max(settings.minimum_rate_limit_per_second, configured_rate_limit)
@@ -61,9 +62,15 @@ class RequestHandler:
         return await self._send("OPTIONS", url)
 
     async def post(self, url: str, data: dict[str, str]) -> HttpResponse:
+        await self._initialize()
+        if self.session_context and self.session_context.csrf_token:
+            data = {**data, **self.session_context.csrf_token}
         return await self._send("POST", url, data=data)
 
     async def post_json(self, url: str, data: dict[str, str]) -> HttpResponse:
+        await self._initialize()
+        if self.session_context and self.session_context.csrf_token:
+            data = {**data, **self.session_context.csrf_token}
         return await self._send("POST", url, json=data)
 
     async def request_json(self, method: str, url: str, data: dict[str, str]) -> HttpResponse:
@@ -83,11 +90,19 @@ class RequestHandler:
         )
 
     async def _send(self, method: str, url: str, **kwargs) -> HttpResponse:
+        if self._total_requests >= settings.max_requests:
+            raise Exception(f"Scan budget of {settings.max_requests} requests exceeded.")
+            
         last_error: Exception | None = None
         for attempt in range(self._retry_attempts + 1):
             try:
                 await self._throttle()
                 response = await self._client.request(method, url, **kwargs)
+                self._total_requests += 1
+                
+                if response.status_code == 429:
+                    self._rate_limit_per_second = max(settings.minimum_rate_limit_per_second, self._rate_limit_per_second / 2.0)
+                
                 if response.status_code in {429, 502, 503, 504} and attempt < self._retry_attempts:
                     await asyncio.sleep((self._retry_backoff_ms / 1000) * (attempt + 1))
                     continue

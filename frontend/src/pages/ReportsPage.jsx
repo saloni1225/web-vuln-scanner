@@ -2,13 +2,16 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Archive, FileCheck2, ShieldAlert, Sparkles } from "lucide-react";
 import { FindingDetailDrawer } from "../components/FindingDetailDrawer.jsx";
 import { VulnerabilityCard } from "../components/VulnerabilityCard.jsx";
-import { fetchReportDetail, fetchReports } from "../services/api.js";
+import { fetchReportComparison, fetchReportDetail, fetchReports } from "../services/api.js";
 
 export function ReportsPage() {
   const [reports, setReports] = useState([]);
   const [selectedReportId, setSelectedReportId] = useState(null);
   const [selectedReport, setSelectedReport] = useState(null);
   const [selectedFinding, setSelectedFinding] = useState(null);
+  const [compareLeftId, setCompareLeftId] = useState("");
+  const [compareRightId, setCompareRightId] = useState("");
+  const [comparison, setComparison] = useState(null);
 
   useEffect(() => {
     fetchReports()
@@ -16,6 +19,8 @@ export function ReportsPage() {
         setReports(items);
         if (items.length) {
           setSelectedReportId(items[0].scan_id);
+          setCompareLeftId(items[0].scan_id);
+          setCompareRightId(items[1]?.scan_id ?? items[0].scan_id);
         }
       })
       .catch(() => setReports([]));
@@ -28,6 +33,14 @@ export function ReportsPage() {
     }
     fetchReportDetail(selectedReportId).then(setSelectedReport).catch(() => setSelectedReport(null));
   }, [selectedReportId]);
+
+  useEffect(() => {
+    if (!compareLeftId || !compareRightId || compareLeftId === compareRightId) {
+      setComparison(null);
+      return;
+    }
+    fetchReportComparison(compareLeftId, compareRightId).then(setComparison).catch(() => setComparison(null));
+  }, [compareLeftId, compareRightId]);
 
   const totalFindings = reports.reduce((sum, report) => sum + (report.findings_count ?? 0), 0);
   const latestTarget = reports[0]?.target_url ?? "No scans yet";
@@ -201,6 +214,31 @@ export function ReportsPage() {
                       </div>
                     </div>
                   </article>
+
+                  <article className="insight-card">
+                    <header className="panel-header">
+                      <div>
+                        <Archive size={18} />
+                        <strong>Role / Session</strong>
+                      </div>
+                    </header>
+                    <div className="timing-list">
+                      <div className="timing-row">
+                        <div>
+                          <strong>Role</strong>
+                          <small>{selectedReport.role_summary?.role_name ?? "default"}</small>
+                        </div>
+                        <span>{selectedReport.auth_summary?.login_performed ? "Logged in" : "Direct"}</span>
+                      </div>
+                      <div className="timing-row">
+                        <div>
+                          <strong>Cookies / Headers</strong>
+                          <small>{selectedReport.auth_summary?.cookie_count ?? 0} cookies · {selectedReport.auth_summary?.header_count ?? 0} headers</small>
+                        </div>
+                        <span>{selectedReport.auth_used ? "Auth" : "Anon"}</span>
+                      </div>
+                    </div>
+                  </article>
                 </section>
 
                 <div className="report-export-row">
@@ -250,6 +288,55 @@ export function ReportsPage() {
                 <div className="empty-panel">This report has no findings recorded yet.</div>
               )}
             </div>
+          </article>
+
+          <article className="panel findings-preview-panel">
+            <header className="panel-header">
+              <div>
+                <Archive size={18} />
+                <strong>Report Comparison</strong>
+              </div>
+              <span>{comparison ? comparison.summary_delta?.finding_delta ?? 0 : "pick two"}</span>
+            </header>
+            <div className="compare-controls">
+              <select value={compareLeftId} onChange={(event) => setCompareLeftId(event.target.value)}>
+                {reports.map((report) => (
+                  <option key={`left-${report.scan_id}`} value={report.scan_id}>{report.target_url} · {report.scan_id}</option>
+                ))}
+              </select>
+              <select value={compareRightId} onChange={(event) => setCompareRightId(event.target.value)}>
+                {reports.map((report) => (
+                  <option key={`right-${report.scan_id}`} value={report.scan_id}>{report.target_url} · {report.scan_id}</option>
+                ))}
+              </select>
+            </div>
+            {comparison ? (
+              <div className="timing-list">
+                <div className="timing-row">
+                  <div>
+                    <strong>Finding delta</strong>
+                    <small>new minus baseline</small>
+                  </div>
+                  <span>{comparison.summary_delta?.finding_delta ?? 0}</span>
+                </div>
+                <div className="timing-row">
+                  <div>
+                    <strong>New findings</strong>
+                    <small>{comparison.new_findings?.length ?? 0} introduced</small>
+                  </div>
+                  <span>{comparison.new_findings?.length ?? 0}</span>
+                </div>
+                <div className="timing-row">
+                  <div>
+                    <strong>Resolved findings</strong>
+                    <small>{comparison.resolved_findings?.length ?? 0} removed</small>
+                  </div>
+                  <span>{comparison.resolved_findings?.length ?? 0}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="empty-panel">Select two different reports to compare changes in coverage and findings.</div>
+            )}
           </article>
         </section>
       </section>

@@ -104,8 +104,9 @@ class LinkParser(HTMLParser):
 
 
 class Crawler:
-    def __init__(self, request_handler: RequestHandler) -> None:
+    def __init__(self, request_handler: RequestHandler, scan_options: dict[str, object] | None = None) -> None:
         self.request_handler = request_handler
+        self.scan_options = scan_options or {}
 
     async def crawl(self, start_url: str) -> dict[str, object]:
         parsed_start = urlparse(start_url)
@@ -124,6 +125,9 @@ class Crawler:
         await self._probe_common_endpoints(start_url, parsed_start, endpoints, forms)
         await self._crawl_dynamic(start_url, parsed_start, pages, page_details, forms, endpoints)
         await self._discover_api_shapes(endpoints, forms)
+        if self.scan_options.get("enable_openapi_discovery", settings.enable_openapi_discovery):
+            await self._discover_openapi_spec(start_url, parsed_start, endpoints, forms)
+            await self._enumerate_id_patterns(endpoints)
         api_summary = self._summarize_api_surface(endpoints)
 
         return {
@@ -394,6 +398,59 @@ class Crawler:
                 await browser.close()
         except Exception:
             return
+
+    async def _discover_openapi_spec(self, start_url: str, parsed_start, endpoints: list[dict[str, object]], forms: list[dict[str, object]]) -> None:
+        spec_paths = ["/openapi.json", "/swagger.json", "/api-docs", "/v1/api-docs"]
+        spec_payload = None
+        for path in spec_paths:
+            test_url = canonicalize_url(urljoin(start_url, path))
+            try:
+                response = await self.request_handler.get(test_url)
+                if response.status_code == 200 and ("json" in response.headers.get("content-type", "").lower() or response.text.startswith("{")):
+                    payload = json.loads(response.text)
+                    if "openapi" in payload or "swagger" in payload:
+                        spec_payload = payload
+                        break
+            except Exception:
+                continue
+
+        if not spec_payload:
+            return
+
+        paths = spec_payload.get("paths", {})
+        for path, methods in paths.items():
+            base_url = canonicalize_url(urljoin(start_url, path.replace("{", "").replace("}", "")))
+            for method_name, details in methods.items():
+                method_name = method_name.lower()
+                if method_name not in {"get", "post", "put", "delete", "options"}:
+                    continue
+                parameters = details.get("parameters", [])
+                query_params = [p.get("name") for p in parameters if p.get("in") == "query" and p.get("name")]
+                self._register_endpoint(base_url, method_name, "openapi-spec", endpoints, query_params, endpoint_type="api")
+                if method_name in {"post", "put", "patch"}:
+                    forms.append({
+                        "action": base_url,
+                        "method": method_name,
+                        "inputs": query_params, # Simplified, ideally parse requestBody too
+                        "page": start_url,
+                        "source": "openapi-spec",
+                        "content_type": "json"
+                    })
+
+    async def _enumerate_id_patterns(self, endpoints: list[dict[str, object]]) -> None:
+        # Simple IDOR enumeration: if path ends with /1, add /2, /0, /999
+        new_endpoints = []
+        for endpoint in endpoints:
+            url = endpoint["url"]
+            if re.search(r'/[0-9]+$', url):
+                for new_id in ["0", "2", "999"]:
+                    new_url = re.sub(r'/[0-9]+$', f'/{new_id}', url)
+                    new_endpoints.append({
+                        **endpoint,
+                        "url": new_url,
+                        "source": "id-enumeration"
+                    })
+        endpoints.extend(new_endpoints)
 
     def _register_page(
         self,

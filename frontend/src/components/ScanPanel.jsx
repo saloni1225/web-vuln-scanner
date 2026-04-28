@@ -39,6 +39,10 @@ export function ScanPanel({
   setEnableApiFuzzing,
   enableGraphqlChecks,
   setEnableGraphqlChecks,
+  enableFindingValidator,
+  setEnableFindingValidator,
+  enableOpenapiDiscovery,
+  setEnableOpenapiDiscovery,
   isScanning,
   onScan,
   progress,
@@ -212,6 +216,14 @@ export function ScanPanel({
             <label className="checkbox-row">
               <input type="checkbox" checked={enableGraphqlChecks} onChange={(event) => setEnableGraphqlChecks(event.target.checked)} />
               <span>Enable GraphQL checks</span>
+            </label>
+            <label className="checkbox-row">
+              <input type="checkbox" checked={enableFindingValidator} onChange={(event) => setEnableFindingValidator(event.target.checked)} />
+              <span>Enable finding validation</span>
+            </label>
+            <label className="checkbox-row">
+              <input type="checkbox" checked={enableOpenapiDiscovery} onChange={(event) => setEnableOpenapiDiscovery(event.target.checked)} />
+              <span>Enable OpenAPI discovery</span>
             </label>
           </div>
         </div>

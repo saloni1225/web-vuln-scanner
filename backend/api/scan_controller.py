@@ -25,6 +25,8 @@ class ScanRequest(BaseModel):
     detector_names: list[str] | None = None
     enable_api_fuzzing: bool = True
     enable_graphql_checks: bool = True
+    enable_finding_validator: bool | None = None
+    enable_openapi_discovery: bool | None = None
 
 
 class ScanController:
@@ -58,6 +60,8 @@ class ScanController:
             "detector_names": request.detector_names or [],
             "enable_api_fuzzing": request.enable_api_fuzzing,
             "enable_graphql_checks": request.enable_graphql_checks,
+            "enable_finding_validator": request.enable_finding_validator,
+            "enable_openapi_discovery": request.enable_openapi_discovery,
         }
         return await self.engine.scan(
             str(request.target_url),

@@ -75,7 +75,11 @@ class ResponseAnalyzer:
             contexts.append("attribute")
         if re.search(rf"<[^>]+>{re.escape(marker)}</", body, re.IGNORECASE):
             contexts.append("dom-text")
-        dangerous_contexts = [item for item in contexts if item in {"script", "attribute"}]
+        if re.search(rf"`[^`]*{re.escape(marker)}[^`]*`", body):
+            contexts.append("js_template_literal")
+        if re.search(rf"href\s*=\s*['\"]javascript:[^'\"]*{re.escape(marker)}", body, re.IGNORECASE):
+            contexts.append("href_javascript")
+        dangerous_contexts = [item for item in contexts if item in {"script", "attribute", "js_template_literal", "href_javascript"}]
         return {
             "reflected": bool(contexts),
             "contexts": list(dict.fromkeys(contexts)),

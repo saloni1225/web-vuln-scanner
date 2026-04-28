@@ -7,6 +7,7 @@ from backend.api.scan_controller import ScanController, ScanRequest
 from backend.api.websocket import scan_hub
 from backend.api.job_registry import job_registry
 from backend.database.db import get_scan, list_scans
+from backend.database.db import compare_scans
 from backend.detection.registry import describe_loaded_detectors
 
 
@@ -69,6 +70,14 @@ async def report_detail(scan_id: str) -> dict[str, object]:
     scan["report_url"] = scan["report_urls"]["html"]
     scan["pdf_report_url"] = scan["report_urls"]["pdf"]
     return scan
+
+
+@router.get("/reports/compare/{left_scan_id}/{right_scan_id}")
+async def report_compare(left_scan_id: str, right_scan_id: str) -> dict[str, object]:
+    comparison = compare_scans(left_scan_id, right_scan_id)
+    if comparison is None:
+        raise HTTPException(status_code=404, detail="One or both scan reports were not found")
+    return comparison
 
 
 @router.websocket("/ws/scans")

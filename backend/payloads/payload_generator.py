@@ -26,11 +26,13 @@ class PayloadGenerator:
                 marker,
                 f"<div>{marker}</div>",
                 f"<script>window.__awvs='{marker}'</script>",
+                f"<img src=x onerror=\"window.__awvs='{marker}'\">",
             ],
             "attribute": [
                 f'" data-xss="{marker}"',
                 f"' data-xss='{marker}'",
                 f'" autofocus onfocus="window.__awvs=\'{marker}\'"',
+                f"' autofocus onfocus='window.__awvs=\"{marker}\"'",
             ],
             "json": [
                 marker,
@@ -40,7 +42,17 @@ class PayloadGenerator:
             "script": [
                 f"';window.__awvs='{marker}';//",
                 f'";window.__awvs="{marker}";//',
+                f"\\x3cscript\\x3ewindow.__awvs='{marker}'\\x3c/script\\x3e",
             ],
+            "template_literal": [
+                f"${{window.__awvs='{marker}'}}",
+            ],
+            "href_javascript": [
+                f"javascript:window.__awvs='{marker}'",
+            ],
+            "csp_bypass": [
+                f"<base href=\"javascript:window.__awvs='{marker}'//\">",
+            ]
         }
 
     def graphql_probe_bodies(self, marker: str) -> list[dict[str, str]]:

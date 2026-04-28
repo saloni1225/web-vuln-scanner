@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     enable_api_discovery: bool = True
     enable_graphql_discovery: bool = True
     enable_behavioral_analysis: bool = True
+    enable_finding_validator: bool = True
+    enable_openapi_discovery: bool = True
+    max_requests: int = 10000
     playwright_timeout_ms: int = 10000
     playwright_render_wait_ms: int = 1200
     max_script_bundles: int = 6

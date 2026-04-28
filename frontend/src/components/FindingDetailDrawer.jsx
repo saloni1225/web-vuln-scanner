@@ -80,8 +80,19 @@ export function FindingDetailDrawer({ finding, open, onClose }) {
           <div className="drawer-title">
             <strong>Recommended Action</strong>
           </div>
+          {finding.owasp_category ? (
+            <div className="drawer-chip-row" style={{marginBottom: "8px"}}>
+              <span className="drawer-chip severity-high">{finding.owasp_category}</span>
+            </div>
+          ) : null}
           {finding.cwe_title ? <small>{finding.cwe_title}</small> : null}
           <p>{finding.recommendation}</p>
+          {finding.code_snippet ? (
+            <div style={{marginTop: "12px"}}>
+              <strong>Remediation Example:</strong>
+              <code className="drawer-code" style={{marginTop: "4px"}}>{finding.code_snippet}</code>
+            </div>
+          ) : null}
         </section>
       </aside>
     </div>
