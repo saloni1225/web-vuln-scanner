@@ -50,7 +50,7 @@ export function CICDPage() {
             <div><PlayCircle size={18} /><strong>Local Equivalent</strong></div>
             <span>CLI</span>
           </header>
-          <code className="drawer-code">python scripts/run_scanner.py http://127.0.0.1:3000 --profile quick</code>
+          <code className="drawer-code">python scripts/run_scanner.py https://staging.example.com --profile quick</code>
         </article>
       </section>
     </section>

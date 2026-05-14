@@ -31,6 +31,7 @@ export async function startScan(targetUrl, options = {}) {
         enable_finding_validator: options.enableFindingValidator ?? true,
         enable_openapi_discovery: options.enableOpenapiDiscovery ?? true,
         enable_directory_fuzzing: options.enableDirectoryFuzzing ?? null,
+        enable_unsafe_state_changing_fuzz: options.enableUnsafeStateChangingFuzz ?? false,
         enable_safe_port_scan: options.enableSafePortScan ?? null,
         enable_subdomain_recon: options.enableSubdomainRecon ?? null,
         enable_screenshot_recon: options.enableScreenshotRecon ?? null,

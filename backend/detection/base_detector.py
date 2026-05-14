@@ -1,7 +1,39 @@
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass
+from urllib.parse import urlparse
 
 from backend.core.request_handler import RequestHandler
+
+
+STATE_CHANGING_PATH_HINTS = (
+    "/api/delivery",
+    "/api/hint",
+    "/api/feedback",
+    "/api/basket",
+    "/api/order",
+    "/api/card",
+    "/api/address",
+    "/api/user",
+    "/api/security",
+    "/rest/user",
+    "/rest/basket",
+    "/rest/order",
+)
+AUTH_ENDPOINT_HINTS = (
+    "/login",
+    "/logout",
+    "/signin",
+    "/sign-in",
+    "/signup",
+    "/sign-up",
+    "/rest/user/login",
+    "/saveLoginIp",
+)
+LOW_RISK_POST_HINTS = (
+    "/search",
+    "/graphql",
+    "/api/graphql",
+)
 
 
 @dataclass(slots=True)
@@ -43,6 +75,24 @@ class Finding:
 
 class BaseDetector(ABC):
     name = "base"
+
+    @staticmethod
+    def allow_active_post_probe(form: dict[str, object], site_map: dict[str, object]) -> bool:
+        action = str(form.get("action", "")).lower()
+        content_type = str(form.get("content_type", "form")).lower()
+        source = str(form.get("source", "")).lower()
+        if any(hint in action for hint in AUTH_ENDPOINT_HINTS):
+            return bool(site_map.get("allow_auth_endpoint_fuzz"))
+        if site_map.get("allow_state_changing_fuzz"):
+            return True
+        if any(hint in action for hint in LOW_RISK_POST_HINTS):
+            return True
+        if any(hint in action for hint in STATE_CHANGING_PATH_HINTS):
+            return False
+        if content_type == "json" or "api" in action or "schema" in source:
+            return False
+        parsed = urlparse(action)
+        return parsed.path in {"", "/"} or not parsed.path.lower().startswith(("/api", "/rest"))
 
     @abstractmethod
     async def detect(

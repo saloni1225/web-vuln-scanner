@@ -46,9 +46,13 @@ export function ScanPanel({
   setEnableFindingValidator,
   enableOpenapiDiscovery,
   setEnableOpenapiDiscovery,
+  enableActivePostTesting,
+  setEnableActivePostTesting,
   isScanning,
   onScan,
   progress,
+  targetHost,
+  requiresAuthorization,
 }) {
   function toggleDetector(name) {
     setSelectedDetectors((current) =>
@@ -64,11 +68,11 @@ export function ScanPanel({
           id="target-url"
           type="url"
           value={targetUrl}
-          placeholder="https://example.com"
+          placeholder="https://staging.example.com"
           onChange={(event) => setTargetUrl(event.target.value)}
           required
         />
-        <button type="submit" disabled={isScanning}>
+        <button type="submit" disabled={isScanning || (requiresAuthorization && !authorizationConfirmed)}>
           {isScanning ? <LoaderCircle className="spin" size={18} /> : <Play size={18} />}
           <span>{isScanning ? "Scanning" : "Start"}</span>
         </button>
@@ -159,7 +163,7 @@ export function ScanPanel({
           ))}
         </select>
         <div className="profile-description">
-          {scanProfiles?.find((profile) => profile.name === scanProfile)?.description ?? "Broader discovery, API fuzzing, validation, and recon."}
+          {scanProfiles?.find((profile) => profile.name === scanProfile)?.description ?? "Balanced authorized assessment with SPA crawling, API probes, validation, and recon."}
         </div>
       </div>
       <label htmlFor="rate-limit">Safety Controls</label>
@@ -186,7 +190,7 @@ export function ScanPanel({
         <input
           type="text"
           value={domainAllowlist}
-          placeholder="Domain allowlist, comma separated"
+          placeholder="Allowed domains, e.g. staging.example.com, app.example.com"
           onChange={(event) => setDomainAllowlist(event.target.value)}
         />
       </div>
@@ -196,8 +200,20 @@ export function ScanPanel({
           checked={authorizationConfirmed}
           onChange={(event) => setAuthorizationConfirmed(event.target.checked)}
         />
-        <span>I confirm I own this target or have explicit authorization to test it.</span>
+        <span>I confirm this target is in scope and I have explicit authorization to test it.</span>
       </label>
+      {targetHost ? (
+        <div className={`scope-notice ${requiresAuthorization ? (authorizationConfirmed ? "confirmed" : "warning") : "private"}`}>
+          <strong>{requiresAuthorization ? "Hosted target scope" : "Private target scope"}</strong>
+          <span>
+            {requiresAuthorization
+              ? authorizationConfirmed
+                ? `${targetHost} is confirmed in scope and will be sent with the scan allowlist.`
+                : `${targetHost} needs authorization confirmation before scanning.`
+              : `${targetHost} is a private/local target, so the hosted-target confirmation gate is not required.`}
+          </span>
+        </div>
+      ) : null}
       <div className="options-grid">
         <div>
           <label>Detector Plugins</label>
@@ -223,11 +239,11 @@ export function ScanPanel({
           </div>
         </div>
         <div>
-          <label>API / GraphQL</label>
+          <label>API / GraphQL Coverage</label>
           <div className="toggle-stack">
             <label className="checkbox-row">
               <input type="checkbox" checked={enableApiFuzzing} onChange={(event) => setEnableApiFuzzing(event.target.checked)} />
-              <span>Enable API fuzzing</span>
+              <span>Enable API probe coverage</span>
             </label>
             <label className="checkbox-row">
               <input type="checkbox" checked={enableGraphqlChecks} onChange={(event) => setEnableGraphqlChecks(event.target.checked)} />
@@ -240,6 +256,10 @@ export function ScanPanel({
             <label className="checkbox-row">
               <input type="checkbox" checked={enableOpenapiDiscovery} onChange={(event) => setEnableOpenapiDiscovery(event.target.checked)} />
               <span>Enable OpenAPI discovery</span>
+            </label>
+            <label className="checkbox-row bounty-toggle">
+              <input type="checkbox" checked={enableActivePostTesting} onChange={(event) => setEnableActivePostTesting(event.target.checked)} />
+              <span>Active POST testing for confirmed in-scope targets</span>
             </label>
           </div>
         </div>

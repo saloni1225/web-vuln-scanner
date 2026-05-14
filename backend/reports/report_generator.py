@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -5,6 +7,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 REPORT_DIR = Path(__file__).resolve().parent
 EXPORT_DIR = REPORT_DIR / "exports"
+logger = logging.getLogger(__name__)
 
 
 def generate_html_report(scan: dict[str, object]) -> Path:
@@ -23,19 +26,26 @@ async def generate_pdf_report(scan: dict[str, object], html_path: Path | None = 
     html_path = html_path or generate_html_report(scan)
     pdf_path = EXPORT_DIR / f"{scan['scan_id']}.pdf"
     try:
-        from playwright.async_api import async_playwright
-    except Exception:
+        return await asyncio.to_thread(_generate_pdf_report_sync, html_path, pdf_path)
+    except Exception as exc:
+        logger.warning("PDF report generation failed for scan %s: %s", scan.get("scan_id"), exc)
         return None
 
-    async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(headless=True)
-        page = await browser.new_page()
-        await page.goto(html_path.resolve().as_uri(), wait_until="networkidle")
-        await page.pdf(
-            path=str(pdf_path),
-            format="A4",
-            margin={"top": "14mm", "right": "10mm", "bottom": "14mm", "left": "10mm"},
-            print_background=True,
-        )
-        await browser.close()
+
+def _generate_pdf_report_sync(html_path: Path, pdf_path: Path) -> Path:
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        try:
+            page = browser.new_page()
+            page.goto(html_path.resolve().as_uri(), wait_until="networkidle")
+            page.pdf(
+                path=str(pdf_path),
+                format="A4",
+                margin={"top": "14mm", "right": "10mm", "bottom": "14mm", "left": "10mm"},
+                print_background=True,
+            )
+        finally:
+            browser.close()
     return pdf_path

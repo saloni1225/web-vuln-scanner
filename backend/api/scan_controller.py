@@ -30,6 +30,7 @@ class ScanRequest(BaseModel):
     enable_openapi_discovery: bool | None = None
     scan_profile: str | None = "deep"
     enable_directory_fuzzing: bool | None = None
+    enable_unsafe_state_changing_fuzz: bool | None = None
     enable_safe_port_scan: bool | None = None
     enable_subdomain_recon: bool | None = None
     enable_screenshot_recon: bool | None = None
@@ -71,6 +72,7 @@ class ScanController:
             "enable_openapi_discovery": request.enable_openapi_discovery,
             "scan_profile": request.scan_profile or "deep",
             "enable_directory_fuzzing": request.enable_directory_fuzzing,
+            "enable_unsafe_state_changing_fuzz": request.enable_unsafe_state_changing_fuzz,
             "enable_safe_port_scan": request.enable_safe_port_scan,
             "enable_subdomain_recon": request.enable_subdomain_recon,
             "enable_screenshot_recon": request.enable_screenshot_recon,

@@ -23,8 +23,8 @@ export function Navbar({ page, onNavigate, theme, backgroundMode, onSelectBackgr
           <Shield size={16} />
         </div>
         <div>
-          <div className="brand">Adaptive Scanner</div>
-          <div className="brand-subtitle">Offensive surface analysis console</div>
+          <div className="brand">AdaptiveScan</div>
+          <div className="brand-subtitle">Hosted web security scanning</div>
         </div>
       </div>
       <div className="nav-actions">

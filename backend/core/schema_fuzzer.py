@@ -25,13 +25,34 @@ BOUNDARY_VALUES = {
     "object": ["{}", "{\"scanner\":\"value\"}"],
 }
 
+STATE_CHANGING_HINTS = (
+    "/api/delivery",
+    "/api/hint",
+    "/api/feedback",
+    "/api/basket",
+    "/api/order",
+    "/api/card",
+    "/api/address",
+    "/api/user",
+    "/api/security",
+    "/rest/user",
+)
+PROTECTED_STATUS_CODES = {401, 403, 405}
 
-async def run_schema_fuzzing(site_map: dict[str, object], request_handler, enabled: bool = True) -> dict[str, object]:
+
+async def run_schema_fuzzing(
+    site_map: dict[str, object],
+    request_handler,
+    enabled: bool = True,
+    allow_state_changing: bool | None = None,
+) -> dict[str, object]:
     if not enabled:
         return {"enabled": False, "probes": [], "graphql": []}
+    allow_state_changing = settings.enable_unsafe_state_changing_fuzz if allow_state_changing is None else allow_state_changing
     probes = []
     graphql = []
-    for endpoint in site_map.get("endpoints", [])[:30]:
+    skipped = []
+    for endpoint in site_map.get("endpoints", [])[: settings.max_schema_fuzz_endpoints]:
         if not isinstance(endpoint, dict):
             continue
         endpoint_type = str(endpoint.get("type", "page"))
@@ -40,6 +61,10 @@ async def run_schema_fuzzing(site_map: dict[str, object], request_handler, enabl
         fields = [str(item) for item in [*endpoint.get("query_params", []), *endpoint.get("schema_fields", [])] if item]
         field_types = endpoint.get("schema_field_types", {}) if isinstance(endpoint.get("schema_field_types"), dict) else {}
         if not url or endpoint_type not in {"api", "graphql"}:
+            continue
+        skip_reason = _skip_reason(url, method, endpoint_type, fields, allow_state_changing)
+        if skip_reason:
+            skipped.append({"url": url, "method": method.upper(), "reason": skip_reason})
             continue
         if endpoint_type == "graphql":
             graphql.append(await _probe_graphql(url, fields, field_types, request_handler))
@@ -52,6 +77,8 @@ async def run_schema_fuzzing(site_map: dict[str, object], request_handler, enabl
         "probe_count": len(probes) + len(graphql),
         "schema_field_count": sum(len(item.get("fields", [])) for item in probes + graphql),
         "mutation_case_count": sum(len(item.get("cases", [])) for item in probes + graphql),
+        "skipped": skipped,
+        "skipped_count": len(skipped),
     }
 
 
@@ -70,6 +97,10 @@ async def _probe_rest(url: str, method: str, fields: list[str], field_types: dic
         status_code = response.status_code
         content_type = response.headers.get("content-type", "")
         reflected_fields = [field for field, value in body.items() if str(value) in response.text]
+        if status_code in PROTECTED_STATUS_CODES:
+            return _skipped_probe(url, method, fields, f"target returned HTTP {status_code}; protected endpoint")
+        if status_code >= 500:
+            return _skipped_probe(url, method, fields, f"target returned HTTP {status_code}; stopping after one safe probe")
     except Exception as exc:
         return {"url": url, "method": method.upper(), "fields": fields, "status": "failed", "error": str(exc)}
     return {
@@ -95,6 +126,10 @@ async def _probe_graphql(url: str, fields: list[str], field_types: dict[str, obj
         variables = _representative_body(cases)
         response = await request_handler.post_json(url, {"query": query, "variables": variables})
         payload = json.loads(response.text) if response.text.strip().startswith("{") else {}
+        if response.status_code in PROTECTED_STATUS_CODES:
+            return _skipped_probe(url, "POST", fields, f"target returned HTTP {response.status_code}; protected GraphQL endpoint")
+        if response.status_code >= 500:
+            return _skipped_probe(url, "POST", fields, f"target returned HTTP {response.status_code}; stopping after one safe GraphQL probe")
     except Exception as exc:
         return {"url": url, "fields": fields, "status": "failed", "error": str(exc)}
     return {
@@ -116,6 +151,30 @@ def _value_for_field(field: str) -> str:
         if key in lowered:
             return value
     return "scanner"
+
+
+def _skip_reason(url: str, method: str, endpoint_type: str, fields: list[str], allow_state_changing: bool) -> str:
+    lowered = url.lower()
+    if endpoint_type == "graphql":
+        return ""
+    if method in {"post", "put", "patch", "delete"} and not allow_state_changing:
+        if any(hint in lowered for hint in STATE_CHANGING_HINTS):
+            return "active POST probe skipped by controlled bounty profile"
+        if not fields:
+            return "active POST endpoint has no schema fields for a controlled probe"
+    return ""
+
+
+def _skipped_probe(url: str, method: str, fields: list[str], reason: str) -> dict[str, object]:
+    return {
+        "url": url,
+        "method": method.upper(),
+        "fields": fields,
+        "status": "skipped",
+        "reason": reason,
+        "reflected_fields": [],
+        "cases": [],
+    }
 
 
 def _build_mutation_cases(fields: list[str], field_types: dict[str, object]) -> list[dict[str, object]]:

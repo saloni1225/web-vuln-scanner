@@ -1,22 +1,22 @@
 import React from "react";
-import { AlertTriangle, FlaskConical, FileText } from "lucide-react";
+import { AlertTriangle, FileText, Globe2 } from "lucide-react";
 
 export function ScanGuidance({ result, targetUrl }) {
   const advisory = result?.target_advisory;
-  const recommendedTargets = advisory?.recommended_targets ?? ["http://127.0.0.1:3000"];
+  const targetExamples = advisory?.recommended_targets ?? ["https://staging.example.com", "https://app.example.com"];
 
   return (
     <section className="guidance-grid">
       <article className="panel guidance-card">
         <header className="panel-header">
           <div>
-            <FlaskConical size={18} />
-            <strong>Recommended Lab</strong>
+            <Globe2 size={18} />
+            <strong>Hosted Targets</strong>
           </div>
         </header>
-        <p>Run OWASP Juice Shop locally, then scan one of these addresses:</p>
+        <p>Scan authorized web apps, staging environments, or internal services by URL.</p>
         <ul className="chip-list">
-          {recommendedTargets.map((target) => (
+          {targetExamples.map((target) => (
             <li key={target}>{target}</li>
           ))}
         </ul>
@@ -30,6 +30,7 @@ export function ScanGuidance({ result, targetUrl }) {
           </div>
         </header>
         <p>{advisory?.message ?? "Use a local or explicitly authorized target while developing detectors."}</p>
+        {!advisory ? <small>External targets require the authorization confirmation before scanning.</small> : null}
         {targetUrl ? <small>Current target: {targetUrl}</small> : null}
       </article>
 

@@ -1,4 +1,4 @@
-from backend.core.crawler import LinkParser, canonicalize_url, classify_endpoint_type, extract_candidates_from_text, extract_hidden_api_candidates
+from backend.core.crawler import LinkParser, canonicalize_url, classify_endpoint_type, extract_candidates_from_text, extract_hidden_api_candidates, guess_query_params
 
 
 def test_link_parser_collects_links_and_forms():
@@ -19,6 +19,18 @@ def test_extract_candidates_from_script_like_text():
     assert "/#/search" in candidates
     assert "/rest/products/search" in candidates
     assert "/api/Products" in candidates
+
+
+def test_extract_candidates_limits_numeric_spa_noise():
+    text = 'window.__routes=["/10","/20","/30","/40","/50","/rest/products/search"];'
+    candidates = extract_candidates_from_text(text)
+    numeric_routes = [candidate for candidate in candidates if candidate.strip("/").isdigit()]
+    assert len(numeric_routes) == 3
+    assert "/rest/products/search" in candidates
+
+
+def test_guess_query_params_does_not_turn_login_into_get_fuzz_target():
+    assert guess_query_params("http://127.0.0.1:3000/rest/user/login") == []
 
 
 def test_classify_endpoint_type_marks_graphql():

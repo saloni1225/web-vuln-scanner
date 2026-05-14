@@ -7,7 +7,7 @@ export function DiscoveryPanel({ result }) {
   const endpoints = result?.endpoints ?? [];
   const apiSummary = result?.api_summary ?? {};
   const endpointRisk = result?.recon_summary?.endpoint_risk_ranking ?? [];
-  const directoryFuzzing = result?.recon_summary?.directory_fuzzing ?? [];
+  const directoryProbes = result?.recon_summary?.directory_fuzzing ?? [];
   const subdomains = result?.recon_summary?.subdomain_summary?.resolved ?? [];
   const passive = result?.recon_summary?.passive_security ?? {};
 
@@ -126,16 +126,16 @@ export function DiscoveryPanel({ result }) {
             <Link2 size={18} />
             <strong>Hidden Surface</strong>
           </div>
-          <span>{directoryFuzzing.length + subdomains.length}</span>
+          <span>{directoryProbes.length + subdomains.length}</span>
         </header>
         <div className="discovery-summary-strip">
-          <small>Dirs {directoryFuzzing.length}</small>
+          <small>Dirs {directoryProbes.length}</small>
           <small>Subdomains {subdomains.length}</small>
           <small>Headers {passive.missing_headers?.length ?? 0} missing</small>
         </div>
         <div className="panel-list">
-          {directoryFuzzing.length || subdomains.length ? (
-            [...directoryFuzzing.map((item) => ({ label: item.url, meta: `HTTP ${item.status_code} · ${item.path}` })),
+          {directoryProbes.length || subdomains.length ? (
+            [...directoryProbes.map((item) => ({ label: item.url, meta: `HTTP ${item.status_code} · ${item.path}` })),
              ...subdomains.map((item) => ({ label: item.host, meta: (item.addresses ?? []).join(", ") }))].map((item, index) => (
               <article key={`${item.label}-${index}`} className="panel-row">
                 <div>

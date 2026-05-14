@@ -32,9 +32,14 @@ def canonicalize_url(url: str) -> str:
 
 def extract_candidates_from_text(text: str) -> list[str]:
     candidates: set[str] = set()
+    numeric_route_count = 0
     for match in ROUTE_PATTERN.findall(text):
         if match.startswith("//"):
             continue
+        if re.fullmatch(r"/\d+", match):
+            if numeric_route_count >= settings.max_crawler_numeric_routes:
+                continue
+            numeric_route_count += 1
         candidates.add(match)
     return sorted(candidates)
 
@@ -56,8 +61,6 @@ def guess_query_params(url: str) -> list[str]:
     guessed: set[str] = set()
     if "search" in lowered:
         guessed.add("q")
-    if "login" in lowered:
-        guessed.update({"email", "password"})
     if "user" in lowered and "id" in lowered:
         guessed.add("id")
     return sorted(guessed)

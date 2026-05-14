@@ -2,7 +2,8 @@ import React from "react";
 import { ActivitySquare, Radar, ShieldCheck, Siren, Timer } from "lucide-react";
 
 export function Dashboard({ result, progress, detectorTimings }) {
-  const summary = result?.summary ?? {};
+  const useLiveSummary = progress?.status === "running" || progress?.status === "queued" || !result;
+  const summary = useLiveSummary ? progress?.summary ?? result?.summary ?? {} : result?.summary ?? progress?.summary ?? {};
   const findings = [
     { label: "High", value: summary.high_severity_count ?? 0, tone: "high" },
     { label: "Medium", value: summary.medium_severity_count ?? 0, tone: "medium" },
@@ -22,13 +23,13 @@ export function Dashboard({ result, progress, detectorTimings }) {
   const apiEndpoints = summary.api_endpoint_count ?? result?.api_summary?.api_endpoint_count ?? 0;
   const graphqlEndpoints = summary.graphql_endpoint_count ?? result?.api_summary?.graphql_endpoint_count ?? 0;
   const hiddenEndpoints = result?.api_summary?.hidden_endpoint_count ?? 0;
-  const enabledDetectors = result?.detector_registry?.length ?? 0;
+  const enabledDetectors = result?.detector_registry?.length ?? detectorTimings?.length ?? 0;
   const anomalyScore = result?.behavioral_summary?.average_anomaly_score ?? 0;
   const validatedFindings = summary.validated_finding_count ?? 0;
   const passiveSecurityScore = summary.passive_security_score ?? result?.recon_summary?.passive_security?.score ?? 0;
   const highRiskEndpoints = summary.high_risk_endpoint_count ?? 0;
   const openPortCount = summary.open_port_count ?? 0;
-  const schemaFuzzProbeCount = summary.schema_fuzz_probe_count ?? result?.schema_fuzz_summary?.probe_count ?? 0;
+  const schemaProbeCount = summary.schema_fuzz_probe_count ?? result?.schema_fuzz_summary?.probe_count ?? 0;
   const technologies = result?.recon_summary?.technology_fingerprint?.technologies ?? [];
   const waf = result?.recon_summary?.waf_detection ?? {};
   const tls = result?.recon_summary?.tls_summary ?? {};
@@ -39,6 +40,7 @@ export function Dashboard({ result, progress, detectorTimings }) {
   const chartOffset = chartCircumference - chartCircumference * endpointRatio;
   const timingSource = detectorTimings?.length ? detectorTimings : result?.detector_timings ?? [];
   const progressValue = progress?.progress ?? (result ? 100 : 0);
+  const isComplete = Boolean(result) || progress?.status === "completed";
 
   return (
     <>
@@ -61,7 +63,7 @@ export function Dashboard({ result, progress, detectorTimings }) {
         <article className="metric-card">
           <Timer />
           <span>Status</span>
-          <strong>{result ? "Complete" : "Ready"}</strong>
+          <strong>{isComplete ? "Complete" : "Ready"}</strong>
         </article>
         <article className="metric-card">
           <ActivitySquare />
@@ -95,8 +97,8 @@ export function Dashboard({ result, progress, detectorTimings }) {
         </article>
         <article className="metric-card">
           <ActivitySquare />
-          <span>Schema Fuzz</span>
-          <strong>{schemaFuzzProbeCount}</strong>
+          <span>Schema Probes</span>
+          <strong>{schemaProbeCount}</strong>
         </article>
       </section>
 
@@ -139,10 +141,10 @@ export function Dashboard({ result, progress, detectorTimings }) {
             <div className="scan-progress-track">
               <div className="scan-progress-fill" style={{ width: `${progressValue}%` }} />
             </div>
-            <p>{progress?.message ?? (result ? "Scan completed." : "Waiting for a scan run.")}</p>
+            <p>{progress?.message ?? (isComplete ? "Scan completed." : "Waiting for a scan run.")}</p>
             <div className="scan-progress-meta">
-              <div><span>Status</span><strong>{progress?.status ?? (result ? "completed" : "idle")}</strong></div>
-              <div><span>Duration</span><strong>{result?.summary?.duration_ms ?? 0} ms</strong></div>
+              <div><span>Status</span><strong>{progress?.status ?? (isComplete ? "completed" : "idle")}</strong></div>
+              <div><span>Duration</span><strong>{summary.duration_ms ?? 0} ms</strong></div>
               <div><span>Avg anomaly</span><strong>{anomalyScore}</strong></div>
             </div>
           </div>

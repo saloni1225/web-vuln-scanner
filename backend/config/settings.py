@@ -34,6 +34,12 @@ class Settings(BaseSettings):
     playwright_render_wait_ms: int = 1200
     max_script_bundles: int = 6
     max_api_candidates: int = 30
+    max_schema_fuzz_endpoints: int = 8
+    enable_unsafe_state_changing_fuzz: bool = False
+    default_max_detector_params: int = 6
+    default_max_payloads_per_param: int = 2
+    default_enable_login_route_probing: bool = False
+    max_crawler_numeric_routes: int = 3
     safe_port_scan_ports: list[int] = [80, 443, 8000, 8080, 8443]
     directory_fuzz_paths: list[str] = [
         "/admin",

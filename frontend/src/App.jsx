@@ -8,7 +8,7 @@ import { CICDPage } from "./pages/CICDPage.jsx";
 import "./styles/dashboard.css";
 
 export default function App() {
-  const [page, setPage] = useState("scan");
+  const [page, setPage] = useState("home");
   const [theme, setTheme] = useState(() => localStorage.getItem("aws-theme") || "light");
   const [backgroundMode, setBackgroundMode] = useState(() => localStorage.getItem("aws-background-mode") || "grid");
 

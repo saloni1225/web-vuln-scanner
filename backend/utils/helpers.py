@@ -25,14 +25,14 @@ def build_target_advisory(url: str) -> dict[str, object]:
         return {
             "safe_for_demo": True,
             "kind": "local-or-private",
-            "message": "Local or private targets are the safest way to validate the scanner during development.",
-            "recommended_targets": ["http://127.0.0.1:3000", "http://localhost:3000"],
+            "message": "Private targets are supported for internal validation and staging assessments.",
+            "recommended_targets": ["https://staging.example.com", "https://app.example.com"],
         }
     return {
         "safe_for_demo": False,
         "kind": "external",
-        "message": "Use explicit authorization before scanning external production systems. Prefer a local lab such as OWASP Juice Shop.",
-        "recommended_targets": ["http://127.0.0.1:3000", "http://localhost:3000"],
+        "message": "Hosted targets are supported when you own them or have explicit authorization. Use the allowlist and conservative rate limits for production systems.",
+        "recommended_targets": ["https://staging.example.com", "https://app.example.com"],
     }
 
 

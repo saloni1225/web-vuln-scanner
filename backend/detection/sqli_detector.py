@@ -26,6 +26,7 @@ class SQLiDetector(BaseDetector):
     }
     NOISY_PARAM_NAMES = {"to", "transport", "eio", "t", "sid"}
     LIKELY_PATH_HINTS = ("/api", "/rest", "/search", "/product", "/item", "/user", "/login", "/feedback")
+    LOGIN_PATH_HINTS = ("/login", "/rest/user/login", "/saveLoginIp")
     BOOLEAN_TEST_PAIRS = [
         ("1' AND '1'='1", "1' AND '1'='2"),
         ('1" AND "1"="1', '1" AND "1"="2'),
@@ -75,6 +76,13 @@ class SQLiDetector(BaseDetector):
             return False
         return lowered_param in cls.LIKELY_PARAM_NAMES or any(hint in lowered_url for hint in cls.LIKELY_PATH_HINTS)
 
+    @classmethod
+    def _should_skip_for_profile(cls, url: str, site_map: dict[str, object]) -> bool:
+        lowered_url = url.lower()
+        if site_map.get("allow_auth_endpoint_fuzz"):
+            return False
+        return any(hint.lower() in lowered_url for hint in cls.LOGIN_PATH_HINTS)
+
     @staticmethod
     def _dedupe_findings(findings: list[Finding]) -> list[Finding]:
         deduped: dict[tuple[str, str | None, str | None, str], Finding] = {}
@@ -118,19 +126,29 @@ class SQLiDetector(BaseDetector):
             get_candidates.extend(self._build_candidate_urls(str(endpoint.get("url", "")), params))
 
         seen_get: set[tuple[str, str]] = set()
+        max_params = int(site_map.get("max_detector_params", 6) or 0)
+        max_payloads = int(site_map.get("max_payloads_per_param", 2) or 0)
+        tested_params = 0
+        if max_params <= 0 or max_payloads <= 0:
+            return []
         for param, baseline_url in get_candidates:
+            if tested_params >= max_params:
+                break
             if not param or (baseline_url, param) in seen_get:
+                continue
+            if self._should_skip_for_profile(baseline_url, site_map):
                 continue
             if not self._should_test_get_candidate(baseline_url, param):
                 continue
             seen_get.add((baseline_url, param))
+            tested_params += 1
             parsed = urlparse(baseline_url)
             baseline_params = dict(parse_qsl(parsed.query))
             try:
                 baseline = await request_handler.get(baseline_url)
             except Exception:
                 continue
-            for payload in payloads[:4]:
+            for payload in payloads[:max_payloads]:
                 mutated = baseline_params | {param: payload}
                 test_url = urlunparse(parsed._replace(query=urlencode(mutated)))
                 try:
@@ -177,6 +195,8 @@ class SQLiDetector(BaseDetector):
                     )
                     break
             else:
+                if max_payloads < 2:
+                    continue
                 boolean_finding = await self._probe_boolean_sqli_get(
                     request_handler=request_handler,
                     analyzer=analyzer,
@@ -189,30 +209,34 @@ class SQLiDetector(BaseDetector):
                 if boolean_finding:
                     findings.append(boolean_finding)
                     continue
-                time_finding = await self._probe_time_sqli_get(
-                    request_handler=request_handler,
-                    analyzer=analyzer,
-                    parsed=parsed,
-                    baseline_params=baseline_params,
-                    baseline=baseline,
-                    param=param,
-                )
-                if time_finding:
-                    findings.append(time_finding)
-                    continue
-                union_finding = await self._probe_union_sqli_get(
-                    request_handler=request_handler,
-                    analyzer=analyzer,
-                    parsed=parsed,
-                    baseline_params=baseline_params,
-                    baseline=baseline,
-                    param=param,
-                )
-                if union_finding:
-                    findings.append(union_finding)
+                if max_payloads >= 3:
+                    time_finding = await self._probe_time_sqli_get(
+                        request_handler=request_handler,
+                        analyzer=analyzer,
+                        parsed=parsed,
+                        baseline_params=baseline_params,
+                        baseline=baseline,
+                        param=param,
+                    )
+                    if time_finding:
+                        findings.append(time_finding)
+                        continue
+                if max_payloads >= 3:
+                    union_finding = await self._probe_union_sqli_get(
+                        request_handler=request_handler,
+                        analyzer=analyzer,
+                        parsed=parsed,
+                        baseline_params=baseline_params,
+                        baseline=baseline,
+                        param=param,
+                    )
+                    if union_finding:
+                        findings.append(union_finding)
 
         for form in site_map.get("forms", []):
             if not isinstance(form, dict):
+                continue
+            if not self.allow_active_post_probe(form, site_map):
                 continue
             action = str(form.get("action", ""))
             method = str(form.get("method", "get")).lower()
@@ -220,13 +244,15 @@ class SQLiDetector(BaseDetector):
             content_type = str(form.get("content_type", "form")).lower()
             if method != "post" or not action or not inputs:
                 continue
+            if self._should_skip_for_profile(action, site_map):
+                continue
             safe_baseline = {name: "baseline" for name in inputs}
             try:
                 baseline = await self._submit_body(request_handler, action, safe_baseline, content_type)
             except Exception:
                 continue
             for param in inputs:
-                for payload in payloads[:3]:
+                for payload in payloads[:max_payloads]:
                     body = {name: "baseline" for name in inputs}
                     body[param] = payload
                     try:

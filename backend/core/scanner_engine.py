@@ -76,6 +76,7 @@ class ScannerEngine:
                 detector_site_map,
                 request_handler,
                 enabled=bool(scan_options.get("enable_api_fuzzing", True)),
+                allow_state_changing=bool(scan_options.get("enable_unsafe_state_changing_fuzz", settings.enable_unsafe_state_changing_fuzz)),
             )
             self._timeline(
                 timeline,
@@ -93,6 +94,9 @@ class ScannerEngine:
                         "page_count": len(site_map["pages"]),
                         "form_count": len(site_map["forms"]),
                         "endpoint_count": len(site_map.get("endpoints", [])),
+                        "api_endpoint_count": site_map.get("api_summary", {}).get("api_endpoint_count", 0),
+                        "graphql_endpoint_count": site_map.get("api_summary", {}).get("graphql_endpoint_count", 0),
+                        "schema_fuzz_probe_count": schema_fuzz_summary.get("probe_count", 0),
                     }
                 )
             findings: list[Finding] = []
@@ -212,6 +216,7 @@ class ScannerEngine:
                     "enable_graphql_checks": bool(scan_options.get("enable_graphql_checks", True)),
                     "enable_finding_validator": bool(scan_options.get("enable_finding_validator", settings.enable_finding_validator)),
                     "enable_directory_fuzzing": bool(scan_options.get("enable_directory_fuzzing", settings.enable_directory_fuzzing)),
+                    "enable_unsafe_state_changing_fuzz": bool(scan_options.get("enable_unsafe_state_changing_fuzz", settings.enable_unsafe_state_changing_fuzz)),
                     "enable_safe_port_scan": bool(scan_options.get("enable_safe_port_scan", settings.enable_safe_port_scan)),
                     "enable_subdomain_recon": bool(scan_options.get("enable_subdomain_recon", settings.enable_subdomain_recon)),
                     "enable_screenshot_recon": bool(scan_options.get("enable_screenshot_recon", settings.enable_screenshot_recon)),
@@ -453,4 +458,8 @@ class ScannerEngine:
             **site_map,
             "endpoints": endpoints,
             "forms": forms,
+            "allow_state_changing_fuzz": bool(scan_options.get("enable_unsafe_state_changing_fuzz", settings.enable_unsafe_state_changing_fuzz)),
+            "max_detector_params": int(scan_options.get("max_detector_params", settings.default_max_detector_params) or 0),
+            "max_payloads_per_param": int(scan_options.get("max_payloads_per_param", settings.default_max_payloads_per_param) or 0),
+            "enable_login_route_probing": bool(scan_options.get("enable_login_route_probing", settings.default_enable_login_route_probing)),
         }

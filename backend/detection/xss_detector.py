@@ -13,6 +13,7 @@ class XSSDetector(BaseDetector):
     name = "xss"
     NOISY_PARAM_NAMES = {"eio", "transport", "sid", "t"}
     NOISY_PATH_HINTS = ("/socket.io", "/redirect")
+    LOGIN_PATH_HINTS = ("/login", "/rest/user/login", "/saveLoginIp")
 
     @staticmethod
     def _build_candidate_urls(url: str, params: list[str]) -> list[tuple[str, str]]:
@@ -76,6 +77,13 @@ class XSSDetector(BaseDetector):
         lowered_url = url.lower()
         return param.lower() not in cls.NOISY_PARAM_NAMES and not any(hint in lowered_url for hint in cls.NOISY_PATH_HINTS)
 
+    @classmethod
+    def _should_skip_for_profile(cls, url: str, site_map: dict[str, object]) -> bool:
+        if site_map.get("allow_auth_endpoint_fuzz"):
+            return False
+        lowered_url = url.lower()
+        return any(hint.lower() in lowered_url for hint in cls.LOGIN_PATH_HINTS)
+
     @staticmethod
     def _dedupe_findings(findings: list[Finding]) -> list[Finding]:
         deduped: dict[tuple[str, str | None, str | None, str, str | None], Finding] = {}
@@ -125,19 +133,29 @@ class XSSDetector(BaseDetector):
             get_candidates.extend(self._build_candidate_urls(str(endpoint.get("url", "")), params))
 
         seen_get: set[tuple[str, str]] = set()
+        max_params = int(site_map.get("max_detector_params", 6) or 0)
+        max_payloads = int(site_map.get("max_payloads_per_param", 2) or 0)
+        tested_params = 0
+        if max_params <= 0 or max_payloads <= 0:
+            return []
         for param, baseline_url in get_candidates:
+            if tested_params >= max_params:
+                break
             if not param or (baseline_url, param) in seen_get:
+                continue
+            if self._should_skip_for_profile(baseline_url, site_map):
                 continue
             if not self._should_probe_param(baseline_url, param):
                 continue
             seen_get.add((baseline_url, param))
+            tested_params += 1
             parsed = urlparse(baseline_url)
             baseline_params = dict(parse_qsl(parsed.query))
             try:
                 baseline_response = await request_handler.get(baseline_url)
             except Exception:
                 continue
-            for payload in payloads:
+            for payload in payloads[:max_payloads]:
                 test_url = urlunparse(parsed._replace(query=urlencode(baseline_params | {param: payload})))
                 try:
                     response = await request_handler.get(test_url)
@@ -203,12 +221,16 @@ class XSSDetector(BaseDetector):
         for form in site_map.get("forms", []):
             if not isinstance(form, dict):
                 continue
+            if not self.allow_active_post_probe(form, site_map):
+                continue
             action = str(form.get("action", ""))
             method = str(form.get("method", "get")).lower()
             source_page = str(form.get("page", action))
             inputs = [name for name in form.get("inputs", []) if name]
             content_type = str(form.get("content_type", "form")).lower()
             if method != "post" or not action or not inputs:
+                continue
+            if self._should_skip_for_profile(action, site_map):
                 continue
             for param in inputs:
                 if not self._should_probe_param(action, param):
@@ -218,7 +240,7 @@ class XSSDetector(BaseDetector):
                     baseline_response = await self._submit_body(request_handler, action, body, content_type)
                 except Exception:
                     continue
-                for payload in payloads:
+                for payload in payloads[:max_payloads]:
                     mutated_body = {name: "baseline" for name in inputs}
                     mutated_body[param] = payload
                     try:

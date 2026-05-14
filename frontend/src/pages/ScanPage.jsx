@@ -6,11 +6,99 @@ import { LogsViewer } from "../components/LogsViewer.jsx";
 import { ScanGuidance } from "../components/ScanGuidance.jsx";
 import { ScanPanel } from "../components/ScanPanel.jsx";
 import { VulnerabilityCard } from "../components/VulnerabilityCard.jsx";
-import { fetchActiveScans, fetchDetectors, fetchScanProfiles, startScan } from "../services/api.js";
+import { fetchActiveScans, fetchDetectors, fetchReportDetail, fetchScanProfiles, startScan } from "../services/api.js";
 import { createScanSocket } from "../services/socket.js";
 
+const EMPTY_LIVE_SUMMARY = {
+  page_count: 0,
+  form_count: 0,
+  endpoint_count: 0,
+  finding_count: 0,
+  high_severity_count: 0,
+  medium_severity_count: 0,
+  low_severity_count: 0,
+  validated_finding_count: 0,
+  passive_security_score: 0,
+  open_port_count: 0,
+  high_risk_endpoint_count: 0,
+  api_endpoint_count: 0,
+  graphql_endpoint_count: 0,
+  schema_fuzz_probe_count: 0,
+  duration_ms: 0,
+};
+
+function getTargetHost(value) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  try {
+    const parsed = new URL(trimmed.includes("://") ? trimmed : `https://${trimmed}`);
+    return parsed.hostname.toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function isPrivateTargetHost(host) {
+  const normalized = host.toLowerCase();
+  return (
+    normalized === "localhost" ||
+    normalized === "127.0.0.1" ||
+    normalized.startsWith("10.") ||
+    normalized.startsWith("192.168.") ||
+    /^172\.(1[6-9]|2\d|3[0-1])\./.test(normalized)
+  );
+}
+
+function mergeProgressEvent(current, event) {
+  let detectorFindingCounts = current.detectorFindingCounts ?? {};
+  let summary = { ...EMPTY_LIVE_SUMMARY, ...(current.summary ?? {}) };
+
+  if (event.event === "scan_started") {
+    detectorFindingCounts = {};
+    summary = { ...EMPTY_LIVE_SUMMARY };
+  }
+
+  if (event.event === "crawl_completed") {
+    summary = {
+      ...summary,
+      page_count: event.page_count ?? summary.page_count,
+      form_count: event.form_count ?? summary.form_count,
+      endpoint_count: event.endpoint_count ?? summary.endpoint_count,
+      api_endpoint_count: event.api_endpoint_count ?? summary.api_endpoint_count,
+      graphql_endpoint_count: event.graphql_endpoint_count ?? summary.graphql_endpoint_count,
+      schema_fuzz_probe_count: event.schema_fuzz_probe_count ?? summary.schema_fuzz_probe_count,
+    };
+  }
+
+  if (event.event === "detector_completed" && event.detector) {
+    detectorFindingCounts = {
+      ...detectorFindingCounts,
+      [event.detector]: event.finding_count ?? 0,
+    };
+    summary = {
+      ...summary,
+      finding_count: Object.values(detectorFindingCounts).reduce((total, count) => total + Number(count || 0), 0),
+    };
+  }
+
+  if (event.summary) {
+    summary = { ...summary, ...event.summary };
+  }
+
+  return {
+    progress: event.progress ?? current.progress,
+    status: event.status ?? current.status,
+    message: event.message ?? current.message,
+    summary,
+    detectorFindingCounts,
+  };
+}
+
 export function ScanPage() {
-  const [targetUrl, setTargetUrl] = useState("http://127.0.0.1:3000");
+  const [targetUrl, setTargetUrl] = useState("");
   const [jwtToken, setJwtToken] = useState("");
   const [authHeaderName, setAuthHeaderName] = useState("Authorization");
   const [authHeaderValue, setAuthHeaderValue] = useState("");
@@ -33,13 +121,14 @@ export function ScanPage() {
   const [enableGraphqlChecks, setEnableGraphqlChecks] = useState(true);
   const [enableFindingValidator, setEnableFindingValidator] = useState(true);
   const [enableOpenapiDiscovery, setEnableOpenapiDiscovery] = useState(true);
+  const [enableActivePostTesting, setEnableActivePostTesting] = useState(false);
   const [result, setResult] = useState(null);
   const [selectedFinding, setSelectedFinding] = useState(null);
   const [activeScans, setActiveScans] = useState([]);
   const [scanError, setScanError] = useState("");
   const [logs, setLogs] = useState([
     "Scanner ready.",
-    "Tip: launch OWASP Juice Shop locally on http://127.0.0.1:3000 for a safer demo target.",
+    "Enter an authorized hosted or internal target URL, confirm scope, then start the scan.",
   ]);
   const [isScanning, setIsScanning] = useState(false);
   const [progress, setProgress] = useState({ progress: 0, status: "idle", message: "Waiting for the next scan run." });
@@ -66,11 +155,7 @@ export function ScanPage() {
   useEffect(() => {
     const socket = createScanSocket((event) => {
       refreshActiveScans();
-      setProgress((current) => ({
-        progress: event.progress ?? current.progress,
-        status: event.status ?? current.status,
-        message: event.message ?? current.message,
-      }));
+      setProgress((current) => mergeProgressEvent(current, event));
       if (event.event === "scan_started") {
         setLogs((current) => [...current, event.message]);
       }
@@ -87,6 +172,13 @@ export function ScanPage() {
       if (event.event === "scan_completed") {
         setDetectorTimings(event.detector_timings ?? []);
         setLogs((current) => [...current, event.message]);
+        if (event.scan_id) {
+          fetchReportDetail(event.scan_id)
+            .then(setResult)
+            .catch(() => {
+              setLogs((current) => [...current, "Scan summary received, but the full report is still being finalized."]);
+            });
+        }
       }
     });
     return () => socket.close();
@@ -110,12 +202,41 @@ export function ScanPage() {
     () => (detectorTimings.length ? detectorTimings : result?.detector_timings ?? []),
     [detectorTimings, result]
   );
+  const targetHost = useMemo(() => getTargetHost(targetUrl), [targetUrl]);
+  const requiresAuthorization = Boolean(targetHost && !isPrivateTargetHost(targetHost));
+
+  useEffect(() => {
+    if (authorizationConfirmed && requiresAuthorization && targetHost && !domainAllowlist.trim()) {
+      setDomainAllowlist(targetHost);
+    }
+  }, [authorizationConfirmed, domainAllowlist, requiresAuthorization, targetHost]);
 
   async function onScan(event) {
     event.preventDefault();
+    const scopedAllowlist = domainAllowlist.split(",").map((item) => item.trim()).filter(Boolean);
+    if (requiresAuthorization && authorizationConfirmed && targetHost && !scopedAllowlist.length) {
+      scopedAllowlist.push(targetHost);
+    }
+
+    if (requiresAuthorization && !authorizationConfirmed) {
+      const message = `Confirm authorization before scanning ${targetHost}. Use only targets you own or are allowed to test.`;
+      setResult(null);
+      setScanError(message);
+      setProgress({ progress: 0, status: "idle", message });
+      setLogs((current) => [...current, `Scan not started: ${message}`]);
+      return;
+    }
+
     setIsScanning(true);
+    setResult(null);
     setScanError("");
-    setProgress({ progress: 3, status: "running", message: `Queued scan for ${targetUrl}` });
+    setProgress({
+      progress: 3,
+      status: "running",
+      message: `Queued scan for ${targetUrl}`,
+      summary: { ...EMPTY_LIVE_SUMMARY },
+      detectorFindingCounts: {},
+    });
     setDetectorTimings([]);
     setLogs((current) => [...current, `Starting scan for ${targetUrl}`, "Crawling pages and enumerating forms..."]);
     try {
@@ -140,16 +261,23 @@ export function ScanPage() {
         retryAttempts: Number(retryAttempts),
         scanProfile,
         authorizationConfirmed,
-        domainAllowlist: domainAllowlist.split(",").map((item) => item.trim()).filter(Boolean),
+        domainAllowlist: scopedAllowlist,
         detectorNames: selectedDetectors,
         enableApiFuzzing,
         enableGraphqlChecks,
         enableFindingValidator,
         enableOpenapiDiscovery,
+        enableUnsafeStateChangingFuzz: enableActivePostTesting,
       });
       setResult(scan);
       refreshActiveScans();
-      setProgress({ progress: 100, status: "completed", message: `Scan completed in ${scan.summary.duration_ms} ms` });
+      setProgress({
+        progress: 100,
+        status: "completed",
+        message: `Scan completed in ${scan.summary.duration_ms} ms`,
+        summary: scan.summary,
+        detectorFindingCounts: {},
+      });
       setDetectorTimings(scan.detector_timings ?? []);
       setLogs((current) => [
         ...current,
@@ -165,7 +293,7 @@ export function ScanPage() {
           return [
             ...current,
             `Scan failed: ${message}`,
-            "Target seems offline. Start Juice Shop first: docker compose -f docker/docker-compose.yml up -d juice-shop",
+            "Check the target URL, VPN/network access, DNS, and whether the site allows requests from this machine.",
           ];
         }
         return [...current, `Scan failed: ${message}`];
@@ -185,7 +313,7 @@ export function ScanPage() {
         <div className="hero-status-cluster">
           <div>
             <span>Target</span>
-            <strong>{targetUrl}</strong>
+            <strong>{targetUrl || "Not selected"}</strong>
           </div>
           <div>
             <span>Mode</span>
@@ -238,9 +366,13 @@ export function ScanPage() {
         setEnableFindingValidator={setEnableFindingValidator}
         enableOpenapiDiscovery={enableOpenapiDiscovery}
         setEnableOpenapiDiscovery={setEnableOpenapiDiscovery}
+        enableActivePostTesting={enableActivePostTesting}
+        setEnableActivePostTesting={setEnableActivePostTesting}
         isScanning={isScanning}
         onScan={onScan}
         progress={progress}
+        targetHost={targetHost}
+        requiresAuthorization={requiresAuthorization}
       />
       <Dashboard result={result} progress={progress} detectorTimings={mergedDetectorTimings} />
       {scanError ? (
@@ -254,7 +386,7 @@ export function ScanPage() {
             </header>
             <p>{scanError}</p>
             <small>
-              For `http://127.0.0.1:3000`, start Docker Desktop first, then bring up Juice Shop and retry.
+              Check the target URL, network path, authorization scope, and any required authentication values before retrying.
             </small>
           </article>
         </section>
@@ -288,7 +420,7 @@ export function ScanPage() {
       <section className="findings-section">
         <div className="section-header">
           <h2>Findings</h2>
-          <span>{result?.summary?.finding_count ?? 0}</span>
+          <span>{result?.summary?.finding_count ?? progress?.summary?.finding_count ?? 0}</span>
         </div>
         <section className="findings-list">
           {(result?.findings ?? []).length ? (

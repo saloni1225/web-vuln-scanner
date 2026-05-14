@@ -20,6 +20,11 @@ class FakeHandler:
         return FakeResponse('{"email":"scanner@example.test"}')
 
 
+class ErrorHandler(FakeHandler):
+    async def post_json(self, url: str, body: dict[str, object]):
+        return FakeResponse("server error", status_code=500)
+
+
 def test_openapi_request_body_field_extraction():
     spec = {
         "components": {
@@ -79,3 +84,32 @@ async def test_schema_fuzzer_records_rest_and_graphql_probes():
     assert summary["mutation_case_count"] >= 2
     assert summary["probes"][0]["reflected_fields"] == ["q"]
     assert summary["graphql"][0]["data_keys"] == ["__typename"]
+
+
+@pytest.mark.anyio
+async def test_schema_fuzzer_skips_state_changing_juice_shop_style_endpoints():
+    site_map = {
+        "endpoints": [
+            {"type": "api", "url": "https://example.test/api/Deliverys", "method": "post", "query_params": [], "schema_fields": ["name"]},
+            {"type": "api", "url": "https://example.test/api/Hints", "method": "post", "query_params": [], "schema_fields": ["text"]},
+        ]
+    }
+
+    summary = await run_schema_fuzzing(site_map, FakeHandler(), allow_state_changing=False)
+
+    assert summary["probe_count"] == 0
+    assert summary["skipped_count"] == 2
+
+
+@pytest.mark.anyio
+async def test_schema_fuzzer_stops_after_one_server_error_probe():
+    site_map = {
+        "endpoints": [
+            {"type": "api", "url": "https://example.test/api/custom", "method": "post", "query_params": [], "schema_fields": ["name"]},
+        ]
+    }
+
+    summary = await run_schema_fuzzing(site_map, ErrorHandler(), allow_state_changing=True)
+
+    assert summary["probes"][0]["status"] == "skipped"
+    assert "HTTP 500" in summary["probes"][0]["reason"]
