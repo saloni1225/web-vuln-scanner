@@ -1,4 +1,4 @@
-#AdaptiveScan — Hosted Offensive Surface & VAPT Assessment Platform
+AdaptiveScan — Hosted Offensive Surface & VAPT Assessment Platform
 
 A full-stack scanner for crawling a target site, running extensible vulnerability probes, storing scan results, and generating evidence-rich HTML reports.
 
