@@ -7,10 +7,13 @@ from backend.api.scan_controller import ScanController, ScanRequest
 from backend.api.websocket import scan_hub
 from backend.api.job_registry import job_registry
 from backend.core.recon import build_replay_plan
+from backend.core.risk_gate import evaluate_risk_gate
 from backend.core.role_analysis import compare_roles
 from backend.core.scan_profiles import list_scan_profiles
 from backend.database.db import get_scan, list_scans
 from backend.database.db import compare_scans
+from backend.database.db import get_scan_history
+from backend.database.db import save_scan
 from backend.detection.registry import describe_loaded_detectors
 
 
@@ -46,12 +49,18 @@ async def scan(request: ScanRequest) -> dict[str, object]:
     result["report_urls"] = controller.create_report_urls(result)
     result["report_url"] = result["report_urls"]["html"]
     result["pdf_report_url"] = result["report_urls"]["pdf"]
+    save_scan(result)
     return result
 
 
 @router.get("/reports")
 async def reports() -> list[dict[str, object]]:
     return list_scans()
+
+
+@router.get("/scans/history")
+async def scan_history(limit: int = 25) -> dict[str, object]:
+    return get_scan_history(limit=max(1, min(limit, 100)))
 
 
 @router.get("/detectors")
@@ -149,10 +158,12 @@ async def resume_scan(scan_id: str) -> dict[str, object]:
         },
         scan_options=request_scan_options if isinstance(request_scan_options, dict) else {},
     )
+    result["risk_gate"] = evaluate_risk_gate(result.get("summary", {}))
     result["report_paths"] = await controller.create_report_bundle(result)
     result["report_urls"] = controller.create_report_urls(result)
     result["report_url"] = result["report_urls"]["html"]
     result["pdf_report_url"] = result["report_urls"]["pdf"]
+    save_scan(result)
     return result
 
 

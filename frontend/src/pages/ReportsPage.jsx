@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Archive, FileCheck2, ShieldAlert, Sparkles } from "lucide-react";
+import { Archive, FileCheck2, ShieldAlert, Sparkles, TrendingUp } from "lucide-react";
 import { FindingDetailDrawer } from "../components/FindingDetailDrawer.jsx";
 import { VulnerabilityCard } from "../components/VulnerabilityCard.jsx";
-import { fetchReportComparison, fetchReportDetail, fetchReports, fetchRoleComparison, resumeScan } from "../services/api.js";
+import { fetchReportComparison, fetchReportDetail, fetchReports, fetchRoleComparison, fetchScanHistory, resumeScan } from "../services/api.js";
 
 export function ReportsPage() {
   const [reports, setReports] = useState([]);
@@ -13,6 +13,7 @@ export function ReportsPage() {
   const [compareRightId, setCompareRightId] = useState("");
   const [comparison, setComparison] = useState(null);
   const [roleComparison, setRoleComparison] = useState(null);
+  const [scanHistory, setScanHistory] = useState({ severity_trends: [] });
   const [resumeMessage, setResumeMessage] = useState("");
 
   useEffect(() => {
@@ -26,6 +27,9 @@ export function ReportsPage() {
         }
       })
       .catch(() => setReports([]));
+    fetchScanHistory()
+      .then(setScanHistory)
+      .catch(() => setScanHistory({ severity_trends: [] }));
   }, []);
 
   useEffect(() => {
@@ -64,6 +68,9 @@ export function ReportsPage() {
   const totalFindings = reports.reduce((sum, report) => sum + (report.findings_count ?? 0), 0);
   const latestTarget = reports[0]?.target_url ?? "No scans yet";
   const summary = selectedReport?.summary ?? {};
+  const latestRiskGate = selectedReport?.risk_gate ?? {};
+  const trendPoints = scanHistory.severity_trends ?? [];
+  const maxTrendTotal = Math.max(1, ...trendPoints.map((item) => item.total ?? 0));
 
   const severityMix = useMemo(
     () => [
@@ -75,7 +82,7 @@ export function ReportsPage() {
   );
 
   return (
-    <section className="workspace">
+    <section className="workspace reports-workspace hacker-surface">
       <section className="scan-hero">
         <div>
           <h1>Reports Vault</h1>
@@ -101,8 +108,80 @@ export function ReportsPage() {
         </article>
         <article className="metric-card">
           <Sparkles size={18} />
-          <span>Selected report</span>
-          <strong>{selectedReport?.findings?.length ?? 0}</strong>
+          <span>Risk gate</span>
+          <strong>{latestRiskGate.status ?? reports[0]?.risk_gate_status ?? "unknown"}</strong>
+        </article>
+      </section>
+
+      <section className="analytics-grid">
+        <article className="panel analytics-panel trend-panel">
+          <header className="panel-header">
+            <div>
+              <TrendingUp size={18} />
+              <strong>Severity Trend</strong>
+            </div>
+            <span>{trendPoints.length} scans</span>
+          </header>
+          <div className="trend-legend" aria-label="Severity legend">
+            <span><i className="high" />High</span>
+            <span><i className="medium" />Medium</span>
+            <span><i className="low" />Low</span>
+          </div>
+          <div className="trend-chart">
+            {trendPoints.length ? (
+              trendPoints.map((point, index) => (
+                <div key={point.scan_id} className="trend-column" title={`${point.target_url} · ${point.total} findings`}>
+                  <div className={`trend-status ${point.risk_gate_status === "failed" ? "failed" : "passed"}`} />
+                  <div className="trend-stack">
+                    <span className="trend-segment low" style={{ height: point.low ? `${Math.max(4, ((point.low ?? 0) / maxTrendTotal) * 100)}%` : 0 }} />
+                    <span className="trend-segment medium" style={{ height: point.medium ? `${Math.max(4, ((point.medium ?? 0) / maxTrendTotal) * 100)}%` : 0 }} />
+                    <span className="trend-segment high" style={{ height: point.high ? `${Math.max(4, ((point.high ?? 0) / maxTrendTotal) * 100)}%` : 0 }} />
+                  </div>
+                  <strong>{point.total ?? 0}</strong>
+                  <small>Run {index + 1} · {point.high ?? 0}H</small>
+                </div>
+              ))
+            ) : (
+              <div className="empty-panel">Run scans to build severity trends and regression history.</div>
+            )}
+          </div>
+        </article>
+
+        <article className="panel analytics-panel">
+          <header className="panel-header">
+            <div>
+              <ShieldAlert size={18} />
+              <strong>Risk Gate Policy</strong>
+            </div>
+            <span>{latestRiskGate.status ?? "not evaluated"}</span>
+          </header>
+          <div className="timing-list">
+            <div className="timing-row">
+              <div>
+                <strong>High severity gate</strong>
+                <small>Default policy fails when high findings are above zero</small>
+              </div>
+              <span>{latestRiskGate.policy?.max_high ?? 0}</span>
+            </div>
+            {(latestRiskGate.failures ?? []).map((failure) => (
+              <div key={failure} className="timing-row risk-failure">
+                <div>
+                  <strong>Pipeline blocker</strong>
+                  <small>{failure}</small>
+                </div>
+                <span>fail</span>
+              </div>
+            ))}
+            {latestRiskGate.passed ? (
+              <div className="timing-row">
+                <div>
+                  <strong>No blockers</strong>
+                  <small>This scan passed the configured CI policy.</small>
+                </div>
+                <span>pass</span>
+              </div>
+            ) : null}
+          </div>
         </article>
       </section>
 
@@ -161,6 +240,7 @@ export function ReportsPage() {
                     <div><span>Auth</span><strong>{selectedReport.auth_used ? "Enabled" : "Anonymous"}</strong></div>
                     <div><span>Plugins</span><strong>{selectedReport.detector_registry?.length ?? 0}</strong></div>
                     <div><span>Avg anomaly</span><strong>{selectedReport.behavioral_summary?.average_anomaly_score ?? 0}</strong></div>
+                    <div><span>Risk gate</span><strong>{selectedReport.risk_gate?.status ?? "unknown"}</strong></div>
                   </div>
                 </section>
 

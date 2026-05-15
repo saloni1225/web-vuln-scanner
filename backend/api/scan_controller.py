@@ -1,6 +1,8 @@
 from pydantic import BaseModel, Field, HttpUrl
 
+from backend.core.risk_gate import evaluate_risk_gate
 from backend.core.scanner_engine import ScannerEngine
+from backend.integrations.alerts import send_scan_alerts
 from backend.reports.report_generator import generate_html_report
 from backend.reports.report_generator import generate_pdf_report
 
@@ -34,6 +36,12 @@ class ScanRequest(BaseModel):
     enable_safe_port_scan: bool | None = None
     enable_subdomain_recon: bool | None = None
     enable_screenshot_recon: bool | None = None
+    fail_on_high: bool = True
+    max_high_severity: int = Field(default=0, ge=0)
+    max_medium_severity: int | None = Field(default=None, ge=0)
+    max_total_findings: int | None = Field(default=None, ge=0)
+    slack_webhook_url: str | None = None
+    discord_webhook_url: str | None = None
 
 
 class ScanController:
@@ -77,13 +85,26 @@ class ScanController:
             "enable_subdomain_recon": request.enable_subdomain_recon,
             "enable_screenshot_recon": request.enable_screenshot_recon,
         }
-        return await self.engine.scan(
+        result = await self.engine.scan(
             str(request.target_url),
             scan_id=scan_id,
             progress_callback=progress_callback,
             auth_context=auth_context,
             scan_options=scan_options,
         )
+        result["risk_gate"] = evaluate_risk_gate(
+            result.get("summary", {}),
+            fail_on_high=request.fail_on_high,
+            max_high=request.max_high_severity,
+            max_medium=request.max_medium_severity,
+            max_total=request.max_total_findings,
+        )
+        result["alert_delivery"] = await send_scan_alerts(
+            result,
+            slack_webhook_url=request.slack_webhook_url,
+            discord_webhook_url=request.discord_webhook_url,
+        )
+        return result
 
     async def create_report_bundle(self, scan: dict[str, object]) -> dict[str, str | None]:
         html_path = generate_html_report(scan)

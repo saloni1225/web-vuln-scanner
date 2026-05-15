@@ -114,6 +114,12 @@ export function ScanPage() {
   const [scanProfile, setScanProfile] = useState("deep");
   const [authorizationConfirmed, setAuthorizationConfirmed] = useState(false);
   const [domainAllowlist, setDomainAllowlist] = useState("");
+  const [failOnHigh, setFailOnHigh] = useState(true);
+  const [maxHighSeverity, setMaxHighSeverity] = useState("0");
+  const [maxMediumSeverity, setMaxMediumSeverity] = useState("");
+  const [maxTotalFindings, setMaxTotalFindings] = useState("");
+  const [slackWebhookUrl, setSlackWebhookUrl] = useState("");
+  const [discordWebhookUrl, setDiscordWebhookUrl] = useState("");
   const [availableDetectors, setAvailableDetectors] = useState([]);
   const [scanProfiles, setScanProfiles] = useState([]);
   const [selectedDetectors, setSelectedDetectors] = useState([]);
@@ -268,6 +274,12 @@ export function ScanPage() {
         enableFindingValidator,
         enableOpenapiDiscovery,
         enableUnsafeStateChangingFuzz: enableActivePostTesting,
+        failOnHigh,
+        maxHighSeverity: Number(maxHighSeverity || 0),
+        maxMediumSeverity: maxMediumSeverity === "" ? null : Number(maxMediumSeverity),
+        maxTotalFindings: maxTotalFindings === "" ? null : Number(maxTotalFindings),
+        slackWebhookUrl,
+        discordWebhookUrl,
       });
       setResult(scan);
       refreshActiveScans();
@@ -304,7 +316,7 @@ export function ScanPage() {
   }
 
   return (
-    <section className="workspace">
+    <section className="workspace scanner-workspace hacker-surface">
       <section className="scan-hero">
         <div>
           <h1>Scan Workspace</h1>
@@ -355,6 +367,18 @@ export function ScanPage() {
         setAuthorizationConfirmed={setAuthorizationConfirmed}
         domainAllowlist={domainAllowlist}
         setDomainAllowlist={setDomainAllowlist}
+        failOnHigh={failOnHigh}
+        setFailOnHigh={setFailOnHigh}
+        maxHighSeverity={maxHighSeverity}
+        setMaxHighSeverity={setMaxHighSeverity}
+        maxMediumSeverity={maxMediumSeverity}
+        setMaxMediumSeverity={setMaxMediumSeverity}
+        maxTotalFindings={maxTotalFindings}
+        setMaxTotalFindings={setMaxTotalFindings}
+        slackWebhookUrl={slackWebhookUrl}
+        setSlackWebhookUrl={setSlackWebhookUrl}
+        discordWebhookUrl={discordWebhookUrl}
+        setDiscordWebhookUrl={setDiscordWebhookUrl}
         availableDetectors={availableDetectors}
         selectedDetectors={selectedDetectors}
         setSelectedDetectors={setSelectedDetectors}

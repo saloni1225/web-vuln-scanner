@@ -52,18 +52,47 @@ def list_scans() -> list[dict[str, object]]:
     init_db()
     with get_connection() as conn:
         rows = conn.execute(
-            "SELECT scan_id, target_url, started_at, finished_at, findings_count FROM scans ORDER BY started_at DESC"
+            "SELECT scan_id, target_url, started_at, finished_at, findings_count, raw_json FROM scans ORDER BY started_at DESC"
         ).fetchall()
-    return [
-        {
+    reports: list[dict[str, object]] = []
+    for row in rows:
+        scan = json.loads(row[5])
+        summary = scan.get("summary", {}) if isinstance(scan, dict) else {}
+        scan_options = scan.get("scan_options", {}) if isinstance(scan, dict) else {}
+        risk_gate = scan.get("risk_gate", {}) if isinstance(scan, dict) else {}
+        reports.append({
             "scan_id": row[0],
             "target_url": row[1],
             "started_at": row[2],
             "finished_at": row[3],
             "findings_count": row[4],
-        }
-        for row in rows
-    ]
+            "high_severity_count": int(summary.get("high_severity_count", 0) or 0) if isinstance(summary, dict) else 0,
+            "medium_severity_count": int(summary.get("medium_severity_count", 0) or 0) if isinstance(summary, dict) else 0,
+            "low_severity_count": int(summary.get("low_severity_count", 0) or 0) if isinstance(summary, dict) else 0,
+            "scan_profile": scan_options.get("scan_profile", "deep") if isinstance(scan_options, dict) else "deep",
+            "risk_gate_status": risk_gate.get("status", "unknown") if isinstance(risk_gate, dict) else "unknown",
+        })
+    return reports
+
+
+def get_scan_history(limit: int = 25) -> dict[str, object]:
+    scans = list(reversed(list_scans()[:limit]))
+    return {
+        "scans": scans,
+        "severity_trends": [
+            {
+                "scan_id": scan["scan_id"],
+                "target_url": scan["target_url"],
+                "finished_at": scan["finished_at"],
+                "high": scan["high_severity_count"],
+                "medium": scan["medium_severity_count"],
+                "low": scan["low_severity_count"],
+                "total": scan["findings_count"],
+                "risk_gate_status": scan["risk_gate_status"],
+            }
+            for scan in scans
+        ],
+    }
 
 
 def get_scan(scan_id: str) -> dict[str, object] | None:

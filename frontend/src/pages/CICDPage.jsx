@@ -7,7 +7,7 @@ export function CICDPage() {
       <section className="scan-hero">
         <div>
           <h1>CI Security Scan</h1>
-          <p>Run the scanner in GitHub Actions on pushes and pull requests, then keep HTML/PDF reports as build artifacts.</p>
+          <p>Run the scanner in GitHub Actions on pushes and pull requests, fail risky builds, alert responders, and keep HTML/PDF reports as build artifacts.</p>
         </div>
         <div className="hero-status-cluster">
           <div><span>Workflow</span><strong>security-scan.yml</strong></div>
@@ -22,7 +22,7 @@ export function CICDPage() {
             <span>PR ready</span>
           </header>
           <div className="timeline-list">
-            {["Install Python and Node", "Run backend tests", "Build frontend", "Run scanner CLI with quick profile", "Upload scan reports"].map((item, index) => (
+            {["Install Python and Node", "Run backend tests", "Build frontend", "Run scanner CLI with quick profile", "Apply high severity risk gate", "Upload scan reports"].map((item, index) => (
               <div key={item} className="timeline-row">
                 <strong>{index + 1}</strong>
                 <small>{item}</small>
@@ -39,8 +39,10 @@ export function CICDPage() {
           </header>
           <div className="scan-progress-meta">
             <div><span>Profile</span><strong>quick</strong></div>
+            <div><span>Profiles</span><strong>quick / deep / api / authenticated</strong></div>
             <div><span>Target</span><strong>CI env var</strong></div>
-            <div><span>External auth</span><strong>required</strong></div>
+            <div><span>Risk gate</span><strong>fail on high &gt; 0</strong></div>
+            <div><span>Alerts</span><strong>Slack / Discord</strong></div>
             <div><span>Artifacts</span><strong>reports</strong></div>
           </div>
         </article>
@@ -50,7 +52,7 @@ export function CICDPage() {
             <div><PlayCircle size={18} /><strong>Local Equivalent</strong></div>
             <span>CLI</span>
           </header>
-          <code className="drawer-code">python scripts/run_scanner.py https://staging.example.com --profile quick</code>
+          <code className="drawer-code">python scripts/run_scanner.py https://staging.example.com --profile quick --fail-on-high --max-high 0</code>
         </article>
       </section>
     </section>

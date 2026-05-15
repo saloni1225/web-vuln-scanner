@@ -35,6 +35,18 @@ export function ScanPanel({
   setAuthorizationConfirmed,
   domainAllowlist,
   setDomainAllowlist,
+  failOnHigh,
+  setFailOnHigh,
+  maxHighSeverity,
+  setMaxHighSeverity,
+  maxMediumSeverity,
+  setMaxMediumSeverity,
+  maxTotalFindings,
+  setMaxTotalFindings,
+  slackWebhookUrl,
+  setSlackWebhookUrl,
+  discordWebhookUrl,
+  setDiscordWebhookUrl,
   availableDetectors,
   selectedDetectors,
   setSelectedDetectors,
@@ -214,6 +226,58 @@ export function ScanPanel({
           </span>
         </div>
       ) : null}
+      <div className="devsecops-controls">
+        <section>
+          <label>Risk Gate</label>
+          <label className="checkbox-row">
+            <input type="checkbox" checked={failOnHigh} onChange={(event) => setFailOnHigh(event.target.checked)} />
+            <span>Fail pipeline when high severity findings exceed policy</span>
+          </label>
+          <div className="target-row safety-row">
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={maxHighSeverity}
+              placeholder="Max high"
+              onChange={(event) => setMaxHighSeverity(event.target.value)}
+            />
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={maxMediumSeverity}
+              placeholder="Max medium"
+              onChange={(event) => setMaxMediumSeverity(event.target.value)}
+            />
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={maxTotalFindings}
+              placeholder="Max total"
+              onChange={(event) => setMaxTotalFindings(event.target.value)}
+            />
+          </div>
+        </section>
+        <section>
+          <label>Alerts</label>
+          <div className="target-row safety-row">
+            <input
+              type="url"
+              value={slackWebhookUrl}
+              placeholder="Slack webhook URL"
+              onChange={(event) => setSlackWebhookUrl(event.target.value)}
+            />
+            <input
+              type="url"
+              value={discordWebhookUrl}
+              placeholder="Discord webhook URL"
+              onChange={(event) => setDiscordWebhookUrl(event.target.value)}
+            />
+          </div>
+        </section>
+      </div>
       <div className="options-grid">
         <div>
           <label>Detector Plugins</label>

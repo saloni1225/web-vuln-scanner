@@ -35,6 +35,12 @@ export async function startScan(targetUrl, options = {}) {
         enable_safe_port_scan: options.enableSafePortScan ?? null,
         enable_subdomain_recon: options.enableSubdomainRecon ?? null,
         enable_screenshot_recon: options.enableScreenshotRecon ?? null,
+        fail_on_high: options.failOnHigh ?? true,
+        max_high_severity: options.maxHighSeverity ?? 0,
+        max_medium_severity: options.maxMediumSeverity ?? null,
+        max_total_findings: options.maxTotalFindings ?? null,
+        slack_webhook_url: options.slackWebhookUrl || null,
+        discord_webhook_url: options.discordWebhookUrl || null,
       }),
     });
   } catch (error) {
@@ -63,6 +69,14 @@ export async function fetchReports() {
 
 export async function fetchReportDetail(scanId) {
   const response = await fetch(`${API_BASE_URL}/reports/${scanId}`);
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchScanHistory(limit = 25) {
+  const response = await fetch(`${API_BASE_URL}/scans/history?limit=${limit}`);
   if (!response.ok) {
     throw new Error(`API returned ${response.status}`);
   }

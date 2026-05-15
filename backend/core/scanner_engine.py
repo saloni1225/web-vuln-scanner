@@ -238,6 +238,7 @@ class ScannerEngine:
                         "event": "scan_completed",
                         "status": "completed",
                         "progress": 100,
+                        "scan_id": scan_id,
                         "message": f"Scan complete with {summary['finding_count']} findings",
                         "summary": summary,
                         "detector_timings": detector_timings,
