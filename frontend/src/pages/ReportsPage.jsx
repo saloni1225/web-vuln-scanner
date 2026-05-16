@@ -71,6 +71,7 @@ export function ReportsPage() {
   const latestRiskGate = selectedReport?.risk_gate ?? {};
   const trendPoints = scanHistory.severity_trends ?? [];
   const maxTrendTotal = Math.max(1, ...trendPoints.map((item) => item.total ?? 0));
+  const maxTrendEndpoints = Math.max(1, ...trendPoints.map((item) => item.endpoints ?? 0));
 
   const severityMix = useMemo(
     () => [
@@ -126,19 +127,25 @@ export function ReportsPage() {
             <span><i className="high" />High</span>
             <span><i className="medium" />Medium</span>
             <span><i className="low" />Low</span>
+            <span><i className="endpoint" />Endpoints</span>
           </div>
           <div className="trend-chart">
             {trendPoints.length ? (
               trendPoints.map((point, index) => (
-                <div key={point.scan_id} className="trend-column" title={`${point.target_url} · ${point.total} findings`}>
+                <div key={point.scan_id} className="trend-column" title={`${point.target_url} · ${point.total} findings · ${point.endpoints ?? 0} endpoints`}>
                   <div className={`trend-status ${point.risk_gate_status === "failed" ? "failed" : "passed"}`} />
-                  <div className="trend-stack">
-                    <span className="trend-segment low" style={{ height: point.low ? `${Math.max(4, ((point.low ?? 0) / maxTrendTotal) * 100)}%` : 0 }} />
-                    <span className="trend-segment medium" style={{ height: point.medium ? `${Math.max(4, ((point.medium ?? 0) / maxTrendTotal) * 100)}%` : 0 }} />
-                    <span className="trend-segment high" style={{ height: point.high ? `${Math.max(4, ((point.high ?? 0) / maxTrendTotal) * 100)}%` : 0 }} />
+                  <div className="trend-bars">
+                    <div className="endpoint-bar" aria-label={`${point.endpoints ?? 0} endpoints`}>
+                      <span style={{ height: `${Math.max(5, ((point.endpoints ?? 0) / maxTrendEndpoints) * 100)}%` }} />
+                    </div>
+                    <div className="trend-stack" aria-label={`${point.total ?? 0} findings`}>
+                      <span className="trend-segment low" style={{ height: point.low ? `${Math.max(5, ((point.low ?? 0) / maxTrendTotal) * 100)}%` : 0 }} />
+                      <span className="trend-segment medium" style={{ height: point.medium ? `${Math.max(5, ((point.medium ?? 0) / maxTrendTotal) * 100)}%` : 0 }} />
+                      <span className="trend-segment high" style={{ height: point.high ? `${Math.max(5, ((point.high ?? 0) / maxTrendTotal) * 100)}%` : 0 }} />
+                    </div>
                   </div>
-                  <strong>{point.total ?? 0}</strong>
-                  <small>Run {index + 1} · {point.high ?? 0}H</small>
+                  <strong>{point.total ?? 0}F</strong>
+                  <small>Run {index + 1} · {point.endpoints ?? 0}E · {point.high ?? 0}H</small>
                 </div>
               ))
             ) : (

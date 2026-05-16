@@ -1598,23 +1598,27 @@ a {
   background: #60a5fa;
 }
 
+.trend-legend i.endpoint {
+  background: #22d3ee;
+}
+
 .trend-chart {
   position: relative;
   display: flex;
   align-items: end;
-  gap: 16px;
-  min-height: 210px;
+  gap: 18px;
+  min-height: 250px;
   overflow-x: auto;
-  padding: 14px 4px 4px;
+  padding: 16px 10px 8px;
 }
 
 .trend-column {
   position: relative;
   display: grid;
-  gap: 7px;
+  gap: 9px;
   justify-items: center;
-  min-width: 58px;
-  padding: 10px 8px;
+  min-width: 96px;
+  padding: 12px 12px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.045);
@@ -1624,13 +1628,39 @@ a {
   display: flex;
   flex-direction: column-reverse;
   justify-content: end;
-  width: 28px;
-  height: 150px;
+  width: 32px;
+  height: 168px;
   overflow: hidden;
   border-radius: 999px;
   background: rgba(4, 10, 18, 0.86);
   border: 1px solid rgba(255, 255, 255, 0.09);
   box-shadow: inset 0 0 22px rgba(0, 0, 0, 0.4);
+}
+
+.trend-bars {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  height: 168px;
+}
+
+.endpoint-bar {
+  display: flex;
+  align-items: end;
+  width: 18px;
+  height: 168px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(34, 211, 238, 0.08);
+  border: 1px solid rgba(34, 211, 238, 0.18);
+}
+
+.endpoint-bar span {
+  display: block;
+  width: 100%;
+  border-radius: inherit;
+  background: linear-gradient(180deg, #67e8f9, #0891b2);
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.28);
 }
 
 .trend-segment {
@@ -1675,11 +1705,17 @@ a {
   color: #9fb0c9;
   font-size: 0.74rem;
   text-align: center;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
 }
 
 .trend-column:hover .trend-segment {
   filter: brightness(1.22) saturate(1.2);
+}
+
+.trend-column:hover .endpoint-bar span {
+  filter: brightness(1.18) saturate(1.2);
 }
 
 .risk-failure {
@@ -1736,6 +1772,113 @@ a {
   display: grid;
   gap: 10px;
   margin-top: 12px;
+}
+
+.scanner-workspace .scan-queue-panel {
+  max-height: 560px;
+  overflow: hidden;
+}
+
+.scanner-workspace .scan-queue-list {
+  max-height: 480px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 6px;
+}
+
+.scanner-workspace .scan-queue-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scanner-workspace .scan-queue-list::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 999px;
+}
+
+.scanner-workspace .scan-queue-list::-webkit-scrollbar-thumb {
+  background: rgba(125, 255, 198, 0.36);
+  border-radius: 999px;
+}
+
+.scanner-workspace .scan-queue-list .timing-row {
+  border: 1px solid rgba(125, 255, 198, 0.16);
+  background: linear-gradient(180deg, rgba(16, 26, 42, 0.96), rgba(9, 16, 27, 0.98));
+  color: #edf3ff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.scanner-workspace .scan-queue-list .timing-row strong {
+  color: #f8fafc;
+}
+
+.scanner-workspace .scan-queue-list .timing-row small {
+  color: #8fa3c1;
+}
+
+.scanner-workspace .scan-queue-list .timing-row span {
+  color: #7dffc6;
+}
+
+.scanner-workspace .discovery-grid .panel {
+  overflow: hidden;
+}
+
+.scanner-workspace .discovery-grid .timing-list,
+.scanner-workspace .discovery-grid .report-list,
+.scanner-workspace .discovery-grid .surface-breakdown {
+  max-height: 230px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 6px;
+}
+
+.scanner-workspace .discovery-grid .timing-list::-webkit-scrollbar,
+.scanner-workspace .discovery-grid .report-list::-webkit-scrollbar,
+.scanner-workspace .discovery-grid .surface-breakdown::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scanner-workspace .discovery-grid .timing-list::-webkit-scrollbar-track,
+.scanner-workspace .discovery-grid .report-list::-webkit-scrollbar-track,
+.scanner-workspace .discovery-grid .surface-breakdown::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 999px;
+}
+
+.scanner-workspace .discovery-grid .timing-list::-webkit-scrollbar-thumb,
+.scanner-workspace .discovery-grid .report-list::-webkit-scrollbar-thumb,
+.scanner-workspace .discovery-grid .surface-breakdown::-webkit-scrollbar-thumb {
+  background: rgba(125, 255, 198, 0.36);
+  border-radius: 999px;
+}
+
+.scanner-workspace .discovery-grid .panel-row,
+.scanner-workspace .discovery-grid .surface-breakdown div,
+.scanner-workspace .discovery-grid .timing-row {
+  border: 1px solid rgba(125, 255, 198, 0.14);
+  background: linear-gradient(180deg, rgba(16, 26, 42, 0.96), rgba(9, 16, 27, 0.98));
+  color: #edf3ff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.scanner-workspace .discovery-grid .panel-row strong,
+.scanner-workspace .discovery-grid .surface-breakdown strong,
+.scanner-workspace .discovery-grid .timing-row strong {
+  color: #f8fafc;
+}
+
+.scanner-workspace .discovery-grid .panel-row small,
+.scanner-workspace .discovery-grid .surface-breakdown span,
+.scanner-workspace .discovery-grid .timing-row small {
+  color: #8fa3c1;
+}
+
+.scanner-workspace .discovery-grid .panel-row:hover,
+.scanner-workspace .discovery-grid .surface-breakdown div:hover,
+.scanner-workspace .discovery-grid .timing-row:hover {
+  border-color: rgba(125, 255, 198, 0.42);
+  background: linear-gradient(180deg, rgba(22, 44, 54, 0.98), rgba(10, 26, 31, 0.98));
 }
 
 .timeline-list {
@@ -1957,6 +2100,7 @@ a {
 
 .reports-workspace .report-summary-cards div,
 .reports-workspace .report-hero-meta div,
+.reports-workspace .findings-preview-panel .timing-row,
 .reports-workspace .analytics-panel .timing-row,
 .reports-workspace .insight-card .timing-row {
   border: 1px solid rgba(125, 255, 198, 0.14);
@@ -1967,6 +2111,7 @@ a {
 
 .reports-workspace .report-summary-cards span,
 .reports-workspace .report-hero-meta span,
+.reports-workspace .findings-preview-panel .timing-row small,
 .reports-workspace .analytics-panel .timing-row small,
 .reports-workspace .insight-card .timing-row small {
   color: #8fa3c1;
@@ -1974,6 +2119,7 @@ a {
 
 .reports-workspace .report-summary-cards strong,
 .reports-workspace .report-hero-meta strong,
+.reports-workspace .findings-preview-panel .timing-row strong,
 .reports-workspace .analytics-panel .timing-row strong,
 .reports-workspace .insight-card .timing-row strong {
   color: #f8fafc;
@@ -1981,10 +2127,18 @@ a {
 
 .reports-workspace .report-summary-cards div:hover,
 .reports-workspace .report-hero-meta div:hover,
+.reports-workspace .findings-preview-panel .timing-row:hover,
 .reports-workspace .analytics-panel .timing-row:hover,
 .reports-workspace .insight-card .timing-row:hover {
   border-color: rgba(125, 255, 198, 0.42);
   background: linear-gradient(180deg, rgba(22, 44, 54, 0.98), rgba(10, 26, 31, 0.98));
+}
+
+.reports-workspace .compare-controls select {
+  border: 1px solid rgba(125, 255, 198, 0.14);
+  background: rgba(8, 16, 27, 0.96);
+  color: #edf3ff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .report-summary-expanded {

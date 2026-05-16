@@ -69,6 +69,8 @@ def list_scans() -> list[dict[str, object]]:
             "high_severity_count": int(summary.get("high_severity_count", 0) or 0) if isinstance(summary, dict) else 0,
             "medium_severity_count": int(summary.get("medium_severity_count", 0) or 0) if isinstance(summary, dict) else 0,
             "low_severity_count": int(summary.get("low_severity_count", 0) or 0) if isinstance(summary, dict) else 0,
+            "endpoint_count": int(summary.get("endpoint_count", 0) or 0) if isinstance(summary, dict) else 0,
+            "high_risk_endpoint_count": int(summary.get("high_risk_endpoint_count", 0) or 0) if isinstance(summary, dict) else 0,
             "scan_profile": scan_options.get("scan_profile", "deep") if isinstance(scan_options, dict) else "deep",
             "risk_gate_status": risk_gate.get("status", "unknown") if isinstance(risk_gate, dict) else "unknown",
         })
@@ -87,6 +89,8 @@ def get_scan_history(limit: int = 25) -> dict[str, object]:
                 "high": scan["high_severity_count"],
                 "medium": scan["medium_severity_count"],
                 "low": scan["low_severity_count"],
+                "endpoints": scan["endpoint_count"],
+                "high_risk_endpoints": scan["high_risk_endpoint_count"],
                 "total": scan["findings_count"],
                 "risk_gate_status": scan["risk_gate_status"],
             }

@@ -220,7 +220,12 @@ export function ScanPage() {
   async function onScan(event) {
     event.preventDefault();
     const scopedAllowlist = domainAllowlist.split(",").map((item) => item.trim()).filter(Boolean);
-    if (requiresAuthorization && authorizationConfirmed && targetHost && !scopedAllowlist.length) {
+    if (
+      requiresAuthorization &&
+      authorizationConfirmed &&
+      targetHost &&
+      !scopedAllowlist.some((item) => item.toLowerCase() === targetHost)
+    ) {
       scopedAllowlist.push(targetHost);
     }
 
@@ -416,14 +421,14 @@ export function ScanPage() {
         </section>
       ) : null}
       <section className="guidance-grid">
-        <article className="panel">
+        <article className="panel scan-queue-panel">
           <header className="panel-header">
             <div>
               <strong>Scan Queue</strong>
             </div>
             <span>{activeScans.length}</span>
           </header>
-          <div className="timing-list">
+          <div className="timing-list scan-queue-list">
             {activeScans.length ? (
               activeScans.map((job) => (
                 <div key={job.scan_id} className="timing-row">

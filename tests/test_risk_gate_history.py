@@ -24,6 +24,8 @@ def test_scan_history_includes_severity_trend_and_risk_gate(tmp_path, monkeypatc
                 "high_severity_count": 1,
                 "medium_severity_count": 1,
                 "low_severity_count": 0,
+                "endpoint_count": 12,
+                "high_risk_endpoint_count": 2,
             },
             "scan_options": {"scan_profile": "quick"},
             "risk_gate": {"status": "failed"},
@@ -33,4 +35,6 @@ def test_scan_history_includes_severity_trend_and_risk_gate(tmp_path, monkeypatc
     history = db.get_scan_history()
 
     assert history["severity_trends"][0]["high"] == 1
+    assert history["severity_trends"][0]["endpoints"] == 12
+    assert history["severity_trends"][0]["high_risk_endpoints"] == 2
     assert history["severity_trends"][0]["risk_gate_status"] == "failed"
