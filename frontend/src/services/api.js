@@ -34,6 +34,8 @@ export async function startScan(targetUrl, options = {}) {
         enable_unsafe_state_changing_fuzz: options.enableUnsafeStateChangingFuzz ?? false,
         enable_safe_port_scan: options.enableSafePortScan ?? null,
         enable_subdomain_recon: options.enableSubdomainRecon ?? null,
+        enable_dns_analysis: options.enableDnsAnalysis ?? null,
+        enable_cloud_asset_recon: options.enableCloudAssetRecon ?? null,
         enable_screenshot_recon: options.enableScreenshotRecon ?? null,
         fail_on_high: options.failOnHigh ?? true,
         max_high_severity: options.maxHighSeverity ?? 0,
@@ -125,6 +127,178 @@ export async function fetchReplayPlan(scanId, findingIndex) {
 
 export async function fetchPluginMarketplace() {
   const response = await fetch(`${API_BASE_URL}/plugins/marketplace`);
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchFindingLifecycle(scanId, findingIndex) {
+  const response = await fetch(`${API_BASE_URL}/findings/${scanId}/${findingIndex}/lifecycle`);
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function updateFindingLifecycle(scanId, findingIndex, payload) {
+  const response = await fetch(`${API_BASE_URL}/findings/${scanId}/${findingIndex}/lifecycle`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function addFindingComment(scanId, findingIndex, payload) {
+  const response = await fetch(`${API_BASE_URL}/findings/${scanId}/${findingIndex}/comments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchAuditLogs(limit = 100) {
+  const response = await fetch(`${API_BASE_URL}/audit-logs?limit=${limit}`);
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchTenancyOverview() {
+  const response = await fetch(`${API_BASE_URL}/tenancy/overview`);
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function createOrganization(payload) {
+  const response = await fetch(`${API_BASE_URL}/organizations`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function createWorkspace(payload) {
+  const response = await fetch(`${API_BASE_URL}/workspaces`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function createApiKey(payload) {
+  const response = await fetch(`${API_BASE_URL}/api-keys`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchProductCapabilities() {
+  const response = await fetch(`${API_BASE_URL}/product/capabilities`);
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchEnterpriseFoundation() {
+  const response = await fetch(`${API_BASE_URL}/product/enterprise-foundation`);
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchPlatformOverview() {
+  const response = await fetch(`${API_BASE_URL}/platform/overview`);
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchOperationsIntelligence() {
+  const response = await fetch(`${API_BASE_URL}/platform/operations`);
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchPlatformQueue() {
+  const response = await fetch(`${API_BASE_URL}/platform/queue`);
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchPlatformDatabase() {
+  const response = await fetch(`${API_BASE_URL}/platform/database`);
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchPlatformObservability() {
+  const response = await fetch(`${API_BASE_URL}/platform/observability`);
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchAttackSurfaceGraph() {
+  const response = await fetch(`${API_BASE_URL}/attack-surface/graph`);
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchAttackSurfaceDrift() {
+  const response = await fetch(`${API_BASE_URL}/attack-surface/drift`);
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchAttackPaths() {
+  const response = await fetch(`${API_BASE_URL}/attack-paths`);
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchExposureOverview() {
+  const response = await fetch(`${API_BASE_URL}/exposure/overview`);
   if (!response.ok) {
     throw new Error(`API returned ${response.status}`);
   }

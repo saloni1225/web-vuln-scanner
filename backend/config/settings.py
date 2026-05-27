@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     enable_safe_port_scan: bool = True
     enable_subdomain_recon: bool = True
     enable_ct_log_recon: bool = False
+    enable_dns_analysis: bool = True
+    enable_cloud_asset_recon: bool = True
     enable_screenshot_recon: bool = True
     max_requests: int = 10000
     playwright_timeout_ms: int = 10000
@@ -54,9 +56,21 @@ class Settings(BaseSettings):
         "/upload",
     ]
     subdomain_candidates: list[str] = ["www", "api", "dev", "staging", "test", "admin"]
+    cloud_bucket_suffixes: list[str] = ["", "-assets", "-static", "-media", "-uploads", "-backup"]
     max_schema_fuzz_cases_per_field: int = 4
     user_agent: str = "AdaptiveWebVulnScanner/0.1"
     database_url: str = f"sqlite:///{ROOT_DIR / 'scanner.db'}"
+    redis_url: str = "redis://127.0.0.1:6379/0"
+    queue_backend: str = "redis"
+    worker_runtime: str = "celery"
+    execution_mode: str = "local-dev"
+    object_storage_backend: str = "local"
+    object_storage_bucket: str = "adaptivescan-artifacts"
+    telemetry_retention_days: int = 30
+    evidence_retention_days: int = 365
+    enable_prometheus_metrics: bool = True
+    enable_opentelemetry: bool = False
+    default_workspace_id: str = "local-workspace"
     cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
     model_config = SettingsConfigDict(env_file=ROOT_DIR / ".env", env_file_encoding="utf-8")

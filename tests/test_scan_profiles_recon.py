@@ -1,4 +1,5 @@
 from backend.core.recon import analyze_passive_security
+from backend.core.recon import build_cloud_storage_candidates
 from backend.core.recon import detect_waf
 from backend.core.recon import rank_endpoint_risk
 from backend.core.scan_profiles import apply_scan_profile
@@ -44,3 +45,12 @@ def test_endpoint_risk_ranking_prioritizes_admin_and_graphql():
 
     assert ranking[0]["risk_score"] >= ranking[-1]["risk_score"]
     assert any("admin" in item["url"] or "graphql" in item["url"] for item in ranking[:2])
+
+
+def test_cloud_storage_candidates_are_derived_from_target_domain():
+    candidates = build_cloud_storage_candidates("https://app.example.com")
+
+    urls = {item["url"] for item in candidates}
+    assert "https://example.s3.amazonaws.com/" in urls
+    assert "https://storage.googleapis.com/example/" in urls
+    assert "https://example.blob.core.windows.net/" in urls

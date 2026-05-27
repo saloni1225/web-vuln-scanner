@@ -6,6 +6,11 @@ from typing import Awaitable, Callable
 from urllib.parse import urlparse
 
 from backend.config.settings import settings
+from backend.api_security.engine import analyze_api_surface
+from backend.attack_surface.inventory import build_attack_surface_inventory, compare_endpoint_history
+from backend.attack_surface.graph import build_attack_surface_graph, build_drift_timeline
+from backend.auth.intelligence import build_auth_intelligence
+from backend.compliance.mapping import build_compliance_summary
 from backend.core.crawler import Crawler
 from backend.core.recon import build_replay_plan
 from backend.core.recon import run_recon
@@ -15,8 +20,10 @@ from backend.core.resume_store import load_checkpoint
 from backend.core.resume_store import save_checkpoint
 from backend.core.scan_profiles import apply_scan_profile
 from backend.core.schema_fuzzer import run_schema_fuzzing
+from backend.crawler.modern import summarize_modern_crawl
 from backend.database.db import save_scan
 from backend.database.db import list_scans
+from backend.database.db import get_scan
 from backend.detection.base_detector import Finding
 from backend.detection.registry import describe_loaded_detectors
 from backend.detection.registry import load_detectors
@@ -25,6 +32,11 @@ from backend.utils.helpers import map_cwe
 from backend.detection.validator import FindingValidator
 from backend.utils.helpers import build_target_advisory
 from backend.utils.remediation import get_remediation
+from backend.recon.intelligence import build_reconnaissance_matrix
+from backend.risk.ai_risk import build_ai_risk_summary
+from backend.telemetry.engine import build_scan_telemetry
+from backend.validation.engine import build_validation_summary
+from backend.exposure.intelligence import build_exposure_intelligence
 
 
 ProgressCallback = Callable[[dict[str, object]], Awaitable[None]]
@@ -154,6 +166,11 @@ class ScannerEngine:
             behavioral_summary = self._build_behavioral_summary(site_map, findings)
             auth_summary = self._build_auth_summary(request_handler, detector_site_map)
             attack_chain_summary = self._build_attack_chain_summary(detector_site_map, findings, auth_summary)
+            reconnaissance_matrix = build_reconnaissance_matrix(target_url, site_map, recon_summary)
+            modern_crawl_summary = summarize_modern_crawl(detector_site_map)
+            api_security_summary = analyze_api_surface(detector_site_map, schema_fuzz_summary)
+            validation_summary = build_validation_summary(finding_dicts)
+            compliance_summary = build_compliance_summary(finding_dicts)
             summary = {
                 "page_count": len(site_map["pages"]),
                 "form_count": len(site_map["forms"]),
@@ -219,6 +236,8 @@ class ScannerEngine:
                     "enable_unsafe_state_changing_fuzz": bool(scan_options.get("enable_unsafe_state_changing_fuzz", settings.enable_unsafe_state_changing_fuzz)),
                     "enable_safe_port_scan": bool(scan_options.get("enable_safe_port_scan", settings.enable_safe_port_scan)),
                     "enable_subdomain_recon": bool(scan_options.get("enable_subdomain_recon", settings.enable_subdomain_recon)),
+                    "enable_dns_analysis": bool(scan_options.get("enable_dns_analysis", settings.enable_dns_analysis)),
+                    "enable_cloud_asset_recon": bool(scan_options.get("enable_cloud_asset_recon", settings.enable_cloud_asset_recon)),
                     "enable_screenshot_recon": bool(scan_options.get("enable_screenshot_recon", settings.enable_screenshot_recon)),
                 },
                 "timeline": timeline,
@@ -231,6 +250,20 @@ class ScannerEngine:
                     "checkpoint_phases": ["crawl"],
                 },
             }
+            historical_scans = [item for item in (get_scan(str(scan.get("scan_id"))) for scan in list_scans()) if item]
+            result["attack_surface_inventory"] = build_attack_surface_inventory(result)
+            result["historical_endpoint_tracking"] = compare_endpoint_history(result, historical_scans)
+            result["attack_surface_graph"] = build_attack_surface_graph(result)
+            result["drift_timeline"] = build_drift_timeline([*historical_scans, result])
+            result["auth_intelligence"] = build_auth_intelligence(result)
+            result["exposure_intelligence"] = build_exposure_intelligence(result)
+            result["reconnaissance_matrix"] = reconnaissance_matrix
+            result["modern_crawl_summary"] = modern_crawl_summary
+            result["api_security_summary"] = api_security_summary
+            result["validation_summary"] = validation_summary
+            result["compliance_summary"] = compliance_summary
+            result["ai_risk_summary"] = build_ai_risk_summary(finding_dicts, result["attack_surface_inventory"])
+            result["telemetry_summary"] = build_scan_telemetry(result)
             save_scan(result)
             if progress_callback:
                 await progress_callback(

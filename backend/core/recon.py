@@ -1,5 +1,8 @@
 import asyncio
+import base64
+import hashlib
 import json
+import re
 import socket
 import ssl
 from datetime import datetime, timezone
@@ -62,13 +65,246 @@ async def run_recon(
         "passive_security": analyze_passive_security(headers),
         "technology_fingerprint": fingerprint_technology(headers, body),
         "waf_detection": detect_waf(headers),
+        "dns_analysis": await analyze_dns(target_url) if scan_options.get("enable_dns_analysis", settings.enable_dns_analysis) else {"mode": "disabled"},
+        "web_intelligence": await collect_web_intelligence(target_url, request_handler),
         "tls_summary": await inspect_tls(target_url),
         "port_summary": await scan_common_ports(target_url) if scan_options.get("enable_safe_port_scan", settings.enable_safe_port_scan) else {"mode": "disabled", "open_ports": []},
         "subdomain_summary": await enumerate_subdomains(target_url, request_handler, bool(scan_options.get("enable_ct_log_recon", settings.enable_ct_log_recon))) if scan_options.get("enable_subdomain_recon", settings.enable_subdomain_recon) else {"mode": "disabled", "candidates": [], "resolved": []},
+        "cloud_asset_summary": await probe_cloud_assets(target_url, request_handler) if scan_options.get("enable_cloud_asset_recon", settings.enable_cloud_asset_recon) else {"mode": "disabled", "candidates": [], "exposed": []},
         "directory_fuzzing": directory_results,
         "screenshot_recon": await capture_screenshot(target_url, scan_id) if scan_options.get("enable_screenshot_recon", settings.enable_screenshot_recon) else {"status": "disabled"},
         "endpoint_risk_ranking": rank_endpoint_risk(site_map, directory_results),
     }
+
+
+async def analyze_dns(target_url: str) -> dict[str, object]:
+    parsed = urlparse(target_url)
+    host = parsed.hostname or ""
+    if not host or _is_local_host(host):
+        return {"mode": "passive-dns", "host": host, "addresses": [], "reverse_dns": [], "reason": "DNS analysis skipped for local targets."}
+
+    def _resolve() -> dict[str, object]:
+        records = socket.getaddrinfo(host, None)
+        addresses = sorted({item[4][0] for item in records})
+        reverse_dns = []
+        for address in addresses[:6]:
+            try:
+                reverse_dns.append({"address": address, "name": socket.gethostbyaddr(address)[0]})
+            except Exception:
+                reverse_dns.append({"address": address, "name": ""})
+        rich_records = _resolve_rich_dns_records(host)
+        return {
+            "mode": "passive-dns",
+            "host": host,
+            "addresses": addresses[:12],
+            "a_records": [address for address in addresses if ":" not in address][:12],
+            "aaaa_records": [address for address in addresses if ":" in address][:12],
+            "mx_records": rich_records["mx_records"],
+            "ns_records": rich_records["ns_records"],
+            "txt_records": rich_records["txt_records"],
+            "address_count": len(addresses),
+            "reverse_dns": reverse_dns,
+            "has_ipv6": any(":" in address for address in addresses),
+            "asn_enrichment": _build_asn_enrichment(addresses),
+        }
+
+    try:
+        return await asyncio.to_thread(_resolve)
+    except Exception as exc:
+        return {"mode": "passive-dns", "host": host, "addresses": [], "reverse_dns": [], "error": str(exc)}
+
+
+async def collect_web_intelligence(target_url: str, request_handler) -> dict[str, object]:
+    base = f"{urlparse(target_url).scheme}://{urlparse(target_url).netloc}"
+    robots = await _fetch_optional_text(urljoin(base, "/robots.txt"), request_handler)
+    sitemap = await _fetch_optional_text(urljoin(base, "/sitemap.xml"), request_handler)
+    favicon = await _fetch_optional_binary(urljoin(base, "/favicon.ico"), request_handler)
+    source_maps = await _discover_source_maps(target_url, request_handler)
+    return {
+        "robots": analyze_robots(robots.get("text", ""), robots),
+        "sitemap": analyze_sitemap(sitemap.get("text", ""), sitemap),
+        "favicon": fingerprint_favicon(favicon.get("content", b""), favicon),
+        "source_maps": source_maps,
+    }
+
+
+def analyze_robots(text: str, metadata: dict[str, object] | None = None) -> dict[str, object]:
+    disallow = []
+    allow = []
+    sitemap_urls = []
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or ":" not in line:
+            continue
+        key, value = [part.strip() for part in line.split(":", 1)]
+        if key.lower() == "disallow" and value:
+            disallow.append(value)
+        if key.lower() == "allow" and value:
+            allow.append(value)
+        if key.lower() == "sitemap" and value:
+            sitemap_urls.append(value)
+    return {
+        "status": metadata.get("status_code") if metadata else None,
+        "disallow": disallow[:100],
+        "allow": allow[:100],
+        "sitemaps": sitemap_urls[:25],
+        "sensitive_paths": [path for path in disallow if any(token in path.lower() for token in ("admin", "debug", "backup", "config", "private"))],
+    }
+
+
+def analyze_sitemap(text: str, metadata: dict[str, object] | None = None) -> dict[str, object]:
+    urls = re.findall(r"<loc>(.*?)</loc>", text, flags=re.IGNORECASE)
+    return {
+        "status": metadata.get("status_code") if metadata else None,
+        "url_count": len(urls),
+        "urls": urls[:100],
+        "api_like_urls": [url for url in urls if any(token in url.lower() for token in ("/api", "graphql", "swagger", "openapi"))][:50],
+    }
+
+
+def fingerprint_favicon(content: bytes, metadata: dict[str, object] | None = None) -> dict[str, object]:
+    if not content:
+        return {"status": metadata.get("status_code") if metadata else None, "available": False, "sha256": "", "mmh3_compatible_b64_length": 0}
+    encoded = base64.encodebytes(content)
+    return {
+        "status": metadata.get("status_code") if metadata else None,
+        "available": True,
+        "sha256": hashlib.sha256(content).hexdigest(),
+        "sha256_short": hashlib.sha256(content).hexdigest()[:16],
+        "mmh3_compatible_b64_length": len(encoded),
+    }
+
+
+async def _discover_source_maps(target_url: str, request_handler) -> dict[str, object]:
+    try:
+        response = await request_handler.get(target_url)
+    except Exception as exc:
+        return {"status": "failed", "reason": str(exc), "candidates": []}
+    script_urls = re.findall(r"<script[^>]+src=[\"']([^\"']+)[\"']", response.text, flags=re.IGNORECASE)
+    candidates = []
+    for script in script_urls[: settings.max_script_bundles]:
+        script_url = urljoin(str(response.url), script)
+        map_url = f"{script_url}.map"
+        metadata = await _fetch_optional_text(map_url, request_handler)
+        if metadata.get("status_code") and int(metadata["status_code"]) < 400:
+            candidates.append(
+                {
+                    "script": script_url,
+                    "source_map": map_url,
+                    "status_code": metadata["status_code"],
+                    "contains_sources": '"sources"' in str(metadata.get("text", ""))[:5000],
+                }
+            )
+    return {"status": "completed", "candidate_count": len(candidates), "candidates": candidates}
+
+
+async def _fetch_optional_text(url: str, request_handler) -> dict[str, object]:
+    try:
+        response = await request_handler.get(url)
+        if response.status_code >= 500:
+            return {"url": url, "status_code": response.status_code, "text": ""}
+        return {"url": url, "status_code": response.status_code, "text": response.text or ""}
+    except Exception as exc:
+        return {"url": url, "status_code": None, "text": "", "error": str(exc)}
+
+
+async def _fetch_optional_binary(url: str, request_handler) -> dict[str, object]:
+    try:
+        response = await request_handler.get(url)
+        content = response.content if hasattr(response, "content") else (response.text or "").encode("utf-8")
+        if response.status_code >= 400:
+            content = b""
+        return {"url": url, "status_code": response.status_code, "content": content}
+    except Exception as exc:
+        return {"url": url, "status_code": None, "content": b"", "error": str(exc)}
+
+
+def _resolve_rich_dns_records(host: str) -> dict[str, list[str]]:
+    records = {"mx_records": [], "ns_records": [], "txt_records": []}
+    try:
+        import dns.resolver
+    except Exception:
+        return records
+    for record_type, key in (("MX", "mx_records"), ("NS", "ns_records"), ("TXT", "txt_records")):
+        try:
+            answers = dns.resolver.resolve(host, record_type, lifetime=3)
+            records[key] = [str(answer).strip('"') for answer in answers][:20]
+        except Exception:
+            records[key] = []
+    return records
+
+
+def _build_asn_enrichment(addresses: list[str]) -> dict[str, object]:
+    public_addresses = [address for address in addresses if ":" not in address][:4]
+    if not public_addresses:
+        return {"mode": "unavailable", "results": []}
+    results = []
+    try:
+        from ipwhois import IPWhois
+    except Exception:
+        return {"mode": "library-unavailable", "results": [{"address": address} for address in public_addresses]}
+    for address in public_addresses:
+        try:
+            payload = IPWhois(address).lookup_rdap(depth=0)
+            results.append(
+                {
+                    "address": address,
+                    "asn": payload.get("asn", ""),
+                    "asn_description": payload.get("asn_description", ""),
+                    "network_name": payload.get("network", {}).get("name", "") if isinstance(payload.get("network"), dict) else "",
+                }
+            )
+        except Exception:
+            results.append({"address": address, "asn": "", "asn_description": ""})
+    return {"mode": "rdap", "results": results}
+
+
+async def probe_cloud_assets(target_url: str, request_handler) -> dict[str, object]:
+    candidates = build_cloud_storage_candidates(target_url)
+    exposed = []
+    for candidate in candidates:
+        try:
+            response = await request_handler.get(candidate["url"])
+        except Exception:
+            continue
+        if response.status_code not in {401, 403, 404, 410} and response.status_code < 500:
+            exposed.append(
+                {
+                    **candidate,
+                    "status_code": response.status_code,
+                    "content_length": len(response.text or ""),
+                }
+            )
+    return {
+        "mode": "passive-cloud-candidates",
+        "candidates": candidates,
+        "candidate_count": len(candidates),
+        "exposed": exposed,
+        "exposed_count": len(exposed),
+    }
+
+
+def build_cloud_storage_candidates(target_url: str) -> list[dict[str, str]]:
+    parsed = urlparse(target_url)
+    host = parsed.hostname or ""
+    if not host or _is_local_host(host) or "." not in host:
+        return []
+    root = ".".join(host.split(".")[-2:])
+    org = root.split(".")[0].replace("-", "").replace("_", "")
+    names = []
+    for base in {root.replace(".", "-"), org}:
+        for suffix in settings.cloud_bucket_suffixes:
+            names.append(f"{base}{suffix}")
+    candidates = []
+    for name in sorted(set(names)):
+        candidates.extend(
+            [
+                {"provider": "aws-s3", "name": name, "url": f"https://{name}.s3.amazonaws.com/"},
+                {"provider": "gcp-storage", "name": name, "url": f"https://storage.googleapis.com/{name}/"},
+                {"provider": "azure-blob", "name": name, "url": f"https://{name}.blob.core.windows.net/"},
+            ]
+        )
+    return candidates[:36]
 
 
 def analyze_passive_security(headers: dict[str, str]) -> dict[str, object]:

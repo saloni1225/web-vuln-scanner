@@ -1,0 +1,19 @@
+stages:
+  - validate
+
+adaptivescan-validate:
+  image: node:22
+  stage: validate
+  before_script:
+    - apt-get update && apt-get install -y python3 python3-pip python3-venv
+    - python3 -m pip install --break-system-packages -r requirements.txt
+    - cd frontend && npm ci && cd ..
+  script:
+    - python3 -m pytest
+    - cd frontend && npm run build
+  artifacts:
+    when: always
+    paths:
+      - backend/reports/exports/
+      - frontend/dist/
+

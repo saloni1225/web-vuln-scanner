@@ -35,6 +35,51 @@
       "category": "authorization",
       "description": "Looks for privileged or admin-style resources that are reachable without expected access controls.",
       "supports": ["page", "api"]
+    },
+    {
+      "name": "advanced_surface",
+      "module": "backend.detection.advanced_surface_detector",
+      "class": "AdvancedSurfaceDetector",
+      "enabled": true,
+      "category": "attack-surface",
+      "description": "Safely flags GraphQL, OpenAPI, admin, upload, auth, and WebSocket surfaces for advanced validation workflows.",
+      "supports": ["api", "graphql", "spa", "auth", "websocket", "file-upload"]
+    },
+    {
+      "name": "advanced_injection",
+      "module": "backend.detection.advanced_injection_detector",
+      "class": "AdvancedInjectionDetector",
+      "enabled": true,
+      "category": "injection",
+      "description": "Heuristically identifies NoSQL, command, LDAP, XPath, SSTI, XXE, and deserialization validation candidates.",
+      "supports": ["nosql", "command", "ldap", "xpath", "ssti", "xxe", "deserialization"]
+    },
+    {
+      "name": "advanced_client",
+      "module": "backend.detection.advanced_client_detector",
+      "class": "AdvancedClientDetector",
+      "enabled": true,
+      "category": "client-side",
+      "description": "Flags DOM XSS, stored/blind XSS, prototype pollution, and DOM clobbering candidate surfaces.",
+      "supports": ["dom-xss", "stored-xss", "blind-xss", "prototype-pollution", "dom-clobbering"]
+    },
+    {
+      "name": "advanced_auth",
+      "module": "backend.detection.advanced_auth_detector",
+      "class": "AdvancedAuthDetector",
+      "enabled": true,
+      "category": "auth",
+      "description": "Flags JWT, OAuth/OIDC, MFA/session, IDOR, BOLA, and RBAC bypass validation candidates.",
+      "supports": ["jwt", "oauth", "mfa", "session", "idor", "bola", "rbac"]
+    },
+    {
+      "name": "advanced_server",
+      "module": "backend.detection.advanced_server_detector",
+      "class": "AdvancedServerDetector",
+      "enabled": true,
+      "category": "server-side",
+      "description": "Flags SSRF, file upload, traversal, cache poisoning, host header, WebSocket, race, and request smuggling candidates.",
+      "supports": ["ssrf", "file-upload", "path-traversal", "cache-poisoning", "host-header", "websocket", "race", "request-smuggling"]
     }
   ]
 }

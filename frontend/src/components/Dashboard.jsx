@@ -1,5 +1,5 @@
 import React from "react";
-import { ActivitySquare, Radar, ShieldCheck, Siren, Timer } from "lucide-react";
+import { ActivitySquare, Eye, Network, Radar, ShieldCheck, Siren, Timer } from "lucide-react";
 
 export function Dashboard({ result, progress, detectorTimings }) {
   const useLiveSummary = progress?.status === "running" || progress?.status === "queued" || !result;
@@ -44,9 +44,9 @@ export function Dashboard({ result, progress, detectorTimings }) {
 
   return (
     <>
-      <section className="metrics-grid">
+      <section className="metrics-grid compact-metrics-grid">
         <article className="metric-card">
-          <ShieldCheck />
+          <Eye />
           <span>Pages</span>
           <strong>{pages}</strong>
         </article>
@@ -56,7 +56,7 @@ export function Dashboard({ result, progress, detectorTimings }) {
           <strong>{summary.finding_count ?? 0}</strong>
         </article>
         <article className="metric-card">
-          <Radar />
+          <Network />
           <span>Endpoints</span>
           <strong>{endpoints}</strong>
         </article>
@@ -72,33 +72,13 @@ export function Dashboard({ result, progress, detectorTimings }) {
         </article>
         <article className="metric-card">
           <ShieldCheck />
-          <span>Detectors</span>
-          <strong>{enabledDetectors}</strong>
-        </article>
-        <article className="metric-card">
-          <ShieldCheck />
           <span>Validated</span>
           <strong>{validatedFindings}</strong>
-        </article>
-        <article className="metric-card">
-          <ShieldCheck />
-          <span>Passive Score</span>
-          <strong>{passiveSecurityScore}</strong>
         </article>
         <article className="metric-card">
           <Siren />
           <span>Risky Endpoints</span>
           <strong>{highRiskEndpoints}</strong>
-        </article>
-        <article className="metric-card">
-          <Radar />
-          <span>Open Ports</span>
-          <strong>{openPortCount}</strong>
-        </article>
-        <article className="metric-card">
-          <ActivitySquare />
-          <span>Schema Probes</span>
-          <strong>{schemaProbeCount}</strong>
         </article>
       </section>
 
@@ -145,7 +125,10 @@ export function Dashboard({ result, progress, detectorTimings }) {
             <div className="scan-progress-meta">
               <div><span>Status</span><strong>{progress?.status ?? (isComplete ? "completed" : "idle")}</strong></div>
               <div><span>Duration</span><strong>{summary.duration_ms ?? 0} ms</strong></div>
-              <div><span>Avg anomaly</span><strong>{anomalyScore}</strong></div>
+              <div><span>Anomaly</span><strong>{anomalyScore}</strong></div>
+              <div><span>Detectors</span><strong>{enabledDetectors}</strong></div>
+              <div><span>Schema probes</span><strong>{schemaProbeCount}</strong></div>
+              <div><span>Open ports</span><strong>{openPortCount}</strong></div>
             </div>
           </div>
         </article>

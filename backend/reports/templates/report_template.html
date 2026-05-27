@@ -172,6 +172,40 @@
     </section>
 
     <section class="section">
+      <h2>Enterprise Intelligence</h2>
+      <div class="summary-grid">
+        <div class="metric"><span>Assets</span><strong>{{ scan.attack_surface_inventory.asset_count or 0 }}</strong></div>
+        <div class="metric"><span>High-risk assets</span><strong>{{ scan.attack_surface_inventory.high_risk_asset_count or 0 }}</strong></div>
+        <div class="metric"><span>Validation proof</span><strong>{{ scan.validation_summary.average_exploit_proof_score or 0 }}</strong></div>
+        <div class="metric"><span>AI high exploitability</span><strong>{{ scan.ai_risk_summary.high_exploitability_count or 0 }}</strong></div>
+        <div class="metric"><span>Mapped compliance</span><strong>{{ scan.compliance_summary.mapped_finding_count or 0 }}</strong></div>
+        <div class="metric"><span>Endpoint drift</span><strong>{% if scan.historical_endpoint_tracking.drift_detected %}Detected{% else %}Stable{% endif %}</strong></div>
+      </div>
+      <p><strong>New endpoints:</strong> {{ (scan.historical_endpoint_tracking.new_endpoints or [])|join(", ") or "none" }}</p>
+      <p><strong>Validation engines:</strong> {{ (scan.validation_summary.engines or [])|join(", ") or "none" }}</p>
+      <p><strong>Compliance frameworks:</strong>
+        {% for item in scan.compliance_summary.frameworks or [] %}
+          <span class="pill">{{ item.framework }}</span>
+        {% else %}
+          none
+        {% endfor %}
+      </p>
+    </section>
+
+    <section class="section">
+      <h2>Web Recon Intelligence</h2>
+      <div class="summary-grid">
+        <div class="metric"><span>Favicon SHA</span><strong>{{ scan.recon_summary.web_intelligence.favicon.sha256_short or "none" }}</strong></div>
+        <div class="metric"><span>Robots disallow</span><strong>{{ (scan.recon_summary.web_intelligence.robots.disallow or [])|length }}</strong></div>
+        <div class="metric"><span>Sitemap URLs</span><strong>{{ scan.recon_summary.web_intelligence.sitemap.url_count or 0 }}</strong></div>
+        <div class="metric"><span>Source maps</span><strong>{{ scan.recon_summary.web_intelligence.source_maps.candidate_count or 0 }}</strong></div>
+      </div>
+      <p><strong>Sensitive robots paths:</strong> {{ (scan.recon_summary.web_intelligence.robots.sensitive_paths or [])|join(", ") or "none" }}</p>
+      <p><strong>MX records:</strong> {{ (scan.recon_summary.dns_analysis.mx_records or [])|join(", ") or "none" }}</p>
+      <p><strong>NS records:</strong> {{ (scan.recon_summary.dns_analysis.ns_records or [])|join(", ") or "none" }}</p>
+    </section>
+
+    <section class="section">
       <h2>Schema-Aware Fuzzing</h2>
       <table>
         <thead>

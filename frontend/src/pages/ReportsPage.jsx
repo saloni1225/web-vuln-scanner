@@ -390,7 +390,7 @@ export function ReportsPage() {
                 selectedReport.findings.map((finding, index) => (
                   <VulnerabilityCard
                     key={`${finding.url}-${index}`}
-                    finding={finding}
+                    finding={{ ...finding, scan_id: selectedReport.scan_id, finding_index: index }}
                     onOpenDetail={setSelectedFinding}
                   />
                 ))

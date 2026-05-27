@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 from pathlib import Path
 
@@ -19,6 +20,26 @@ def generate_html_report(scan: dict[str, object]) -> Path:
     html = env.get_template("report_template.html").render(scan=scan)
     output = EXPORT_DIR / f"{scan['scan_id']}.html"
     output.write_text(html, encoding="utf-8")
+    return output
+
+
+def generate_evidence_bundle(scan: dict[str, object]) -> Path:
+    EXPORT_DIR.mkdir(parents=True, exist_ok=True)
+    output = EXPORT_DIR / f"{scan['scan_id']}.evidence.json"
+    bundle = {
+        "scan_id": scan.get("scan_id"),
+        "target_url": scan.get("target_url"),
+        "summary": scan.get("summary", {}),
+        "findings": scan.get("findings", []),
+        "replay_plans": [finding.get("replay_plan") for finding in scan.get("findings", []) if isinstance(finding, dict) and finding.get("replay_plan")],
+        "attack_surface_inventory": scan.get("attack_surface_inventory", {}),
+        "api_security_summary": scan.get("api_security_summary", {}),
+        "validation_summary": scan.get("validation_summary", {}),
+        "compliance_summary": scan.get("compliance_summary", {}),
+        "ai_risk_summary": scan.get("ai_risk_summary", {}),
+        "telemetry_summary": scan.get("telemetry_summary", {}),
+    }
+    output.write_text(json.dumps(bundle, indent=2), encoding="utf-8")
     return output
 
 

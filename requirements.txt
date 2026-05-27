@@ -5,3 +5,87 @@ pydantic-settings==2.7.1
 jinja2==3.1.5
 pytest==8.3.4
 playwright>=1.49,<2
+
+# Deep service fingerprinting
+python-nmap
+aiohttp
+scapy
+dnspython
+tldextract
+sslyze
+wafw00f
+python-Wappalyzer
+
+# ASN / DNS intelligence
+ipwhois
+pyasn
+
+# NoSQL / LDAP / XPath / SSTI
+pymongo
+ldap3
+lxml
+
+# XXE and XML analysis
+defusedxml
+xmltodict
+
+# OAuth / MFA support
+authlib
+pyotp
+passlib
+python-jose
+
+# Scheduled scanning and alerts
+apscheduler
+celery
+redis
+
+# Enterprise collaboration
+fastapi-users
+sqlalchemy
+alembic
+psycopg2-binary
+
+# Compliance mapping
+cvss
+pyjwt
+pydantic
+
+# Distributed scanning
+asyncpg
+
+# AI-assisted features
+sentence-transformers
+scikit-learn
+numpy
+pandas
+openai
+
+# Advanced web security
+websockets
+h2
+hyperframe
+brotli
+
+# File upload and MIME analysis
+python-magic
+filetype
+pillow
+
+# Security header / TLS analysis
+cryptography
+pyOpenSSL
+
+# Cloud asset discovery
+boto3
+azure-identity
+google-cloud-storage
+
+# GraphQL security
+gql
+graphene
+graphql-core
+
+# API schema learning
+prance
+openapi-spec-validator

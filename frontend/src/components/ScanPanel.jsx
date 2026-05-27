@@ -1,5 +1,5 @@
-import React from "react";
-import { LoaderCircle, Play } from "lucide-react";
+import React, { useState } from "react";
+import { CalendarClock, ChevronDown, KeyRound, LoaderCircle, Play, ShieldCheck, SlidersHorizontal, Sparkles } from "lucide-react";
 
 export function ScanPanel({
   targetUrl,
@@ -66,6 +66,10 @@ export function ScanPanel({
   targetHost,
   requiresAuthorization,
 }) {
+  const [openPanel, setOpenPanel] = useState("advanced");
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const profiles = scanProfiles?.length ? scanProfiles : [{ name: "deep", label: "Deep Scan" }];
+
   function toggleDetector(name) {
     setSelectedDetectors((current) =>
       current.includes(name) ? current.filter((item) => item !== name) : [...current, name]
@@ -73,267 +77,150 @@ export function ScanPanel({
   }
 
   return (
-    <form className="scan-panel" onSubmit={onScan}>
-      <label htmlFor="target-url">Target URL</label>
-      <div className="target-row">
-        <input
-          id="target-url"
-          type="url"
-          value={targetUrl}
-          placeholder="https://staging.example.com"
-          onChange={(event) => setTargetUrl(event.target.value)}
-          required
-        />
-        <button type="submit" disabled={isScanning || (requiresAuthorization && !authorizationConfirmed)}>
-          {isScanning ? <LoaderCircle className="spin" size={18} /> : <Play size={18} />}
-          <span>{isScanning ? "Scanning" : "Start"}</span>
-        </button>
-      </div>
-      <label htmlFor="auth-header-name">Auth Header (optional)</label>
-      <div className="target-row">
-        <input
-          id="auth-header-name"
-          type="text"
-          value={authHeaderName}
-          placeholder="Authorization"
-          onChange={(event) => setAuthHeaderName(event.target.value)}
-        />
-        <input
-          id="auth-header-value"
-          type="text"
-          value={authHeaderValue}
-          placeholder="Bearer eyJ..."
-          onChange={(event) => setAuthHeaderValue(event.target.value)}
-        />
-      </div>
-      <label htmlFor="jwt-token">JWT Token (optional)</label>
-      <input
-        id="jwt-token"
-        type="text"
-        value={jwtToken}
-        placeholder="eyJhbGciOi..."
-        onChange={(event) => setJwtToken(event.target.value)}
-      />
-      <label htmlFor="auth-cookie-name">Session Cookie (optional)</label>
-      <div className="target-row">
-        <input
-          id="auth-cookie-name"
-          type="text"
-          value={authCookieName}
-          placeholder="token"
-          onChange={(event) => setAuthCookieName(event.target.value)}
-        />
-        <input
-          id="auth-cookie-value"
-          type="text"
-          value={authCookieValue}
-          placeholder="session-value"
-          onChange={(event) => setAuthCookieValue(event.target.value)}
-        />
-      </div>
-      <label htmlFor="login-url">Login Flow (optional)</label>
-      <div className="auth-grid">
-        <input
-          id="login-url"
-          type="url"
-          value={loginUrl}
-          placeholder="https://target.example/login"
-          onChange={(event) => setLoginUrl(event.target.value)}
-        />
-        <input
-          type="text"
-          value={usernameField}
-          placeholder="username field"
-          onChange={(event) => setUsernameField(event.target.value)}
-        />
-        <input
-          type="text"
-          value={passwordField}
-          placeholder="password field"
-          onChange={(event) => setPasswordField(event.target.value)}
-        />
-        <input
-          type="text"
-          value={username}
-          placeholder="username"
-          onChange={(event) => setUsername(event.target.value)}
-        />
-        <input
-          type="password"
-          value={password}
-          placeholder="password"
-          onChange={(event) => setPassword(event.target.value)}
-        />
-      </div>
-      <label htmlFor="scan-profile">Scan Profile</label>
-      <div className="target-row profile-row">
-        <select id="scan-profile" value={scanProfile} onChange={(event) => setScanProfile(event.target.value)}>
-          {(scanProfiles?.length ? scanProfiles : [{ name: "deep", label: "Deep Scan", description: "Broad discovery and validation." }]).map((profile) => (
-            <option key={profile.name} value={profile.name}>
-              {profile.label}
-            </option>
-          ))}
-        </select>
-        <div className="profile-description">
-          {scanProfiles?.find((profile) => profile.name === scanProfile)?.description ?? "Balanced authorized assessment with SPA crawling, API probes, validation, and recon."}
+    <form className="scan-command scan-command-center" onSubmit={onScan}>
+      <div className="command-center-header">
+        <div>
+          <span className="eyebrow">One-click orchestration</span>
+          <strong>Adaptive scan profile</strong>
         </div>
+        <div className="command-ai-chip"><Sparkles size={14} /> Scope-aware defaults</div>
       </div>
-      <label htmlFor="rate-limit">Safety Controls</label>
-      <div className="target-row safety-row">
+      <section className="scan-command-main">
+        <div className="scan-target-input">
+          <label htmlFor="target-url">Target</label>
+          <input
+            id="target-url"
+            type="url"
+            value={targetUrl}
+            placeholder="https://app.example.com"
+            onChange={(event) => setTargetUrl(event.target.value)}
+            required
+          />
+        </div>
+        <button className="primary-action scan-start" type="submit" disabled={isScanning || (requiresAuthorization && !authorizationConfirmed)}>
+          {isScanning ? <LoaderCircle className="spin" size={18} /> : <Play size={18} />}
+          {isScanning ? "Scanning" : "Start scan"}
+        </button>
+      </section>
+
+      <section className="scan-type-row" aria-label="Scan type">
+        {profiles.map((profile) => (
+          <button
+            key={profile.name}
+            type="button"
+            className={scanProfile === profile.name ? "selected" : ""}
+            onClick={() => setScanProfile(profile.name)}
+          >
+            <strong>{profile.label}</strong>
+            <span>{profile.name} profile</span>
+          </button>
+        ))}
+        <button type="button" className="schedule-button" onClick={() => setScheduleOpen(true)}>
+          <CalendarClock size={16} /> Schedule
+        </button>
+      </section>
+
+      <section className="scope-strip command-scope-strip">
+        <label className="switch-row">
+          <input type="checkbox" checked={authorizationConfirmed} onChange={(event) => setAuthorizationConfirmed(event.target.checked)} />
+          <span><ShieldCheck size={15} /> Authorized scope</span>
+        </label>
+        <div className={`scope-chip ${requiresAuthorization && !authorizationConfirmed ? "warning" : "ok"}`}>
+          {targetHost || "No target"} · {requiresAuthorization ? "external" : "private/local"}
+        </div>
         <input
-          id="rate-limit"
-          type="number"
-          min="0.5"
-          max="20"
-          step="0.5"
-          value={rateLimitPerSecond}
-          placeholder="Rate limit / second"
-          onChange={(event) => setRateLimitPerSecond(event.target.value)}
-        />
-        <input
-          type="number"
-          min="0"
-          max="5"
-          step="1"
-          value={retryAttempts}
-          placeholder="Retry attempts"
-          onChange={(event) => setRetryAttempts(event.target.value)}
-        />
-        <input
-          type="text"
+          className="scope-allowlist"
           value={domainAllowlist}
-          placeholder="Allowed domains, e.g. staging.example.com, app.example.com"
           onChange={(event) => setDomainAllowlist(event.target.value)}
+          placeholder="Allowed domains"
         />
-      </div>
-      <label className="checkbox-row">
-        <input
-          type="checkbox"
-          checked={authorizationConfirmed}
-          onChange={(event) => setAuthorizationConfirmed(event.target.checked)}
-        />
-        <span>I confirm this target is in scope and I have explicit authorization to test it.</span>
-      </label>
-      {targetHost ? (
-        <div className={`scope-notice ${requiresAuthorization ? (authorizationConfirmed ? "confirmed" : "warning") : "private"}`}>
-          <strong>{requiresAuthorization ? "Hosted target scope" : "Private target scope"}</strong>
-          <span>
-            {requiresAuthorization
-              ? authorizationConfirmed
-                ? `${targetHost} is confirmed in scope and will be sent with the scan allowlist.`
-                : `${targetHost} needs authorization confirmation before scanning.`
-              : `${targetHost} is a private/local target, so the hosted-target confirmation gate is not required.`}
-          </span>
+      </section>
+
+      <section className="progress-rail">
+        <div><span style={{ width: `${progress?.progress ?? 0}%` }} /></div>
+        <small>{progress?.message ?? "Ready"}</small>
+      </section>
+
+      <section className="scan-accordion">
+        <button type="button" className="accordion-trigger" onClick={() => setOpenPanel(openPanel === "auth" ? "" : "auth")}>
+          <KeyRound size={16} /> Authentication <ChevronDown size={15} />
+        </button>
+        {openPanel === "auth" ? (
+          <div className="accordion-body auth-fields">
+            <input value={authHeaderName} placeholder="Header name" onChange={(event) => setAuthHeaderName(event.target.value)} />
+            <input value={authHeaderValue} placeholder="Header value" onChange={(event) => setAuthHeaderValue(event.target.value)} />
+            <input value={jwtToken} placeholder="JWT token" onChange={(event) => setJwtToken(event.target.value)} />
+            <input value={authCookieName} placeholder="Cookie name" onChange={(event) => setAuthCookieName(event.target.value)} />
+            <input value={authCookieValue} placeholder="Cookie value" onChange={(event) => setAuthCookieValue(event.target.value)} />
+            <input type="url" value={loginUrl} placeholder="Login URL" onChange={(event) => setLoginUrl(event.target.value)} />
+            <input value={usernameField} placeholder="Username field" onChange={(event) => setUsernameField(event.target.value)} />
+            <input value={passwordField} placeholder="Password field" onChange={(event) => setPasswordField(event.target.value)} />
+            <input value={username} placeholder="Username" onChange={(event) => setUsername(event.target.value)} />
+            <input type="password" value={password} placeholder="Password" onChange={(event) => setPassword(event.target.value)} />
+          </div>
+        ) : null}
+
+        <button type="button" className="accordion-trigger" onClick={() => setOpenPanel(openPanel === "advanced" ? "" : "advanced")}>
+          <SlidersHorizontal size={16} /> Advanced options <ChevronDown size={15} />
+        </button>
+        {openPanel === "advanced" ? (
+          <div className="accordion-body">
+            <div className="compact-fields">
+              <input type="number" min="0.5" max="20" step="0.5" value={rateLimitPerSecond} onChange={(event) => setRateLimitPerSecond(event.target.value)} placeholder="Rate/sec" />
+              <input type="number" min="0" max="5" value={retryAttempts} onChange={(event) => setRetryAttempts(event.target.value)} placeholder="Retries" />
+              <input type="number" min="0" value={maxHighSeverity} onChange={(event) => setMaxHighSeverity(event.target.value)} placeholder="Max high" />
+              <input type="number" min="0" value={maxMediumSeverity} onChange={(event) => setMaxMediumSeverity(event.target.value)} placeholder="Max medium" />
+              <input type="number" min="0" value={maxTotalFindings} onChange={(event) => setMaxTotalFindings(event.target.value)} placeholder="Max total" />
+              <input type="url" value={slackWebhookUrl} onChange={(event) => setSlackWebhookUrl(event.target.value)} placeholder="Slack webhook" />
+              <input type="url" value={discordWebhookUrl} onChange={(event) => setDiscordWebhookUrl(event.target.value)} placeholder="Discord webhook" />
+            </div>
+            <div className="toggle-grid">
+              {[
+                ["Risk gate", failOnHigh, setFailOnHigh],
+                ["API fuzzing", enableApiFuzzing, setEnableApiFuzzing],
+                ["GraphQL", enableGraphqlChecks, setEnableGraphqlChecks],
+                ["Validation", enableFindingValidator, setEnableFindingValidator],
+                ["OpenAPI", enableOpenapiDiscovery, setEnableOpenapiDiscovery],
+                ["Active POST", enableActivePostTesting, setEnableActivePostTesting],
+              ].map(([label, value, setter]) => (
+                <label key={label} className="switch-row compact">
+                  <input type="checkbox" checked={value} onChange={(event) => setter(event.target.checked)} />
+                  <span>{label}</span>
+                </label>
+              ))}
+            </div>
+            <div className="detector-pills">
+              {availableDetectors.map((detector) => (
+                <button
+                  key={detector.name}
+                  type="button"
+                  className={selectedDetectors.includes(detector.name) ? "active" : ""}
+                  onClick={() => toggleDetector(detector.name)}
+                >
+                  {detector.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </section>
+
+      {scheduleOpen ? (
+        <div className="modal-backdrop" onClick={() => setScheduleOpen(false)}>
+          <section className="schedule-modal" onClick={(event) => event.stopPropagation()}>
+            <header>
+              <strong>Schedule scan</strong>
+              <button type="button" onClick={() => setScheduleOpen(false)}>Close</button>
+            </header>
+            <div className="compact-fields">
+              <select defaultValue="daily"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select>
+              <input type="time" defaultValue="02:00" />
+              <input placeholder="Notification channel" />
+            </div>
+            <p>Scheduling is prepared for the monitoring queue. The current local run remains on-demand.</p>
+          </section>
         </div>
       ) : null}
-      <div className="devsecops-controls">
-        <section>
-          <label>Risk Gate</label>
-          <label className="checkbox-row">
-            <input type="checkbox" checked={failOnHigh} onChange={(event) => setFailOnHigh(event.target.checked)} />
-            <span>Fail pipeline when high severity findings exceed policy</span>
-          </label>
-          <div className="target-row safety-row">
-            <input
-              type="number"
-              min="0"
-              step="1"
-              value={maxHighSeverity}
-              placeholder="Max high"
-              onChange={(event) => setMaxHighSeverity(event.target.value)}
-            />
-            <input
-              type="number"
-              min="0"
-              step="1"
-              value={maxMediumSeverity}
-              placeholder="Max medium"
-              onChange={(event) => setMaxMediumSeverity(event.target.value)}
-            />
-            <input
-              type="number"
-              min="0"
-              step="1"
-              value={maxTotalFindings}
-              placeholder="Max total"
-              onChange={(event) => setMaxTotalFindings(event.target.value)}
-            />
-          </div>
-        </section>
-        <section>
-          <label>Alerts</label>
-          <div className="target-row safety-row">
-            <input
-              type="url"
-              value={slackWebhookUrl}
-              placeholder="Slack webhook URL"
-              onChange={(event) => setSlackWebhookUrl(event.target.value)}
-            />
-            <input
-              type="url"
-              value={discordWebhookUrl}
-              placeholder="Discord webhook URL"
-              onChange={(event) => setDiscordWebhookUrl(event.target.value)}
-            />
-          </div>
-        </section>
-      </div>
-      <div className="options-grid">
-        <div>
-          <label>Detector Plugins</label>
-          <div className="detector-chip-grid">
-            {availableDetectors.length ? (
-              availableDetectors.map((detector) => {
-                const active = selectedDetectors.includes(detector.name);
-                return (
-                  <button
-                    key={detector.name}
-                    type="button"
-                    className={`detector-chip ${active ? "active" : ""}`}
-                    onClick={() => toggleDetector(detector.name)}
-                  >
-                    <strong>{detector.name}</strong>
-                    <small>{detector.category}</small>
-                  </button>
-                );
-              })
-            ) : (
-              <div className="empty-inline">Loading detectors...</div>
-            )}
-          </div>
-        </div>
-        <div>
-          <label>API / GraphQL Coverage</label>
-          <div className="toggle-stack">
-            <label className="checkbox-row">
-              <input type="checkbox" checked={enableApiFuzzing} onChange={(event) => setEnableApiFuzzing(event.target.checked)} />
-              <span>Enable API probe coverage</span>
-            </label>
-            <label className="checkbox-row">
-              <input type="checkbox" checked={enableGraphqlChecks} onChange={(event) => setEnableGraphqlChecks(event.target.checked)} />
-              <span>Enable GraphQL checks</span>
-            </label>
-            <label className="checkbox-row">
-              <input type="checkbox" checked={enableFindingValidator} onChange={(event) => setEnableFindingValidator(event.target.checked)} />
-              <span>Enable finding validation</span>
-            </label>
-            <label className="checkbox-row">
-              <input type="checkbox" checked={enableOpenapiDiscovery} onChange={(event) => setEnableOpenapiDiscovery(event.target.checked)} />
-              <span>Enable OpenAPI discovery</span>
-            </label>
-            <label className="checkbox-row bounty-toggle">
-              <input type="checkbox" checked={enableActivePostTesting} onChange={(event) => setEnableActivePostTesting(event.target.checked)} />
-              <span>Active POST testing for confirmed in-scope targets</span>
-            </label>
-          </div>
-        </div>
-      </div>
-      <div className="inline-progress">
-        <div className="inline-progress-track">
-          <div className="inline-progress-fill" style={{ width: `${progress?.progress ?? 0}%` }} />
-        </div>
-        <small>{progress?.message ?? "Waiting for the next scan run."}</small>
-      </div>
     </form>
   );
 }

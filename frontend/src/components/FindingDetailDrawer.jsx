@@ -1,9 +1,71 @@
-import React from "react";
-import { ArrowUpRight, CircleAlert, X } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { ArrowUpRight, CircleAlert, MessageSquarePlus, X } from "lucide-react";
+import { addFindingComment, fetchFindingLifecycle, updateFindingLifecycle } from "../services/api.js";
+
+const lifecycleStates = ["open", "triaged", "assigned", "retesting", "resolved", "closed"];
 
 export function FindingDetailDrawer({ finding, open, onClose }) {
+  const [lifecycle, setLifecycle] = useState(null);
+  const [workflowState, setWorkflowState] = useState("open");
+  const [owner, setOwner] = useState("");
+  const [slaDueAt, setSlaDueAt] = useState("");
+  const [commentBody, setCommentBody] = useState("");
+  const [workflowMessage, setWorkflowMessage] = useState("");
+
+  useEffect(() => {
+    if (!open || !finding?.scan_id || finding?.finding_index === undefined) {
+      setLifecycle(null);
+      return;
+    }
+    fetchFindingLifecycle(finding.scan_id, finding.finding_index)
+      .then((item) => {
+        setLifecycle(item);
+        setWorkflowState(item.state || "open");
+        setOwner(item.owner || "");
+        setSlaDueAt(item.sla_due_at || "");
+      })
+      .catch(() => setWorkflowMessage("Lifecycle metadata is not available for this finding yet."));
+  }, [finding, open]);
+
   if (!open || !finding) {
     return null;
+  }
+
+  async function saveLifecycle() {
+    if (!finding.scan_id || finding.finding_index === undefined) {
+      return;
+    }
+    setWorkflowMessage("Saving workflow...");
+    try {
+      const item = await updateFindingLifecycle(finding.scan_id, finding.finding_index, {
+        state: workflowState,
+        owner,
+        sla_due_at: slaDueAt,
+        actor: "local-user",
+      });
+      setLifecycle(item);
+      setWorkflowMessage("Workflow saved.");
+    } catch (error) {
+      setWorkflowMessage(String(error.message || "Could not save workflow"));
+    }
+  }
+
+  async function saveComment() {
+    if (!finding.scan_id || finding.finding_index === undefined || !commentBody.trim()) {
+      return;
+    }
+    setWorkflowMessage("Adding comment...");
+    try {
+      const item = await addFindingComment(finding.scan_id, finding.finding_index, {
+        body: commentBody.trim(),
+        actor: "local-user",
+      });
+      setLifecycle(item);
+      setCommentBody("");
+      setWorkflowMessage("Comment added.");
+    } catch (error) {
+      setWorkflowMessage(String(error.message || "Could not add comment"));
+    }
   }
 
   const evidenceRows = [
@@ -81,6 +143,48 @@ export function FindingDetailDrawer({ finding, open, onClose }) {
           ) : null}
           {finding.request_snapshot ? <code className="drawer-code">{finding.request_snapshot}</code> : null}
           {finding.response_snapshot ? <code className="drawer-code">{finding.response_snapshot}</code> : null}
+        </section>
+
+        <section className="drawer-block">
+          <div className="drawer-title">
+            <MessageSquarePlus size={18} />
+            <strong>Lifecycle Workflow</strong>
+          </div>
+          <div className="lifecycle-form">
+            <label>
+              <span>State</span>
+              <select value={workflowState} onChange={(event) => setWorkflowState(event.target.value)}>
+                {lifecycleStates.map((state) => (
+                  <option key={state} value={state}>{state}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Owner</span>
+              <input value={owner} placeholder="security@company.com" onChange={(event) => setOwner(event.target.value)} />
+            </label>
+            <label>
+              <span>SLA Due</span>
+              <input value={slaDueAt} placeholder="2026-05-30" onChange={(event) => setSlaDueAt(event.target.value)} />
+            </label>
+            <button type="button" className="report-link" onClick={saveLifecycle}>Save workflow</button>
+          </div>
+          <div className="comment-box">
+            <textarea value={commentBody} placeholder="Add triage notes, remediation context, or retest evidence..." onChange={(event) => setCommentBody(event.target.value)} />
+            <button type="button" className="report-link secondary" onClick={saveComment}>Add comment</button>
+          </div>
+          {workflowMessage ? <small>{workflowMessage}</small> : null}
+          {(lifecycle?.comments ?? []).length ? (
+            <div className="comment-list">
+              {lifecycle.comments.map((comment, index) => (
+                <article key={`${comment.created_at}-${index}`}>
+                  <strong>{comment.actor}</strong>
+                  <small>{comment.created_at}</small>
+                  <p>{comment.body}</p>
+                </article>
+              ))}
+            </div>
+          ) : null}
         </section>
 
         <section className="drawer-block">

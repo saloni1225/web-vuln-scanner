@@ -1,5 +1,9 @@
+import hashlib
 import json
+import secrets
 import sqlite3
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 from backend.config.settings import ROOT_DIR
@@ -26,6 +30,85 @@ def init_db() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS finding_lifecycle (
+                scan_id TEXT NOT NULL,
+                finding_index INTEGER NOT NULL,
+                state TEXT NOT NULL,
+                owner TEXT NOT NULL,
+                sla_due_at TEXT NOT NULL,
+                comments_json TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY (scan_id, finding_index)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS audit_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_type TEXT NOT NULL,
+                actor TEXT NOT NULL,
+                target TEXT NOT NULL,
+                details_json TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS organizations (
+                org_id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                plan TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS workspaces (
+                workspace_id TEXT PRIMARY KEY,
+                org_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                default_allowlist_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (org_id) REFERENCES organizations(org_id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS team_members (
+                member_id TEXT PRIMARY KEY,
+                org_id TEXT NOT NULL,
+                email TEXT NOT NULL,
+                role TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (org_id) REFERENCES organizations(org_id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS api_keys (
+                key_id TEXT PRIMARY KEY,
+                workspace_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                key_prefix TEXT NOT NULL,
+                key_hash TEXT NOT NULL,
+                scopes_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                revoked_at TEXT NOT NULL,
+                FOREIGN KEY (workspace_id) REFERENCES workspaces(workspace_id)
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_scans_target_started ON scans(target_url, started_at)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit_logs(created_at)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_workspaces_org ON workspaces(org_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_api_keys_workspace ON api_keys(workspace_id)")
 
 
 def save_scan(scan: dict[str, object]) -> None:
@@ -106,6 +189,345 @@ def get_scan(scan_id: str) -> dict[str, object] | None:
     if row is None:
         return None
     return json.loads(row[0])
+
+
+def get_finding_lifecycle(scan_id: str, finding_index: int) -> dict[str, object]:
+    init_db()
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT state, owner, sla_due_at, comments_json, updated_at
+            FROM finding_lifecycle
+            WHERE scan_id = ? AND finding_index = ?
+            """,
+            (scan_id, finding_index),
+        ).fetchone()
+    if row is None:
+        return {
+            "scan_id": scan_id,
+            "finding_index": finding_index,
+            "state": "open",
+            "owner": "",
+            "sla_due_at": "",
+            "comments": [],
+            "updated_at": "",
+        }
+    return {
+        "scan_id": scan_id,
+        "finding_index": finding_index,
+        "state": row[0],
+        "owner": row[1],
+        "sla_due_at": row[2],
+        "comments": json.loads(row[3] or "[]"),
+        "updated_at": row[4],
+    }
+
+
+def update_finding_lifecycle(
+    scan_id: str,
+    finding_index: int,
+    *,
+    state: str,
+    owner: str = "",
+    sla_due_at: str = "",
+    actor: str = "local-user",
+) -> dict[str, object]:
+    init_db()
+    current = get_finding_lifecycle(scan_id, finding_index)
+    updated_at = datetime.now(timezone.utc).isoformat()
+    comments = current.get("comments", [])
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO finding_lifecycle
+            (scan_id, finding_index, state, owner, sla_due_at, comments_json, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (scan_id, finding_index, state, owner, sla_due_at, json.dumps(comments), updated_at),
+        )
+    write_audit_log(
+        "finding.lifecycle.updated",
+        actor=actor,
+        target=f"{scan_id}:{finding_index}",
+        details={"state": state, "owner": owner, "sla_due_at": sla_due_at},
+    )
+    return get_finding_lifecycle(scan_id, finding_index)
+
+
+def add_finding_comment(
+    scan_id: str,
+    finding_index: int,
+    *,
+    body: str,
+    actor: str = "local-user",
+) -> dict[str, object]:
+    init_db()
+    current = get_finding_lifecycle(scan_id, finding_index)
+    comments = list(current.get("comments", []))
+    comments.append(
+        {
+            "body": body,
+            "actor": actor,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+    )
+    updated_at = datetime.now(timezone.utc).isoformat()
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO finding_lifecycle
+            (scan_id, finding_index, state, owner, sla_due_at, comments_json, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                scan_id,
+                finding_index,
+                str(current.get("state") or "open"),
+                str(current.get("owner") or ""),
+                str(current.get("sla_due_at") or ""),
+                json.dumps(comments),
+                updated_at,
+            ),
+        )
+    write_audit_log(
+        "finding.comment.created",
+        actor=actor,
+        target=f"{scan_id}:{finding_index}",
+        details={"body": body},
+    )
+    return get_finding_lifecycle(scan_id, finding_index)
+
+
+def write_audit_log(event_type: str, *, actor: str, target: str, details: dict[str, object]) -> None:
+    init_db()
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO audit_logs (event_type, actor, target, details_json, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (event_type, actor, target, json.dumps(details), datetime.now(timezone.utc).isoformat()),
+        )
+
+
+def list_audit_logs(limit: int = 100) -> list[dict[str, object]]:
+    init_db()
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT event_type, actor, target, details_json, created_at
+            FROM audit_logs
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+    return [
+        {
+            "event_type": row[0],
+            "actor": row[1],
+            "target": row[2],
+            "details": json.loads(row[3] or "{}"),
+            "created_at": row[4],
+        }
+        for row in rows
+    ]
+
+
+def create_organization(name: str, *, plan: str = "team", actor: str = "local-user") -> dict[str, object]:
+    init_db()
+    org_id = str(uuid.uuid4())
+    created_at = datetime.now(timezone.utc).isoformat()
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO organizations (org_id, name, plan, created_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (org_id, name, plan, created_at),
+        )
+        conn.execute(
+            """
+            INSERT INTO team_members (member_id, org_id, email, role, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (str(uuid.uuid4()), org_id, "owner@local.adaptivescan", "owner", created_at),
+        )
+    write_audit_log("organization.created", actor=actor, target=org_id, details={"name": name, "plan": plan})
+    return {"org_id": org_id, "name": name, "plan": plan, "created_at": created_at}
+
+
+def create_workspace(
+    org_id: str,
+    name: str,
+    *,
+    default_allowlist: list[str] | None = None,
+    actor: str = "local-user",
+) -> dict[str, object]:
+    init_db()
+    if get_organization(org_id) is None:
+        raise ValueError("Organization not found")
+    workspace_id = str(uuid.uuid4())
+    created_at = datetime.now(timezone.utc).isoformat()
+    allowlist = default_allowlist or []
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO workspaces (workspace_id, org_id, name, default_allowlist_json, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (workspace_id, org_id, name, json.dumps(allowlist), created_at),
+        )
+    write_audit_log(
+        "workspace.created",
+        actor=actor,
+        target=workspace_id,
+        details={"org_id": org_id, "name": name, "default_allowlist": allowlist},
+    )
+    return {
+        "workspace_id": workspace_id,
+        "org_id": org_id,
+        "name": name,
+        "default_allowlist": allowlist,
+        "created_at": created_at,
+    }
+
+
+def create_api_key(
+    workspace_id: str,
+    name: str,
+    *,
+    scopes: list[str] | None = None,
+    actor: str = "local-user",
+) -> dict[str, object]:
+    init_db()
+    if get_workspace(workspace_id) is None:
+        raise ValueError("Workspace not found")
+    key_id = str(uuid.uuid4())
+    raw_secret = f"ascan_{secrets.token_urlsafe(32)}"
+    key_prefix = raw_secret[:14]
+    key_hash = hashlib.sha256(raw_secret.encode("utf-8")).hexdigest()
+    created_at = datetime.now(timezone.utc).isoformat()
+    requested_scopes = scopes or ["scan:run", "scan:read", "report:read"]
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO api_keys (key_id, workspace_id, name, key_prefix, key_hash, scopes_json, created_at, revoked_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (key_id, workspace_id, name, key_prefix, key_hash, json.dumps(requested_scopes), created_at, ""),
+        )
+    write_audit_log(
+        "api_key.created",
+        actor=actor,
+        target=key_id,
+        details={"workspace_id": workspace_id, "name": name, "scopes": requested_scopes},
+    )
+    return {
+        "key_id": key_id,
+        "workspace_id": workspace_id,
+        "name": name,
+        "key_prefix": key_prefix,
+        "secret": raw_secret,
+        "scopes": requested_scopes,
+        "created_at": created_at,
+        "revoked_at": "",
+    }
+
+
+def get_organization(org_id: str) -> dict[str, object] | None:
+    init_db()
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT org_id, name, plan, created_at FROM organizations WHERE org_id = ?",
+            (org_id,),
+        ).fetchone()
+    if row is None:
+        return None
+    return {"org_id": row[0], "name": row[1], "plan": row[2], "created_at": row[3]}
+
+
+def get_workspace(workspace_id: str) -> dict[str, object] | None:
+    init_db()
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT workspace_id, org_id, name, default_allowlist_json, created_at
+            FROM workspaces
+            WHERE workspace_id = ?
+            """,
+            (workspace_id,),
+        ).fetchone()
+    if row is None:
+        return None
+    return {
+        "workspace_id": row[0],
+        "org_id": row[1],
+        "name": row[2],
+        "default_allowlist": json.loads(row[3] or "[]"),
+        "created_at": row[4],
+    }
+
+
+def get_tenancy_overview() -> dict[str, object]:
+    init_db()
+    with get_connection() as conn:
+        org_rows = conn.execute("SELECT org_id, name, plan, created_at FROM organizations ORDER BY created_at DESC").fetchall()
+        workspace_rows = conn.execute(
+            """
+            SELECT workspace_id, org_id, name, default_allowlist_json, created_at
+            FROM workspaces
+            ORDER BY created_at DESC
+            """
+        ).fetchall()
+        member_rows = conn.execute(
+            "SELECT member_id, org_id, email, role, created_at FROM team_members ORDER BY created_at DESC"
+        ).fetchall()
+        key_rows = conn.execute(
+            """
+            SELECT key_id, workspace_id, name, key_prefix, scopes_json, created_at, revoked_at
+            FROM api_keys
+            ORDER BY created_at DESC
+            """
+        ).fetchall()
+    return {
+        "organizations": [
+            {"org_id": row[0], "name": row[1], "plan": row[2], "created_at": row[3]}
+            for row in org_rows
+        ],
+        "workspaces": [
+            {
+                "workspace_id": row[0],
+                "org_id": row[1],
+                "name": row[2],
+                "default_allowlist": json.loads(row[3] or "[]"),
+                "created_at": row[4],
+            }
+            for row in workspace_rows
+        ],
+        "team_members": [
+            {"member_id": row[0], "org_id": row[1], "email": row[2], "role": row[3], "created_at": row[4]}
+            for row in member_rows
+        ],
+        "api_keys": [
+            {
+                "key_id": row[0],
+                "workspace_id": row[1],
+                "name": row[2],
+                "key_prefix": row[3],
+                "scopes": json.loads(row[4] or "[]"),
+                "created_at": row[5],
+                "revoked_at": row[6],
+            }
+            for row in key_rows
+        ],
+        "rbac_roles": [
+            {"role": "owner", "permissions": ["org:admin", "workspace:admin", "scan:run", "report:read"]},
+            {"role": "analyst", "permissions": ["workspace:read", "scan:run", "finding:manage", "report:read"]},
+            {"role": "viewer", "permissions": ["workspace:read", "report:read"]},
+            {"role": "ci-bot", "permissions": ["scan:run", "scan:read", "report:read"]},
+        ],
+    }
 
 
 def compare_scans(left_scan_id: str, right_scan_id: str) -> dict[str, object] | None:

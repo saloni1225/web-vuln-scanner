@@ -1,11 +1,13 @@
 import React from "react";
-import { Activity, FileText, GitBranch, Moon, Palette, PlugZap, Radar, Shield, Sun } from "lucide-react";
+import { Activity, Boxes, FileText, GitBranch, Layers3, Moon, Palette, PlugZap, Radar, Shield, Sun } from "lucide-react";
 
 export function Navbar({ page, onNavigate, theme, backgroundMode, onSelectBackgroundMode, onToggleTheme }) {
   const items = [
     ["home", Activity, "Overview"],
     ["scan", Radar, "Scan"],
     ["reports", FileText, "Reports"],
+    ["platform", Boxes, "Platform"],
+    ["capabilities", Layers3, "Coverage"],
     ["plugins", PlugZap, "Plugins"],
     ["cicd", GitBranch, "CI/CD"],
   ];

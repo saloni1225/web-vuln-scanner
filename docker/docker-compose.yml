@@ -1,13 +1,65 @@
 services:
+  redis:
+    image: redis:7-alpine
+    networks:
+      - adaptivescan-net
+    ports:
+      - "6379:6379"
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: adaptivescan
+      POSTGRES_USER: adaptivescan
+      POSTGRES_PASSWORD: adaptivescan-local
+    networks:
+      - adaptivescan-net
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
   api:
     build:
       context: ..
       dockerfile: docker/Dockerfile
+    depends_on:
+      - redis
+      - postgres
     ports:
       - "8000:8000"
     env_file:
       - ../.env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql+asyncpg://adaptivescan:adaptivescan-local@postgres:5432/adaptivescan
+    networks:
+      - adaptivescan-net
+
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: celery -A backend.workers.celery_app.celery_app worker --loglevel=INFO --queues=recon,crawl,detect,validate,telemetry,report,ai
+    depends_on:
+      - redis
+      - postgres
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql+asyncpg://adaptivescan:adaptivescan-local@postgres:5432/adaptivescan
+    networks:
+      - adaptivescan-net
+
   juice-shop:
     image: bkimminich/juice-shop:latest
     ports:
       - "3000:3000"
+    networks:
+      - adaptivescan-net
+
+volumes:
+  postgres-data:
+
+networks:
+  adaptivescan-net:
+    name: adaptivescan-net

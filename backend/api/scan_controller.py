@@ -5,6 +5,7 @@ from backend.core.scanner_engine import ScannerEngine
 from backend.integrations.alerts import send_scan_alerts
 from backend.reports.report_generator import generate_html_report
 from backend.reports.report_generator import generate_pdf_report
+from backend.reports.report_generator import generate_evidence_bundle
 
 
 class ScanRequest(BaseModel):
@@ -35,6 +36,8 @@ class ScanRequest(BaseModel):
     enable_unsafe_state_changing_fuzz: bool | None = None
     enable_safe_port_scan: bool | None = None
     enable_subdomain_recon: bool | None = None
+    enable_dns_analysis: bool | None = None
+    enable_cloud_asset_recon: bool | None = None
     enable_screenshot_recon: bool | None = None
     fail_on_high: bool = True
     max_high_severity: int = Field(default=0, ge=0)
@@ -83,6 +86,8 @@ class ScanController:
             "enable_unsafe_state_changing_fuzz": request.enable_unsafe_state_changing_fuzz,
             "enable_safe_port_scan": request.enable_safe_port_scan,
             "enable_subdomain_recon": request.enable_subdomain_recon,
+            "enable_dns_analysis": request.enable_dns_analysis,
+            "enable_cloud_asset_recon": request.enable_cloud_asset_recon,
             "enable_screenshot_recon": request.enable_screenshot_recon,
         }
         result = await self.engine.scan(
@@ -108,14 +113,17 @@ class ScanController:
 
     async def create_report_bundle(self, scan: dict[str, object]) -> dict[str, str | None]:
         html_path = generate_html_report(scan)
+        evidence_path = generate_evidence_bundle(scan)
         pdf_path = await generate_pdf_report(scan, html_path=html_path)
         return {
             "html_path": str(html_path),
             "pdf_path": str(pdf_path) if pdf_path else None,
+            "evidence_path": str(evidence_path),
         }
 
     def create_report_urls(self, scan: dict[str, object]) -> dict[str, str | None]:
         return {
             "html": f"/exports/{scan['scan_id']}.html",
             "pdf": f"/exports/{scan['scan_id']}.pdf",
+            "evidence": f"/exports/{scan['scan_id']}.evidence.json",
         }

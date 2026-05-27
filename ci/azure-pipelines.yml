@@ -1,0 +1,26 @@
+trigger:
+  - main
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: "3.13"
+  - task: NodeTool@0
+    inputs:
+      versionSpec: "22.x"
+  - script: |
+      python -m pip install --upgrade pip
+      python -m pip install -r requirements.txt
+    displayName: Install backend dependencies
+  - script: python -m pytest
+    displayName: Run backend tests
+  - script: npm ci
+    workingDirectory: frontend
+    displayName: Install frontend dependencies
+  - script: npm run build
+    workingDirectory: frontend
+    displayName: Build frontend
+

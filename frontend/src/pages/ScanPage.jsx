@@ -324,8 +324,9 @@ export function ScanPage() {
     <section className="workspace scanner-workspace hacker-surface">
       <section className="scan-hero">
         <div>
-          <h1>Scan Workspace</h1>
-          <p>Profile a target, inspect discovered attack surface, review evidence-backed findings, and watch the scan behave like a live security console.</p>
+          <span className="eyebrow">Scan Orchestration</span>
+          <h1>Scan command center</h1>
+          <p>Launch authorized web, API, and recon scans with live telemetry, evidence capture, and risk-gate enforcement.</p>
         </div>
         <div className="hero-status-cluster">
           <div>
@@ -448,18 +449,22 @@ export function ScanPage() {
       <ScanGuidance result={result} targetUrl={targetUrl} />
       <section className="findings-section">
         <div className="section-header">
-          <h2>Findings</h2>
+          <h2>Findings workflow</h2>
           <span>{result?.summary?.finding_count ?? progress?.summary?.finding_count ?? 0}</span>
         </div>
         <section className="findings-list">
           {(result?.findings ?? []).length ? (
             (result?.findings ?? []).map((finding, index) => (
-              <VulnerabilityCard key={`${finding.url}-${index}`} finding={finding} onOpenDetail={setSelectedFinding} />
+              <VulnerabilityCard
+                key={`${finding.url}-${index}`}
+                finding={{ ...finding, scan_id: result.scan_id, finding_index: index }}
+                onOpenDetail={setSelectedFinding}
+              />
             ))
           ) : (
             <article className="panel empty-state">
               <strong>No findings yet.</strong>
-              <p>The improved scanner now still records pages, forms, and endpoints even when no detector fires.</p>
+              <p>Findings, validation state, and replay evidence will appear here as detectors complete.</p>
             </article>
           )}
         </section>
