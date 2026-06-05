@@ -1,14 +1,19 @@
 import uuid
 
-from fastapi import APIRouter, HTTPException, Response, WebSocket
+from fastapi import APIRouter, Depends, HTTPException, Response, WebSocket
 from pydantic import BaseModel, Field
 from starlette.websockets import WebSocketDisconnect
 
 from backend.api.scan_controller import ScanController, ScanRequest
 from backend.api.websocket import scan_hub
 from backend.api.job_registry import job_registry
+from backend.ai.copilot import ai_copilot_capabilities, ai_copilot_response
+from backend.auth.saas_auth import auth_architecture, billing_catalog, create_registration, issue_otp, login_response, logout_response, monitoring_workflows, notification_center, onboarding_state, password_reset_response, subscription_status, team_directory, trust_center, verify_otp
+from backend.auth.sso import identity_provider_catalog, sso_configuration
 from backend.attack_surface.graph import build_attack_surface_graph, build_drift_timeline, correlate_attack_paths
 from backend.api_security.schema import analyze_graphql_schema, parse_openapi_document, parse_postman_collection
+from backend.billing import billing_usage_summary, stripe_architecture
+from backend.commercial_platform import founder_analytics, implementation_report, marketplace_architecture, public_api_catalog, public_assets, public_findings, public_reports
 from backend.exposure.intelligence import aggregate_exposure, build_exposure_intelligence
 from backend.core.recon import build_replay_plan
 from backend.core.enterprise_foundation import get_enterprise_foundation
@@ -18,11 +23,13 @@ from backend.core.role_analysis import compare_roles
 from backend.core.scan_profiles import list_scan_profiles
 from backend.lifecycle.workflows import lifecycle_policy
 from backend.monitoring.policies import monitoring_overview
+from backend.monitoring.scheduler import monitoring_jobs, scheduler_architecture
 from backend.operations.intelligence import build_operations_intelligence
 from backend.platform import build_platform_overview
 from backend.database.migrations import database_backend_status
 from backend.observability.service import observability_status, prometheus_metrics
 from backend.queue.orchestrator import build_scan_job, queue_health_snapshot, queue_topology
+from backend.rbac.auth import Principal, current_principal, require_permission, websocket_principal
 from backend.workers.scan_worker import worker_heartbeat, worker_pool_status
 from backend.database.db import get_scan, list_scans
 from backend.database.db import compare_scans
@@ -81,9 +88,226 @@ class ApiSchemaAnalyzeRequest(BaseModel):
     schema_text: str = ""
 
 
+class RegisterRequest(BaseModel):
+    first_name: str
+    last_name: str
+    company_name: str
+    work_email: str
+    password: str
+    confirm_password: str
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str | None = None
+    passwordless: bool = False
+
+
+class OtpRequest(BaseModel):
+    email: str
+    code: str = ""
+    purpose: str = "email_verification"
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class LogoutRequest(BaseModel):
+    email: str
+
+
+class PasswordResetRequest(BaseModel):
+    email: str
+    code: str
+    new_password: str
+
+
+class CopilotRequest(BaseModel):
+    prompt: str = ""
+
+
 @router.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "healthy"}
+
+
+@router.get("/auth/architecture")
+async def auth_foundation() -> dict[str, object]:
+    return auth_architecture()
+
+
+@router.post("/auth/register")
+async def auth_register(payload: RegisterRequest) -> dict[str, object]:
+    if payload.password != payload.confirm_password:
+        raise HTTPException(status_code=400, detail="Passwords do not match")
+    if len(payload.password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    if "@" not in payload.work_email:
+        raise HTTPException(status_code=400, detail="A valid work email is required")
+    return create_registration(payload.model_dump())
+
+
+@router.post("/auth/login")
+async def auth_login(payload: LoginRequest) -> dict[str, object]:
+    if "@" not in payload.email:
+        raise HTTPException(status_code=400, detail="A valid email is required")
+    return login_response(payload.email.strip().lower(), payload.password, passwordless=payload.passwordless)
+
+
+@router.post("/auth/otp/send")
+async def auth_send_otp(payload: OtpRequest) -> dict[str, object]:
+    if "@" not in payload.email:
+        raise HTTPException(status_code=400, detail="A valid email is required")
+    return issue_otp(payload.email.strip().lower(), payload.purpose)
+
+
+@router.post("/auth/otp/verify")
+async def auth_verify_otp(payload: OtpRequest) -> dict[str, object]:
+    return verify_otp(payload.email.strip().lower(), payload.code, payload.purpose)
+
+
+@router.post("/auth/forgot-password")
+async def auth_forgot_password(payload: ForgotPasswordRequest) -> dict[str, object]:
+    if "@" not in payload.email:
+        raise HTTPException(status_code=400, detail="A valid email is required")
+    return {"reset": issue_otp(payload.email.strip().lower(), "password_reset"), "next_step": "verify-reset-otp"}
+
+
+@router.post("/auth/password-reset")
+async def auth_password_reset(payload: PasswordResetRequest) -> dict[str, object]:
+    if len(payload.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    return password_reset_response(payload.email.strip().lower(), payload.code, payload.new_password)
+
+
+@router.post("/auth/logout")
+async def auth_logout(payload: LogoutRequest) -> dict[str, object]:
+    return logout_response(payload.email.strip().lower())
+
+
+@router.get("/onboarding")
+async def onboarding() -> dict[str, object]:
+    return onboarding_state()
+
+
+@router.get("/billing/catalog")
+async def billing() -> dict[str, object]:
+    return billing_catalog()
+
+
+@router.get("/billing/subscription")
+async def subscription() -> dict[str, object]:
+    return subscription_status()
+
+
+@router.get("/billing/usage")
+async def billing_usage() -> dict[str, object]:
+    return billing_usage_summary()
+
+
+@router.get("/billing/stripe")
+async def billing_stripe() -> dict[str, object]:
+    return stripe_architecture()
+
+
+@router.get("/team")
+async def team() -> dict[str, object]:
+    return team_directory()
+
+
+@router.get("/notifications")
+async def notifications() -> dict[str, object]:
+    return notification_center()
+
+
+@router.get("/monitoring/workflows")
+async def monitoring_workflow_catalog() -> dict[str, object]:
+    return monitoring_workflows()
+
+
+@router.get("/monitoring/scheduler")
+async def monitoring_scheduler() -> dict[str, object]:
+    return scheduler_architecture()
+
+
+@router.get("/monitoring/jobs")
+async def monitoring_job_catalog() -> dict[str, object]:
+    return monitoring_jobs()
+
+
+@router.get("/trust")
+async def trust() -> dict[str, object]:
+    return trust_center()
+
+
+@router.get("/sso/providers")
+async def sso_providers() -> dict[str, object]:
+    return identity_provider_catalog()
+
+
+@router.get("/sso/configuration")
+async def sso_config() -> dict[str, object]:
+    return sso_configuration()
+
+
+@router.get("/ai/copilot")
+async def copilot_capabilities() -> dict[str, object]:
+    return ai_copilot_capabilities()
+
+
+@router.post("/ai/copilot")
+async def copilot_answer(payload: CopilotRequest) -> dict[str, object]:
+    return ai_copilot_response(payload.prompt)
+
+
+@router.get("/public-api/catalog")
+async def api_catalog() -> dict[str, object]:
+    return public_api_catalog()
+
+
+@router.get("/marketplace/architecture")
+async def marketplace() -> dict[str, object]:
+    return marketplace_architecture()
+
+
+@router.get("/implementation/report")
+async def commercial_implementation_report() -> dict[str, object]:
+    return implementation_report()
+
+
+@router.get("/public/assets")
+async def public_assets_api() -> dict[str, object]:
+    scans = [scan for scan in (get_scan(str(item.get("scan_id"))) for item in list_scans()) if scan]
+    return public_assets(scans)
+
+
+@router.get("/public/findings")
+async def public_findings_api() -> dict[str, object]:
+    scans = [scan for scan in (get_scan(str(item.get("scan_id"))) for item in list_scans()) if scan]
+    return public_findings(scans)
+
+
+@router.get("/public/reports")
+async def public_reports_api() -> dict[str, object]:
+    scans = [scan for scan in (get_scan(str(item.get("scan_id"))) for item in list_scans()) if scan]
+    return public_reports(scans)
+
+
+@router.get("/public/monitoring")
+async def public_monitoring_api() -> dict[str, object]:
+    return monitoring_workflows()
+
+
+@router.get("/public/notifications")
+async def public_notifications_api() -> dict[str, object]:
+    return notification_center()
+
+
+@router.get("/founder/analytics")
+async def founder_dashboard() -> dict[str, object]:
+    scans = [scan for scan in (get_scan(str(item.get("scan_id"))) for item in list_scans()) if scan]
+    return founder_analytics(scans, get_tenancy_overview())
 
 
 @router.post("/scan")
@@ -161,33 +385,40 @@ async def platform_overview() -> dict[str, object]:
 
 
 @router.get("/platform/operations")
-async def platform_operations() -> dict[str, object]:
+async def platform_operations(principal: Principal = Depends(current_principal)) -> dict[str, object]:
     scans = [scan for scan in (get_scan(str(item.get("scan_id"))) for item in list_scans()) if scan]
-    return build_operations_intelligence(scans)
+    operations = build_operations_intelligence(scans)
+    return operations if principal.can("exposure:read") else _redact_operations(operations, principal)
+
+
+@router.get("/platform/ai-intelligence")
+async def platform_ai_intelligence(_: Principal = Depends(require_permission("ai:read"))) -> dict[str, object]:
+    scans = [scan for scan in (get_scan(str(item.get("scan_id"))) for item in list_scans()) if scan]
+    return build_operations_intelligence(scans).get("ai_offensive_intelligence", {})
 
 
 @router.get("/platform/queue")
-async def platform_queue() -> dict[str, object]:
+async def platform_queue(_: Principal = Depends(require_permission("orchestration:read"))) -> dict[str, object]:
     return {**queue_topology(), "health": queue_health_snapshot(job_registry.list_jobs())}
 
 
 @router.get("/platform/workers")
-async def platform_workers() -> dict[str, object]:
+async def platform_workers(_: Principal = Depends(require_permission("orchestration:read"))) -> dict[str, object]:
     return worker_pool_status()
 
 
 @router.get("/platform/database")
-async def platform_database() -> dict[str, object]:
+async def platform_database(_: Principal = Depends(require_permission("orchestration:read"))) -> dict[str, object]:
     return database_backend_status()
 
 
 @router.get("/platform/observability")
-async def platform_observability() -> dict[str, object]:
+async def platform_observability(_: Principal = Depends(require_permission("telemetry:read"))) -> dict[str, object]:
     return observability_status()
 
 
 @router.get("/metrics")
-async def metrics() -> Response:
+async def metrics(_: Principal = Depends(require_permission("telemetry:read"))) -> Response:
     return Response(
         prometheus_metrics(list_scans(), queue_health_snapshot(job_registry.list_jobs())),
         media_type="text/plain; version=0.0.4",
@@ -195,7 +426,7 @@ async def metrics() -> Response:
 
 
 @router.get("/scans/{scan_id}/execution-plan")
-async def scan_execution_plan(scan_id: str) -> dict[str, object]:
+async def scan_execution_plan(scan_id: str, _: Principal = Depends(require_permission("orchestration:read"))) -> dict[str, object]:
     scan = get_scan(scan_id)
     if scan is None:
         raise HTTPException(status_code=404, detail="Scan report not found")
@@ -203,7 +434,7 @@ async def scan_execution_plan(scan_id: str) -> dict[str, object]:
 
 
 @router.post("/workers/{worker_id}/heartbeat")
-async def worker_heartbeat_route(worker_id: str, pool: str = "crawl", active_task_count: int = 0) -> dict[str, object]:
+async def worker_heartbeat_route(worker_id: str, pool: str = "crawl", active_task_count: int = 0, _: Principal = Depends(require_permission("orchestration:read"))) -> dict[str, object]:
     return worker_heartbeat(worker_id, pool, active_task_count)
 
 
@@ -218,7 +449,7 @@ async def platform_monitoring() -> dict[str, object]:
 
 
 @router.get("/attack-surface/graph")
-async def attack_surface_graph() -> dict[str, object]:
+async def attack_surface_graph(_: Principal = Depends(require_permission("attack_graph:read"))) -> dict[str, object]:
     scans = [scan for scan in (get_scan(str(item.get("scan_id"))) for item in list_scans()) if scan]
     if not scans:
         return {"nodes": [], "edges": [], "node_count": 0, "edge_count": 0, "attack_paths": [], "highest_risk_path": None}
@@ -230,13 +461,13 @@ async def attack_surface_graph() -> dict[str, object]:
 
 
 @router.get("/attack-surface/drift")
-async def attack_surface_drift() -> dict[str, object]:
+async def attack_surface_drift(_: Principal = Depends(require_permission("drift:read"))) -> dict[str, object]:
     scans = [scan for scan in (get_scan(str(item.get("scan_id"))) for item in list_scans()) if scan]
     return build_drift_timeline(scans)
 
 
 @router.get("/attack-paths")
-async def attack_paths() -> dict[str, object]:
+async def attack_paths(_: Principal = Depends(require_permission("attack_path:read"))) -> dict[str, object]:
     scans = [scan for scan in (get_scan(str(item.get("scan_id"))) for item in list_scans()) if scan]
     paths = []
     for scan in scans[:25]:
@@ -248,13 +479,13 @@ async def attack_paths() -> dict[str, object]:
 
 
 @router.get("/exposure/overview")
-async def exposure_overview() -> dict[str, object]:
+async def exposure_overview(_: Principal = Depends(require_permission("exposure:read"))) -> dict[str, object]:
     scans = [scan for scan in (get_scan(str(item.get("scan_id"))) for item in list_scans()) if scan]
     return aggregate_exposure(scans)
 
 
 @router.get("/reports/{scan_id}/exposure")
-async def report_exposure(scan_id: str) -> dict[str, object]:
+async def report_exposure(scan_id: str, _: Principal = Depends(require_permission("exposure:read"))) -> dict[str, object]:
     scan = get_scan(scan_id)
     if scan is None:
         raise HTTPException(status_code=404, detail="Scan report not found")
@@ -445,7 +676,14 @@ async def resume_scan(scan_id: str) -> dict[str, object]:
         },
         scan_options=request_scan_options if isinstance(request_scan_options, dict) else {},
     )
-    result["risk_gate"] = evaluate_risk_gate(result.get("summary", {}))
+    result["risk_gate"] = evaluate_risk_gate(
+        result.get("summary", {}),
+        exposure_intelligence=result.get("exposure_intelligence", {}),
+        attack_surface_graph=result.get("attack_surface_graph", {}),
+        auth_intelligence=result.get("auth_intelligence", {}),
+        drift_timeline=result.get("drift_timeline", {}),
+        offensive_ai_intelligence=result.get("offensive_ai_intelligence", {}),
+    )
     result["report_paths"] = await controller.create_report_bundle(result)
     result["report_urls"] = controller.create_report_urls(result)
     result["report_url"] = result["report_urls"]["html"]
@@ -472,3 +710,24 @@ async def scan_progress_websocket(websocket: WebSocket, scan_id: str) -> None:
             await websocket.receive_text()
     except WebSocketDisconnect:
         scan_hub.disconnect(websocket, scan_id)
+
+
+def _redact_operations(operations: dict[str, object], principal: Principal) -> dict[str, object]:
+    executive = operations.get("executive", {}) if isinstance(operations.get("executive"), dict) else {}
+    telemetry = operations.get("operational_telemetry", {}) if isinstance(operations.get("operational_telemetry"), dict) else {}
+    return {
+        "executive": {
+            "organization_exposure_score": executive.get("organization_exposure_score", 0),
+            "posture": executive.get("posture", "restricted"),
+            "operational_insights": ["Additional exposure details require an elevated AdaptiveScan role."],
+        },
+        "operational_telemetry": {
+            "alerts": telemetry.get("alerts", []),
+            "stream": [],
+            "redacted": True,
+        },
+        "redaction": {
+            "role": principal.role,
+            "reason": "Missing exposure:read permission",
+        },
+    }

@@ -4,6 +4,7 @@ from collections import Counter
 from urllib.parse import urlparse
 
 from backend.attack_surface.graph import build_attack_surface_graph, build_drift_timeline, correlate_attack_paths
+from backend.ai.offensive_intelligence import build_offensive_ai_intelligence
 from backend.exposure.intelligence import aggregate_exposure
 from backend.metrics.service import platform_metrics
 
@@ -21,6 +22,7 @@ def build_operations_intelligence(scans: list[dict[str, object]]) -> dict[str, o
     research_feed = _research_feed(scans, drift)
     threat_feed = _threat_feed(scans, technologies)
     api_operations = _api_operations(scans)
+    offensive_ai = build_offensive_ai_intelligence(scans)
 
     high_count = int(metrics.get("high_count", 0) or 0)
     finding_count = int(metrics.get("finding_count", 0) or 0)
@@ -60,8 +62,23 @@ def build_operations_intelligence(scans: list[dict[str, object]]) -> dict[str, o
             "feed": threat_feed,
             "technology_exposure": technologies,
             "exploit_correlation": _exploit_correlation(scans),
+            "ai_exploitability": offensive_ai.get("exploitability_predictions", [])[:25],
         },
         "api_security_operations": api_operations,
+        "ai_offensive_intelligence": offensive_ai,
+        "attack_path_analysis": {
+            "paths": attack_paths[:50],
+            "confidence": offensive_ai.get("attack_path_confidence", []),
+            "privilege_escalation_candidates": _privilege_escalation_candidates(attack_paths),
+            "risk_propagation": _risk_propagation(graph, attack_paths),
+        },
+        "drift_intelligence": {
+            "timeline": drift.get("timeline", []),
+            "drift_event_count": drift.get("drift_event_count", 0),
+            "exposure_spikes": _exposure_spikes(drift),
+            "api_drift": _api_drift(scans),
+            "auth_drift": _auth_drift(scans),
+        },
         "continuous_monitoring": {
             "drift": drift,
             "telemetry_stream": _telemetry_stream(scans, metrics),
@@ -75,6 +92,12 @@ def build_operations_intelligence(scans: list[dict[str, object]]) -> dict[str, o
             "validated_findings": finding_count,
             "exploitability_queue": attack_paths[:15],
             "attack_chain_correlation": len(attack_paths),
+        },
+        "operational_telemetry": {
+            "stream": _telemetry_stream(scans, metrics),
+            "worker_events": _worker_events(scans),
+            "alerts": _operational_alerts(metrics, drift, attack_paths),
+            "notifications": _notifications(metrics, drift, attack_paths),
         },
     }
 
@@ -226,6 +249,7 @@ def _api_operations(scans: list[dict[str, object]]) -> dict[str, object]:
         "sensitive_endpoint_count": sum(item["sensitive_endpoints"] for item in rows),
         "graphql_surface_count": sum(item["graphql_endpoints"] for item in rows),
         "undocumented_api_candidates": sum(1 for item in rows if item["rest_endpoints"] and not item["schema_probes"]),
+        "api_drift_candidates": _api_drift(scans),
     }
 
 
@@ -238,6 +262,104 @@ def _telemetry_stream(scans: list[dict[str, object]], metrics: dict[str, object]
     for scan in scans[:5]:
         stream.append({"event": "scan-finished", "value": scan.get("target_url"), "status": scan.get("risk_gate_status") or "complete"})
     return stream
+
+
+def _privilege_escalation_candidates(paths: list[dict[str, object]]) -> list[dict[str, object]]:
+    return [
+        {
+            "name": path.get("name"),
+            "risk_score": path.get("risk_score", 0),
+            "reason": "Path crosses API, auth, admin, or data-access boundaries.",
+        }
+        for path in paths
+        if any(token in " ".join(str(step) for step in path.get("steps", [])).lower() for token in ("auth", "admin", "data", "privileged"))
+    ][:25]
+
+
+def _risk_propagation(graph: dict[str, object], paths: list[dict[str, object]]) -> dict[str, object]:
+    nodes = graph.get("nodes", []) if isinstance(graph, dict) else []
+    edges = graph.get("edges", []) if isinstance(graph, dict) else []
+    high_risk_nodes = [node for node in nodes if isinstance(node, dict) and int(node.get("risk", 0) or 0) >= 70]
+    return {
+        "node_count": len(nodes),
+        "edge_count": len(edges),
+        "high_risk_node_count": len(high_risk_nodes),
+        "path_count": len(paths),
+        "propagation_score": min(100, len(high_risk_nodes) * 8 + len(paths) * 4),
+    }
+
+
+def _exposure_spikes(drift: dict[str, object]) -> list[dict[str, object]]:
+    spikes = []
+    for event in drift.get("timeline", []) or []:
+        if int(event.get("new_endpoint_count", 0) or 0) >= 10 or int(event.get("new_finding_count", 0) or 0) >= 3:
+            spikes.append(
+                {
+                    "target": event.get("target_url"),
+                    "new_endpoints": event.get("new_endpoint_count", 0),
+                    "new_findings": event.get("new_finding_count", 0),
+                    "severity": "high" if int(event.get("new_finding_count", 0) or 0) >= 3 else "medium",
+                }
+            )
+    return spikes[-25:]
+
+
+def _api_drift(scans: list[dict[str, object]]) -> list[dict[str, object]]:
+    rows = []
+    previous_count = 0
+    for scan in sorted(scans, key=lambda item: str(item.get("finished_at") or item.get("started_at") or "")):
+        summary = scan.get("summary", {}) if isinstance(scan.get("summary"), dict) else {}
+        count = int(scan.get("api_endpoint_count", 0) or summary.get("api_endpoint_count", 0) or 0)
+        delta = count - previous_count
+        if delta:
+            rows.append({"target": scan.get("target_url"), "api_count": count, "delta": delta, "status": "expanded" if delta > 0 else "contracted"})
+        previous_count = count
+    return rows[-25:]
+
+
+def _auth_drift(scans: list[dict[str, object]]) -> list[dict[str, object]]:
+    rows = []
+    for scan in scans:
+        auth = scan.get("auth_intelligence", {}) if isinstance(scan.get("auth_intelligence"), dict) else {}
+        summary = scan.get("auth_summary", {}) if isinstance(scan.get("auth_summary"), dict) else {}
+        signals = int(auth.get("auth_exposure_score", 0) or 0) + int(summary.get("privileged_endpoint_count", 0) or 0)
+        if signals:
+            rows.append({"target": scan.get("target_url"), "signals": signals, "status": "review"})
+    return rows[:25]
+
+
+def _worker_events(scans: list[dict[str, object]]) -> list[dict[str, object]]:
+    events = []
+    for scan in scans[:10]:
+        telemetry = scan.get("telemetry_summary", {}) if isinstance(scan.get("telemetry_summary"), dict) else {}
+        summary = scan.get("summary", {}) if isinstance(scan.get("summary"), dict) else {}
+        events.append(
+            {
+                "event": "worker-pipeline-complete",
+                "target": scan.get("target_url"),
+                "duration_ms": scan.get("duration_ms") or summary.get("duration_ms", 0),
+                "detectors": telemetry.get("detector_count", len(scan.get("detector_timings", []) or [])),
+            }
+        )
+    return events
+
+
+def _operational_alerts(metrics: dict[str, object], drift: dict[str, object], paths: list[dict[str, object]]) -> list[dict[str, object]]:
+    alerts = []
+    if int(metrics.get("high_count", 0) or 0):
+        alerts.append({"severity": "high", "title": "High-severity exposure requires validation", "count": metrics.get("high_count", 0)})
+    if int(drift.get("drift_event_count", 0) or 0):
+        alerts.append({"severity": "medium", "title": "Attack surface drift detected", "count": drift.get("drift_event_count", 0)})
+    if paths:
+        alerts.append({"severity": "high", "title": "Attack paths require owner handoff", "count": len(paths)})
+    return alerts
+
+
+def _notifications(metrics: dict[str, object], drift: dict[str, object], paths: list[dict[str, object]]) -> list[dict[str, object]]:
+    return [
+        {"channel": "notification-center", "title": alert["title"], "severity": alert["severity"], "status": "unread"}
+        for alert in _operational_alerts(metrics, drift, paths)
+    ]
 
 
 def _operational_insights(metrics: dict[str, object], exposure: dict[str, object], drift: dict[str, object], attack_paths: list[dict[str, object]]) -> list[str]:

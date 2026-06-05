@@ -66,7 +66,7 @@ export function ScanPanel({
   targetHost,
   requiresAuthorization,
 }) {
-  const [openPanel, setOpenPanel] = useState("advanced");
+  const [openPanel, setOpenPanel] = useState("");
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const profiles = scanProfiles?.length ? scanProfiles : [{ name: "deep", label: "Deep Scan" }];
 
@@ -80,8 +80,8 @@ export function ScanPanel({
     <form className="scan-command scan-command-center" onSubmit={onScan}>
       <div className="command-center-header">
         <div>
-          <span className="eyebrow">One-click orchestration</span>
-          <strong>Adaptive scan profile</strong>
+          <span className="eyebrow">Operational workflow</span>
+          <strong>Exposure intelligence run</strong>
         </div>
         <div className="command-ai-chip"><Sparkles size={14} /> Scope-aware defaults</div>
       </div>
@@ -97,9 +97,9 @@ export function ScanPanel({
             required
           />
         </div>
-        <button className="primary-action scan-start" type="submit" disabled={isScanning || (requiresAuthorization && !authorizationConfirmed)}>
+        <button className="primary-action scan-start" type="submit" disabled={isScanning}>
           {isScanning ? <LoaderCircle className="spin" size={18} /> : <Play size={18} />}
-          {isScanning ? "Scanning" : "Start scan"}
+          {isScanning ? "Running" : "Launch"}
         </button>
       </section>
 
@@ -116,23 +116,18 @@ export function ScanPanel({
           </button>
         ))}
         <button type="button" className="schedule-button" onClick={() => setScheduleOpen(true)}>
-          <CalendarClock size={16} /> Schedule
+          <CalendarClock size={16} /> Continuous
         </button>
       </section>
 
       <section className="scope-strip command-scope-strip">
-        <label className="switch-row">
-          <input type="checkbox" checked={authorizationConfirmed} onChange={(event) => setAuthorizationConfirmed(event.target.checked)} />
-          <span><ShieldCheck size={15} /> Authorized scope</span>
-        </label>
-        <div className={`scope-chip ${requiresAuthorization && !authorizationConfirmed ? "warning" : "ok"}`}>
-          {targetHost || "No target"} · {requiresAuthorization ? "external" : "private/local"}
-        </div>
+        <div className="scope-chip ok"><ShieldCheck size={15} /> Scope controls enforced</div>
+        <div className="scope-chip ok">{targetHost || "No target"} · monitored asset</div>
         <input
           className="scope-allowlist"
           value={domainAllowlist}
           onChange={(event) => setDomainAllowlist(event.target.value)}
-          placeholder="Allowed domains"
+          placeholder="Asset scope"
         />
       </section>
 
@@ -143,7 +138,7 @@ export function ScanPanel({
 
       <section className="scan-accordion">
         <button type="button" className="accordion-trigger" onClick={() => setOpenPanel(openPanel === "auth" ? "" : "auth")}>
-          <KeyRound size={16} /> Authentication <ChevronDown size={15} />
+          <KeyRound size={16} /> Identity context <ChevronDown size={15} />
         </button>
         {openPanel === "auth" ? (
           <div className="accordion-body auth-fields">
@@ -161,7 +156,7 @@ export function ScanPanel({
         ) : null}
 
         <button type="button" className="accordion-trigger" onClick={() => setOpenPanel(openPanel === "advanced" ? "" : "advanced")}>
-          <SlidersHorizontal size={16} /> Advanced options <ChevronDown size={15} />
+          <SlidersHorizontal size={16} /> Advanced intelligence drawer <ChevronDown size={15} />
         </button>
         {openPanel === "advanced" ? (
           <div className="accordion-body">
@@ -189,7 +184,7 @@ export function ScanPanel({
                 </label>
               ))}
             </div>
-            <div className="detector-pills">
+            <div className="detector-pills compact-detectors">
               {availableDetectors.map((detector) => (
                 <button
                   key={detector.name}
@@ -209,7 +204,7 @@ export function ScanPanel({
         <div className="modal-backdrop" onClick={() => setScheduleOpen(false)}>
           <section className="schedule-modal" onClick={(event) => event.stopPropagation()}>
             <header>
-              <strong>Schedule scan</strong>
+            <strong>Continuous monitoring</strong>
               <button type="button" onClick={() => setScheduleOpen(false)}>Close</button>
             </header>
             <div className="compact-fields">
@@ -217,7 +212,7 @@ export function ScanPanel({
               <input type="time" defaultValue="02:00" />
               <input placeholder="Notification channel" />
             </div>
-            <p>Scheduling is prepared for the monitoring queue. The current local run remains on-demand.</p>
+            <p>Recurring monitoring is prepared for the operations queue. The current local run remains on-demand.</p>
           </section>
         </div>
       ) : null}

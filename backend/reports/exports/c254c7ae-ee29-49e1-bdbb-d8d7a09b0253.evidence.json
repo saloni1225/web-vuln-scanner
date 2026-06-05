@@ -1,0 +1,1609 @@
+{
+  "scan_id": "c254c7ae-ee29-49e1-bdbb-d8d7a09b0253",
+  "target_url": "https://www.cbse.gov.in/cbsenew/cbse.html",
+  "summary": {
+    "page_count": 1,
+    "form_count": 3,
+    "endpoint_count": 9,
+    "finding_count": 11,
+    "high_severity_count": 3,
+    "medium_severity_count": 8,
+    "low_severity_count": 0,
+    "validated_finding_count": 0,
+    "passive_security_score": 40,
+    "open_port_count": 5,
+    "high_risk_endpoint_count": 8,
+    "api_endpoint_count": 6,
+    "graphql_endpoint_count": 2,
+    "schema_modeled_endpoint_count": 2,
+    "schema_fuzz_probe_count": 6,
+    "duration_ms": 138267.78
+  },
+  "findings": [
+    {
+      "detector": "csrf",
+      "severity": "medium",
+      "url": "https://www.cbse.gov.in/rest/user/login",
+      "evidence": "POST form does not expose an obvious CSRF token field",
+      "recommendation": "Add per-request CSRF tokens and validate them server-side.",
+      "confidence": "medium",
+      "parameter": null,
+      "payload": null,
+      "method": "post",
+      "category": "form-field",
+      "baseline_status": null,
+      "mutated_status": null,
+      "baseline_length": null,
+      "mutated_length": null,
+      "reason": null,
+      "input_location": null,
+      "reflection_context": null,
+      "dom_observation": null,
+      "confidence_score": null,
+      "validation_signals": null,
+      "request_snapshot": null,
+      "response_snapshot": null,
+      "cwe_id": "CWE-352",
+      "cwe_title": "Cross-Site Request Forgery",
+      "cvss_score": 6.1,
+      "remediation_priority": "P2",
+      "poc": "POST https://www.cbse.gov.in/rest/user/login with parameter - using payload -",
+      "validation_state": "requires-review",
+      "owasp_category": "Unknown",
+      "code_snippet": "",
+      "replay_plan": {
+        "method": "POST",
+        "url": "https://www.cbse.gov.in/rest/user/login",
+        "parameter": "",
+        "payload": "",
+        "curl": "curl -i -X POST 'https://www.cbse.gov.in/rest/user/login'",
+        "created_at": "2026-06-04T17:35:03.228566+00:00",
+        "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+      },
+      "finding_index": 0
+    },
+    {
+      "detector": "csrf",
+      "severity": "medium",
+      "url": "https://www.cbse.gov.in/graphql",
+      "evidence": "POST form does not expose an obvious CSRF token field",
+      "recommendation": "Add per-request CSRF tokens and validate them server-side.",
+      "confidence": "medium",
+      "parameter": null,
+      "payload": null,
+      "method": "post",
+      "category": "form-field",
+      "baseline_status": null,
+      "mutated_status": null,
+      "baseline_length": null,
+      "mutated_length": null,
+      "reason": null,
+      "input_location": null,
+      "reflection_context": null,
+      "dom_observation": null,
+      "confidence_score": null,
+      "validation_signals": null,
+      "request_snapshot": null,
+      "response_snapshot": null,
+      "cwe_id": "CWE-352",
+      "cwe_title": "Cross-Site Request Forgery",
+      "cvss_score": 6.1,
+      "remediation_priority": "P2",
+      "poc": "POST https://www.cbse.gov.in/graphql with parameter - using payload -",
+      "validation_state": "requires-review",
+      "owasp_category": "Unknown",
+      "code_snippet": "",
+      "replay_plan": {
+        "method": "POST",
+        "url": "https://www.cbse.gov.in/graphql",
+        "parameter": "",
+        "payload": "",
+        "curl": "curl -i -X POST 'https://www.cbse.gov.in/graphql'",
+        "created_at": "2026-06-04T17:35:03.228571+00:00",
+        "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+      },
+      "finding_index": 1
+    },
+    {
+      "detector": "csrf",
+      "severity": "medium",
+      "url": "https://www.cbse.gov.in/api/graphql",
+      "evidence": "POST form does not expose an obvious CSRF token field",
+      "recommendation": "Add per-request CSRF tokens and validate them server-side.",
+      "confidence": "medium",
+      "parameter": null,
+      "payload": null,
+      "method": "post",
+      "category": "form-field",
+      "baseline_status": null,
+      "mutated_status": null,
+      "baseline_length": null,
+      "mutated_length": null,
+      "reason": null,
+      "input_location": null,
+      "reflection_context": null,
+      "dom_observation": null,
+      "confidence_score": null,
+      "validation_signals": null,
+      "request_snapshot": null,
+      "response_snapshot": null,
+      "cwe_id": "CWE-352",
+      "cwe_title": "Cross-Site Request Forgery",
+      "cvss_score": 6.1,
+      "remediation_priority": "P2",
+      "poc": "POST https://www.cbse.gov.in/api/graphql with parameter - using payload -",
+      "validation_state": "requires-review",
+      "owasp_category": "Unknown",
+      "code_snippet": "",
+      "replay_plan": {
+        "method": "POST",
+        "url": "https://www.cbse.gov.in/api/graphql",
+        "parameter": "",
+        "payload": "",
+        "curl": "curl -i -X POST 'https://www.cbse.gov.in/api/graphql'",
+        "created_at": "2026-06-04T17:35:03.228574+00:00",
+        "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+      },
+      "finding_index": 2
+    },
+    {
+      "detector": "advanced_surface",
+      "severity": "medium",
+      "url": "https://www.cbse.gov.in/graphql",
+      "evidence": "GraphQL endpoint requires schema and authorization review",
+      "recommendation": "Validate authorization, input handling, rate limits, and monitoring for this exposed surface.",
+      "confidence": "medium",
+      "parameter": null,
+      "payload": null,
+      "method": "get",
+      "category": "api",
+      "baseline_status": null,
+      "mutated_status": null,
+      "baseline_length": null,
+      "mutated_length": null,
+      "reason": "Passive attack surface heuristic",
+      "input_location": null,
+      "reflection_context": null,
+      "dom_observation": null,
+      "confidence_score": null,
+      "validation_signals": null,
+      "request_snapshot": null,
+      "response_snapshot": null,
+      "cwe_id": "CWE-693",
+      "cwe_title": "Protection Mechanism Failure",
+      "cvss_score": 6.1,
+      "remediation_priority": "P2",
+      "poc": "GET https://www.cbse.gov.in/graphql with parameter - using payload -",
+      "validation_state": "requires-review",
+      "owasp_category": "Unknown",
+      "code_snippet": "",
+      "replay_plan": {
+        "method": "GET",
+        "url": "https://www.cbse.gov.in/graphql",
+        "parameter": "",
+        "payload": "",
+        "curl": "curl -i -X GET 'https://www.cbse.gov.in/graphql'",
+        "created_at": "2026-06-04T17:35:03.228577+00:00",
+        "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+      },
+      "finding_index": 3
+    },
+    {
+      "detector": "advanced_surface",
+      "severity": "medium",
+      "url": "https://www.cbse.gov.in/api/graphql",
+      "evidence": "GraphQL endpoint requires schema and authorization review",
+      "recommendation": "Validate authorization, input handling, rate limits, and monitoring for this exposed surface.",
+      "confidence": "medium",
+      "parameter": null,
+      "payload": null,
+      "method": "get",
+      "category": "api",
+      "baseline_status": null,
+      "mutated_status": null,
+      "baseline_length": null,
+      "mutated_length": null,
+      "reason": "Passive attack surface heuristic",
+      "input_location": null,
+      "reflection_context": null,
+      "dom_observation": null,
+      "confidence_score": null,
+      "validation_signals": null,
+      "request_snapshot": null,
+      "response_snapshot": null,
+      "cwe_id": "CWE-693",
+      "cwe_title": "Protection Mechanism Failure",
+      "cvss_score": 6.1,
+      "remediation_priority": "P2",
+      "poc": "GET https://www.cbse.gov.in/api/graphql with parameter - using payload -",
+      "validation_state": "requires-review",
+      "owasp_category": "Unknown",
+      "code_snippet": "",
+      "replay_plan": {
+        "method": "GET",
+        "url": "https://www.cbse.gov.in/api/graphql",
+        "parameter": "",
+        "payload": "",
+        "curl": "curl -i -X GET 'https://www.cbse.gov.in/api/graphql'",
+        "created_at": "2026-06-04T17:35:03.228580+00:00",
+        "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+      },
+      "finding_index": 4
+    },
+    {
+      "detector": "advanced_injection",
+      "severity": "high",
+      "url": "https://www.cbse.gov.in/graphql",
+      "evidence": "NoSQL injection candidate parameter requires operator injection validation",
+      "recommendation": "Use strict input allowlists, parameterized APIs, parser hardening, and targeted regression tests for this sink.",
+      "confidence": "medium",
+      "parameter": null,
+      "payload": null,
+      "method": "get",
+      "category": "nosql-injection",
+      "baseline_status": null,
+      "mutated_status": null,
+      "baseline_length": null,
+      "mutated_length": null,
+      "reason": "Parameter and endpoint naming heuristic",
+      "input_location": null,
+      "reflection_context": null,
+      "dom_observation": null,
+      "confidence_score": null,
+      "validation_signals": null,
+      "request_snapshot": null,
+      "response_snapshot": null,
+      "cwe_id": "CWE-693",
+      "cwe_title": "Protection Mechanism Failure",
+      "cvss_score": 8.7,
+      "remediation_priority": "P1",
+      "poc": "GET https://www.cbse.gov.in/graphql with parameter - using payload -",
+      "validation_state": "requires-review",
+      "owasp_category": "Unknown",
+      "code_snippet": "",
+      "replay_plan": {
+        "method": "GET",
+        "url": "https://www.cbse.gov.in/graphql",
+        "parameter": "",
+        "payload": "",
+        "curl": "curl -i -X GET 'https://www.cbse.gov.in/graphql'",
+        "created_at": "2026-06-04T17:35:03.228582+00:00",
+        "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+      },
+      "finding_index": 5
+    },
+    {
+      "detector": "advanced_injection",
+      "severity": "high",
+      "url": "https://www.cbse.gov.in/api/graphql",
+      "evidence": "NoSQL injection candidate parameter requires operator injection validation",
+      "recommendation": "Use strict input allowlists, parameterized APIs, parser hardening, and targeted regression tests for this sink.",
+      "confidence": "medium",
+      "parameter": null,
+      "payload": null,
+      "method": "get",
+      "category": "nosql-injection",
+      "baseline_status": null,
+      "mutated_status": null,
+      "baseline_length": null,
+      "mutated_length": null,
+      "reason": "Parameter and endpoint naming heuristic",
+      "input_location": null,
+      "reflection_context": null,
+      "dom_observation": null,
+      "confidence_score": null,
+      "validation_signals": null,
+      "request_snapshot": null,
+      "response_snapshot": null,
+      "cwe_id": "CWE-693",
+      "cwe_title": "Protection Mechanism Failure",
+      "cvss_score": 8.7,
+      "remediation_priority": "P1",
+      "poc": "GET https://www.cbse.gov.in/api/graphql with parameter - using payload -",
+      "validation_state": "requires-review",
+      "owasp_category": "Unknown",
+      "code_snippet": "",
+      "replay_plan": {
+        "method": "GET",
+        "url": "https://www.cbse.gov.in/api/graphql",
+        "parameter": "",
+        "payload": "",
+        "curl": "curl -i -X GET 'https://www.cbse.gov.in/api/graphql'",
+        "created_at": "2026-06-04T17:35:03.228585+00:00",
+        "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+      },
+      "finding_index": 6
+    },
+    {
+      "detector": "advanced_auth",
+      "severity": "medium",
+      "url": "https://www.cbse.gov.in/rest/user/login",
+      "evidence": "Login flow requires MFA, brute-force, session fixation, and CSRF validation",
+      "recommendation": "Enforce server-side authorization, strong session lifecycle controls, MFA policy, and role-based regression tests.",
+      "confidence": "medium",
+      "parameter": null,
+      "payload": null,
+      "method": "get",
+      "category": "mfa-session",
+      "baseline_status": null,
+      "mutated_status": null,
+      "baseline_length": null,
+      "mutated_length": null,
+      "reason": "Authenticated workflow heuristic",
+      "input_location": null,
+      "reflection_context": null,
+      "dom_observation": null,
+      "confidence_score": null,
+      "validation_signals": null,
+      "request_snapshot": null,
+      "response_snapshot": null,
+      "cwe_id": "CWE-693",
+      "cwe_title": "Protection Mechanism Failure",
+      "cvss_score": 6.1,
+      "remediation_priority": "P2",
+      "poc": "GET https://www.cbse.gov.in/rest/user/login with parameter - using payload -",
+      "validation_state": "requires-review",
+      "owasp_category": "Unknown",
+      "code_snippet": "",
+      "replay_plan": {
+        "method": "GET",
+        "url": "https://www.cbse.gov.in/rest/user/login",
+        "parameter": "",
+        "payload": "",
+        "curl": "curl -i -X GET 'https://www.cbse.gov.in/rest/user/login'",
+        "created_at": "2026-06-04T17:35:03.228587+00:00",
+        "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+      },
+      "finding_index": 7
+    },
+    {
+      "detector": "advanced_auth",
+      "severity": "high",
+      "url": "https://www.cbse.gov.in/rest/user/login",
+      "evidence": "IDOR/BOLA candidate requires role-differential authorization validation",
+      "recommendation": "Enforce server-side authorization, strong session lifecycle controls, MFA policy, and role-based regression tests.",
+      "confidence": "medium",
+      "parameter": null,
+      "payload": null,
+      "method": "get",
+      "category": "idor",
+      "baseline_status": null,
+      "mutated_status": null,
+      "baseline_length": null,
+      "mutated_length": null,
+      "reason": "Authenticated workflow heuristic",
+      "input_location": null,
+      "reflection_context": null,
+      "dom_observation": null,
+      "confidence_score": null,
+      "validation_signals": null,
+      "request_snapshot": null,
+      "response_snapshot": null,
+      "cwe_id": "CWE-693",
+      "cwe_title": "Protection Mechanism Failure",
+      "cvss_score": 8.7,
+      "remediation_priority": "P1",
+      "poc": "GET https://www.cbse.gov.in/rest/user/login with parameter - using payload -",
+      "validation_state": "requires-review",
+      "owasp_category": "Unknown",
+      "code_snippet": "",
+      "replay_plan": {
+        "method": "GET",
+        "url": "https://www.cbse.gov.in/rest/user/login",
+        "parameter": "",
+        "payload": "",
+        "curl": "curl -i -X GET 'https://www.cbse.gov.in/rest/user/login'",
+        "created_at": "2026-06-04T17:35:03.228590+00:00",
+        "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+      },
+      "finding_index": 8
+    },
+    {
+      "detector": "advanced_server",
+      "severity": "medium",
+      "url": "https://www.cbse.gov.in/graphql",
+      "evidence": "WebSocket/GraphQL transport requires auth, origin, and message validation",
+      "recommendation": "Validate this server-side surface with scoped safe replay, strict allowlists, canonicalization, and monitoring.",
+      "confidence": "medium",
+      "parameter": null,
+      "payload": null,
+      "method": "get",
+      "category": "websocket-graphql",
+      "baseline_status": null,
+      "mutated_status": null,
+      "baseline_length": null,
+      "mutated_length": null,
+      "reason": "Server-side attack surface heuristic",
+      "input_location": null,
+      "reflection_context": null,
+      "dom_observation": null,
+      "confidence_score": null,
+      "validation_signals": null,
+      "request_snapshot": null,
+      "response_snapshot": null,
+      "cwe_id": "CWE-693",
+      "cwe_title": "Protection Mechanism Failure",
+      "cvss_score": 6.1,
+      "remediation_priority": "P2",
+      "poc": "GET https://www.cbse.gov.in/graphql with parameter - using payload -",
+      "validation_state": "requires-review",
+      "owasp_category": "Unknown",
+      "code_snippet": "",
+      "replay_plan": {
+        "method": "GET",
+        "url": "https://www.cbse.gov.in/graphql",
+        "parameter": "",
+        "payload": "",
+        "curl": "curl -i -X GET 'https://www.cbse.gov.in/graphql'",
+        "created_at": "2026-06-04T17:35:03.228593+00:00",
+        "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+      },
+      "finding_index": 9
+    },
+    {
+      "detector": "advanced_server",
+      "severity": "medium",
+      "url": "https://www.cbse.gov.in/api/graphql",
+      "evidence": "WebSocket/GraphQL transport requires auth, origin, and message validation",
+      "recommendation": "Validate this server-side surface with scoped safe replay, strict allowlists, canonicalization, and monitoring.",
+      "confidence": "medium",
+      "parameter": null,
+      "payload": null,
+      "method": "get",
+      "category": "websocket-graphql",
+      "baseline_status": null,
+      "mutated_status": null,
+      "baseline_length": null,
+      "mutated_length": null,
+      "reason": "Server-side attack surface heuristic",
+      "input_location": null,
+      "reflection_context": null,
+      "dom_observation": null,
+      "confidence_score": null,
+      "validation_signals": null,
+      "request_snapshot": null,
+      "response_snapshot": null,
+      "cwe_id": "CWE-693",
+      "cwe_title": "Protection Mechanism Failure",
+      "cvss_score": 6.1,
+      "remediation_priority": "P2",
+      "poc": "GET https://www.cbse.gov.in/api/graphql with parameter - using payload -",
+      "validation_state": "requires-review",
+      "owasp_category": "Unknown",
+      "code_snippet": "",
+      "replay_plan": {
+        "method": "GET",
+        "url": "https://www.cbse.gov.in/api/graphql",
+        "parameter": "",
+        "payload": "",
+        "curl": "curl -i -X GET 'https://www.cbse.gov.in/api/graphql'",
+        "created_at": "2026-06-04T17:35:03.228596+00:00",
+        "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+      },
+      "finding_index": 10
+    }
+  ],
+  "replay_plans": [
+    {
+      "method": "POST",
+      "url": "https://www.cbse.gov.in/rest/user/login",
+      "parameter": "",
+      "payload": "",
+      "curl": "curl -i -X POST 'https://www.cbse.gov.in/rest/user/login'",
+      "created_at": "2026-06-04T17:35:03.228566+00:00",
+      "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+    },
+    {
+      "method": "POST",
+      "url": "https://www.cbse.gov.in/graphql",
+      "parameter": "",
+      "payload": "",
+      "curl": "curl -i -X POST 'https://www.cbse.gov.in/graphql'",
+      "created_at": "2026-06-04T17:35:03.228571+00:00",
+      "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+    },
+    {
+      "method": "POST",
+      "url": "https://www.cbse.gov.in/api/graphql",
+      "parameter": "",
+      "payload": "",
+      "curl": "curl -i -X POST 'https://www.cbse.gov.in/api/graphql'",
+      "created_at": "2026-06-04T17:35:03.228574+00:00",
+      "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+    },
+    {
+      "method": "GET",
+      "url": "https://www.cbse.gov.in/graphql",
+      "parameter": "",
+      "payload": "",
+      "curl": "curl -i -X GET 'https://www.cbse.gov.in/graphql'",
+      "created_at": "2026-06-04T17:35:03.228577+00:00",
+      "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+    },
+    {
+      "method": "GET",
+      "url": "https://www.cbse.gov.in/api/graphql",
+      "parameter": "",
+      "payload": "",
+      "curl": "curl -i -X GET 'https://www.cbse.gov.in/api/graphql'",
+      "created_at": "2026-06-04T17:35:03.228580+00:00",
+      "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+    },
+    {
+      "method": "GET",
+      "url": "https://www.cbse.gov.in/graphql",
+      "parameter": "",
+      "payload": "",
+      "curl": "curl -i -X GET 'https://www.cbse.gov.in/graphql'",
+      "created_at": "2026-06-04T17:35:03.228582+00:00",
+      "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+    },
+    {
+      "method": "GET",
+      "url": "https://www.cbse.gov.in/api/graphql",
+      "parameter": "",
+      "payload": "",
+      "curl": "curl -i -X GET 'https://www.cbse.gov.in/api/graphql'",
+      "created_at": "2026-06-04T17:35:03.228585+00:00",
+      "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+    },
+    {
+      "method": "GET",
+      "url": "https://www.cbse.gov.in/rest/user/login",
+      "parameter": "",
+      "payload": "",
+      "curl": "curl -i -X GET 'https://www.cbse.gov.in/rest/user/login'",
+      "created_at": "2026-06-04T17:35:03.228587+00:00",
+      "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+    },
+    {
+      "method": "GET",
+      "url": "https://www.cbse.gov.in/rest/user/login",
+      "parameter": "",
+      "payload": "",
+      "curl": "curl -i -X GET 'https://www.cbse.gov.in/rest/user/login'",
+      "created_at": "2026-06-04T17:35:03.228590+00:00",
+      "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+    },
+    {
+      "method": "GET",
+      "url": "https://www.cbse.gov.in/graphql",
+      "parameter": "",
+      "payload": "",
+      "curl": "curl -i -X GET 'https://www.cbse.gov.in/graphql'",
+      "created_at": "2026-06-04T17:35:03.228593+00:00",
+      "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+    },
+    {
+      "method": "GET",
+      "url": "https://www.cbse.gov.in/api/graphql",
+      "parameter": "",
+      "payload": "",
+      "curl": "curl -i -X GET 'https://www.cbse.gov.in/api/graphql'",
+      "created_at": "2026-06-04T17:35:03.228596+00:00",
+      "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+    }
+  ],
+  "attack_surface_inventory": {
+    "asset_count": 10,
+    "internet_facing_count": 10,
+    "high_risk_asset_count": 3,
+    "assets": [
+      {
+        "asset_id": "web:www.cbse.gov.in",
+        "type": "web-app",
+        "name": "www.cbse.gov.in",
+        "criticality": "high",
+        "exposure": "internet-facing"
+      },
+      {
+        "asset_id": "endpoint:https://www.cbse.gov.in/cbsenew/cbse.html",
+        "type": "page",
+        "name": "https://www.cbse.gov.in/cbsenew/cbse.html",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://www.cbse.gov.in/api",
+        "type": "api",
+        "name": "https://www.cbse.gov.in/api",
+        "criticality": "medium",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://www.cbse.gov.in/rest",
+        "type": "api",
+        "name": "https://www.cbse.gov.in/rest",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://www.cbse.gov.in/api/Products",
+        "type": "api",
+        "name": "https://www.cbse.gov.in/api/Products",
+        "criticality": "medium",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://www.cbse.gov.in/rest/products",
+        "type": "api",
+        "name": "https://www.cbse.gov.in/rest/products",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://www.cbse.gov.in/rest/products/search?q=apple",
+        "type": "api",
+        "name": "https://www.cbse.gov.in/rest/products/search?q=apple",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://www.cbse.gov.in/rest/user/login",
+        "type": "api",
+        "name": "https://www.cbse.gov.in/rest/user/login",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://www.cbse.gov.in/graphql",
+        "type": "graphql",
+        "name": "https://www.cbse.gov.in/graphql",
+        "criticality": "high",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://www.cbse.gov.in/api/graphql",
+        "type": "graphql",
+        "name": "https://www.cbse.gov.in/api/graphql",
+        "criticality": "high",
+        "exposure": "public-http"
+      }
+    ],
+    "exposure_timeline": [
+      {
+        "scan_id": "c254c7ae-ee29-49e1-bdbb-d8d7a09b0253",
+        "finished_at": "2026-06-04T17:35:16.642106+00:00",
+        "asset_count": 10,
+        "finding_count": 11
+      }
+    ],
+    "drift": {
+      "status": "baseline-created",
+      "new_assets": 10,
+      "removed_assets": 0
+    }
+  },
+  "api_security_summary": {
+    "rest_endpoint_count": 6,
+    "graphql_endpoint_count": 2,
+    "schema_fuzz_probe_count": 6,
+    "schema_learning": {
+      "openapi_detected": false,
+      "swagger_detected": false,
+      "graphql_introspection_candidate": true
+    },
+    "risk_tests": [
+      "BOLA/IDOR differential checks",
+      "mass-assignment candidate modeling",
+      "API auth bypass probes",
+      "rate-limit posture checks",
+      "undocumented endpoint discovery"
+    ],
+    "undocumented_endpoint_count": 8,
+    "undocumented_endpoint_samples": [
+      {
+        "type": "api",
+        "url": "https://www.cbse.gov.in/api",
+        "method": "get",
+        "source": "common-probe",
+        "query_params": [],
+        "schema_fields": [],
+        "status_code": 403,
+        "content_type": "text/html"
+      },
+      {
+        "type": "api",
+        "url": "https://www.cbse.gov.in/rest",
+        "method": "get",
+        "source": "common-probe",
+        "query_params": [],
+        "schema_fields": [],
+        "status_code": 403,
+        "content_type": "text/html"
+      },
+      {
+        "type": "api",
+        "url": "https://www.cbse.gov.in/api/Products",
+        "method": "get",
+        "source": "common-probe",
+        "query_params": [],
+        "schema_fields": [],
+        "status_code": 403,
+        "content_type": "text/html"
+      },
+      {
+        "type": "api",
+        "url": "https://www.cbse.gov.in/rest/products",
+        "method": "get",
+        "source": "common-probe",
+        "query_params": [],
+        "schema_fields": [],
+        "status_code": 403,
+        "content_type": "text/html"
+      },
+      {
+        "type": "api",
+        "url": "https://www.cbse.gov.in/rest/products/search?q=apple",
+        "method": "get",
+        "source": "common-probe",
+        "query_params": [
+          "q"
+        ],
+        "schema_fields": [],
+        "status_code": 403,
+        "content_type": "text/html"
+      },
+      {
+        "type": "api",
+        "url": "https://www.cbse.gov.in/rest/user/login",
+        "method": "post",
+        "source": "common-probe",
+        "query_params": [],
+        "schema_fields": [],
+        "status_code": 403,
+        "content_type": "text/html"
+      },
+      {
+        "type": "graphql",
+        "url": "https://www.cbse.gov.in/graphql",
+        "method": "post",
+        "source": "common-probe",
+        "query_params": [],
+        "schema_fields": [
+          "query",
+          "variables"
+        ],
+        "status_code": 403,
+        "content_type": "text/html",
+        "graphql_summary": {
+          "introspection_enabled": false,
+          "top_level_keys": [],
+          "operation_fields": []
+        }
+      },
+      {
+        "type": "graphql",
+        "url": "https://www.cbse.gov.in/api/graphql",
+        "method": "post",
+        "source": "common-probe",
+        "query_params": [],
+        "schema_fields": [
+          "query",
+          "variables"
+        ],
+        "status_code": 403,
+        "content_type": "text/html",
+        "graphql_summary": {
+          "introspection_enabled": false,
+          "top_level_keys": [],
+          "operation_fields": []
+        }
+      }
+    ],
+    "sensitive_endpoint_count": 2,
+    "sensitivity_score": 23,
+    "sensitive_endpoint_samples": [
+      {
+        "url": "https://www.cbse.gov.in/graphql",
+        "type": "graphql",
+        "score": 50,
+        "reasons": [
+          "graphql",
+          "state-changing"
+        ]
+      },
+      {
+        "url": "https://www.cbse.gov.in/api/graphql",
+        "type": "graphql",
+        "score": 50,
+        "reasons": [
+          "graphql",
+          "state-changing"
+        ]
+      },
+      {
+        "url": "https://www.cbse.gov.in/rest/user/login",
+        "type": "api",
+        "score": 36,
+        "reasons": [
+          "user",
+          "state-changing"
+        ]
+      },
+      {
+        "url": "https://www.cbse.gov.in/api",
+        "type": "api",
+        "score": 10,
+        "reasons": [
+          "generic-api"
+        ]
+      },
+      {
+        "url": "https://www.cbse.gov.in/rest",
+        "type": "api",
+        "score": 10,
+        "reasons": [
+          "generic-api"
+        ]
+      },
+      {
+        "url": "https://www.cbse.gov.in/api/Products",
+        "type": "api",
+        "score": 10,
+        "reasons": [
+          "generic-api"
+        ]
+      },
+      {
+        "url": "https://www.cbse.gov.in/rest/products",
+        "type": "api",
+        "score": 10,
+        "reasons": [
+          "generic-api"
+        ]
+      },
+      {
+        "url": "https://www.cbse.gov.in/rest/products/search?q=apple",
+        "type": "api",
+        "score": 10,
+        "reasons": [
+          "generic-api"
+        ]
+      }
+    ]
+  },
+  "validation_summary": {
+    "validated_count": 0,
+    "requires_review_count": 11,
+    "validation_cache_keys": [
+      "bbd9a7fd947ae268b777",
+      "440e05ba3b0cf36c3652",
+      "bbcea6f4332e3283130b",
+      "cfa73cff5c06f075da09",
+      "b56976a1ca9184be67b5",
+      "09b622378d4716725a24",
+      "3ceaf2c0b91d3ee2c6ad",
+      "69d67e329513d1e6c682",
+      "69d67e329513d1e6c682",
+      "b04805d2ec81aa3b67e7",
+      "0f66ca656a5caa370b22"
+    ],
+    "average_exploit_proof_score": 0.3,
+    "high_proof_count": 0,
+    "anomaly_clusters": [
+      {
+        "cluster": "form-field",
+        "finding_count": 3
+      },
+      {
+        "cluster": "api",
+        "finding_count": 2
+      },
+      {
+        "cluster": "nosql-injection",
+        "finding_count": 2
+      },
+      {
+        "cluster": "websocket-graphql",
+        "finding_count": 2
+      },
+      {
+        "cluster": "mfa-session",
+        "finding_count": 1
+      },
+      {
+        "cluster": "idor",
+        "finding_count": 1
+      }
+    ],
+    "engines": [
+      "response-diff",
+      "timing-analysis",
+      "anomaly-analysis",
+      "safe-replay"
+    ],
+    "false_positive_reduction": "confidence-weighted validation with replayable evidence bundles",
+    "safe_replay_runner": {
+      "mode": "manual-confirmation",
+      "cache": "deduplicated by detector/url/parameter/payload",
+      "verification": "baseline and mutated response comparison with timing and content-length deltas"
+    }
+  },
+  "compliance_summary": {
+    "frameworks": [
+      {
+        "framework": "OWASP ASVS",
+        "controls": [
+          "V5",
+          "V7",
+          "V10",
+          "V14"
+        ],
+        "mapped_findings": 11
+      },
+      {
+        "framework": "OWASP Top 10",
+        "controls": [
+          "A01",
+          "A03",
+          "A05",
+          "A07"
+        ],
+        "mapped_findings": 11
+      },
+      {
+        "framework": "PCI DSS 4.0",
+        "controls": [
+          "6.2",
+          "6.3",
+          "6.4",
+          "11.3"
+        ],
+        "mapped_findings": 11
+      },
+      {
+        "framework": "ISO 27001",
+        "controls": [
+          "A.8.8",
+          "A.8.16",
+          "A.8.28"
+        ],
+        "mapped_findings": 11
+      },
+      {
+        "framework": "NIST CSF",
+        "controls": [
+          "ID.RA",
+          "DE.CM",
+          "RS.AN"
+        ],
+        "mapped_findings": 11
+      }
+    ],
+    "mapped_finding_count": 11,
+    "evidence_bundle_ready": true,
+    "mapped_findings": [
+      {
+        "title": "csrf",
+        "severity": "medium",
+        "cwe": "CWE-352",
+        "frameworks": {
+          "OWASP ASVS": [
+            "V5",
+            "V7",
+            "V10",
+            "V14"
+          ],
+          "OWASP Top 10": [
+            "A01",
+            "A03",
+            "A05",
+            "A07"
+          ],
+          "PCI DSS 4.0": [
+            "6.2",
+            "6.3",
+            "6.4",
+            "11.3"
+          ],
+          "ISO 27001": [
+            "A.8.8",
+            "A.8.16",
+            "A.8.28"
+          ],
+          "NIST CSF": [
+            "ID.RA",
+            "DE.CM",
+            "RS.AN"
+          ]
+        }
+      },
+      {
+        "title": "csrf",
+        "severity": "medium",
+        "cwe": "CWE-352",
+        "frameworks": {
+          "OWASP ASVS": [
+            "V5",
+            "V7",
+            "V10",
+            "V14"
+          ],
+          "OWASP Top 10": [
+            "A01",
+            "A03",
+            "A05",
+            "A07"
+          ],
+          "PCI DSS 4.0": [
+            "6.2",
+            "6.3",
+            "6.4",
+            "11.3"
+          ],
+          "ISO 27001": [
+            "A.8.8",
+            "A.8.16",
+            "A.8.28"
+          ],
+          "NIST CSF": [
+            "ID.RA",
+            "DE.CM",
+            "RS.AN"
+          ]
+        }
+      },
+      {
+        "title": "csrf",
+        "severity": "medium",
+        "cwe": "CWE-352",
+        "frameworks": {
+          "OWASP ASVS": [
+            "V5",
+            "V7",
+            "V10",
+            "V14"
+          ],
+          "OWASP Top 10": [
+            "A01",
+            "A03",
+            "A05",
+            "A07"
+          ],
+          "PCI DSS 4.0": [
+            "6.2",
+            "6.3",
+            "6.4",
+            "11.3"
+          ],
+          "ISO 27001": [
+            "A.8.8",
+            "A.8.16",
+            "A.8.28"
+          ],
+          "NIST CSF": [
+            "ID.RA",
+            "DE.CM",
+            "RS.AN"
+          ]
+        }
+      },
+      {
+        "title": "advanced_surface",
+        "severity": "medium",
+        "cwe": "CWE-693",
+        "frameworks": {
+          "OWASP ASVS": [
+            "V5",
+            "V7",
+            "V10",
+            "V14"
+          ],
+          "OWASP Top 10": [
+            "A01",
+            "A03",
+            "A05",
+            "A07"
+          ],
+          "PCI DSS 4.0": [
+            "6.2",
+            "6.3",
+            "6.4",
+            "11.3"
+          ],
+          "ISO 27001": [
+            "A.8.8",
+            "A.8.16",
+            "A.8.28"
+          ],
+          "NIST CSF": [
+            "ID.RA",
+            "DE.CM",
+            "RS.AN"
+          ]
+        }
+      },
+      {
+        "title": "advanced_surface",
+        "severity": "medium",
+        "cwe": "CWE-693",
+        "frameworks": {
+          "OWASP ASVS": [
+            "V5",
+            "V7",
+            "V10",
+            "V14"
+          ],
+          "OWASP Top 10": [
+            "A01",
+            "A03",
+            "A05",
+            "A07"
+          ],
+          "PCI DSS 4.0": [
+            "6.2",
+            "6.3",
+            "6.4",
+            "11.3"
+          ],
+          "ISO 27001": [
+            "A.8.8",
+            "A.8.16",
+            "A.8.28"
+          ],
+          "NIST CSF": [
+            "ID.RA",
+            "DE.CM",
+            "RS.AN"
+          ]
+        }
+      },
+      {
+        "title": "advanced_injection",
+        "severity": "high",
+        "cwe": "CWE-693",
+        "frameworks": {
+          "OWASP ASVS": [
+            "V5",
+            "V7",
+            "V10",
+            "V14"
+          ],
+          "OWASP Top 10": [
+            "A01",
+            "A03",
+            "A05",
+            "A07"
+          ],
+          "PCI DSS 4.0": [
+            "6.2",
+            "6.3",
+            "6.4",
+            "11.3"
+          ],
+          "ISO 27001": [
+            "A.8.8",
+            "A.8.16",
+            "A.8.28"
+          ],
+          "NIST CSF": [
+            "ID.RA",
+            "DE.CM",
+            "RS.AN"
+          ]
+        }
+      },
+      {
+        "title": "advanced_injection",
+        "severity": "high",
+        "cwe": "CWE-693",
+        "frameworks": {
+          "OWASP ASVS": [
+            "V5",
+            "V7",
+            "V10",
+            "V14"
+          ],
+          "OWASP Top 10": [
+            "A01",
+            "A03",
+            "A05",
+            "A07"
+          ],
+          "PCI DSS 4.0": [
+            "6.2",
+            "6.3",
+            "6.4",
+            "11.3"
+          ],
+          "ISO 27001": [
+            "A.8.8",
+            "A.8.16",
+            "A.8.28"
+          ],
+          "NIST CSF": [
+            "ID.RA",
+            "DE.CM",
+            "RS.AN"
+          ]
+        }
+      },
+      {
+        "title": "advanced_auth",
+        "severity": "medium",
+        "cwe": "CWE-693",
+        "frameworks": {
+          "OWASP ASVS": [
+            "V5",
+            "V7",
+            "V10",
+            "V14"
+          ],
+          "OWASP Top 10": [
+            "A01",
+            "A03",
+            "A05",
+            "A07"
+          ],
+          "PCI DSS 4.0": [
+            "6.2",
+            "6.3",
+            "6.4",
+            "11.3"
+          ],
+          "ISO 27001": [
+            "A.8.8",
+            "A.8.16",
+            "A.8.28"
+          ],
+          "NIST CSF": [
+            "ID.RA",
+            "DE.CM",
+            "RS.AN"
+          ]
+        }
+      },
+      {
+        "title": "advanced_auth",
+        "severity": "high",
+        "cwe": "CWE-693",
+        "frameworks": {
+          "OWASP ASVS": [
+            "V5",
+            "V7",
+            "V10",
+            "V14"
+          ],
+          "OWASP Top 10": [
+            "A01",
+            "A03",
+            "A05",
+            "A07"
+          ],
+          "PCI DSS 4.0": [
+            "6.2",
+            "6.3",
+            "6.4",
+            "11.3"
+          ],
+          "ISO 27001": [
+            "A.8.8",
+            "A.8.16",
+            "A.8.28"
+          ],
+          "NIST CSF": [
+            "ID.RA",
+            "DE.CM",
+            "RS.AN"
+          ]
+        }
+      },
+      {
+        "title": "advanced_server",
+        "severity": "medium",
+        "cwe": "CWE-693",
+        "frameworks": {
+          "OWASP ASVS": [
+            "V5",
+            "V7",
+            "V10",
+            "V14"
+          ],
+          "OWASP Top 10": [
+            "A01",
+            "A03",
+            "A05",
+            "A07"
+          ],
+          "PCI DSS 4.0": [
+            "6.2",
+            "6.3",
+            "6.4",
+            "11.3"
+          ],
+          "ISO 27001": [
+            "A.8.8",
+            "A.8.16",
+            "A.8.28"
+          ],
+          "NIST CSF": [
+            "ID.RA",
+            "DE.CM",
+            "RS.AN"
+          ]
+        }
+      },
+      {
+        "title": "advanced_server",
+        "severity": "medium",
+        "cwe": "CWE-693",
+        "frameworks": {
+          "OWASP ASVS": [
+            "V5",
+            "V7",
+            "V10",
+            "V14"
+          ],
+          "OWASP Top 10": [
+            "A01",
+            "A03",
+            "A05",
+            "A07"
+          ],
+          "PCI DSS 4.0": [
+            "6.2",
+            "6.3",
+            "6.4",
+            "11.3"
+          ],
+          "ISO 27001": [
+            "A.8.8",
+            "A.8.16",
+            "A.8.28"
+          ],
+          "NIST CSF": [
+            "ID.RA",
+            "DE.CM",
+            "RS.AN"
+          ]
+        }
+      }
+    ]
+  },
+  "ai_risk_summary": {
+    "prioritized_finding_count": 11,
+    "high_exploitability_count": 3,
+    "top_findings": [
+      {
+        "detector": "advanced_injection",
+        "severity": "high",
+        "url": "https://www.cbse.gov.in/graphql",
+        "evidence": "NoSQL injection candidate parameter requires operator injection validation",
+        "recommendation": "Use strict input allowlists, parameterized APIs, parser hardening, and targeted regression tests for this sink.",
+        "confidence": "medium",
+        "parameter": null,
+        "payload": null,
+        "method": "get",
+        "category": "nosql-injection",
+        "baseline_status": null,
+        "mutated_status": null,
+        "baseline_length": null,
+        "mutated_length": null,
+        "reason": "Parameter and endpoint naming heuristic",
+        "input_location": null,
+        "reflection_context": null,
+        "dom_observation": null,
+        "confidence_score": null,
+        "validation_signals": null,
+        "request_snapshot": null,
+        "response_snapshot": null,
+        "cwe_id": "CWE-693",
+        "cwe_title": "Protection Mechanism Failure",
+        "cvss_score": 8.7,
+        "remediation_priority": "P1",
+        "poc": "GET https://www.cbse.gov.in/graphql with parameter - using payload -",
+        "validation_state": "requires-review",
+        "owasp_category": "Unknown",
+        "code_snippet": "",
+        "replay_plan": {
+          "method": "GET",
+          "url": "https://www.cbse.gov.in/graphql",
+          "parameter": "",
+          "payload": "",
+          "curl": "curl -i -X GET 'https://www.cbse.gov.in/graphql'",
+          "created_at": "2026-06-04T17:35:03.228582+00:00",
+          "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+        },
+        "finding_index": 5,
+        "exploitability": {
+          "score": 0.87,
+          "label": "likely exploitable"
+        }
+      },
+      {
+        "detector": "advanced_injection",
+        "severity": "high",
+        "url": "https://www.cbse.gov.in/api/graphql",
+        "evidence": "NoSQL injection candidate parameter requires operator injection validation",
+        "recommendation": "Use strict input allowlists, parameterized APIs, parser hardening, and targeted regression tests for this sink.",
+        "confidence": "medium",
+        "parameter": null,
+        "payload": null,
+        "method": "get",
+        "category": "nosql-injection",
+        "baseline_status": null,
+        "mutated_status": null,
+        "baseline_length": null,
+        "mutated_length": null,
+        "reason": "Parameter and endpoint naming heuristic",
+        "input_location": null,
+        "reflection_context": null,
+        "dom_observation": null,
+        "confidence_score": null,
+        "validation_signals": null,
+        "request_snapshot": null,
+        "response_snapshot": null,
+        "cwe_id": "CWE-693",
+        "cwe_title": "Protection Mechanism Failure",
+        "cvss_score": 8.7,
+        "remediation_priority": "P1",
+        "poc": "GET https://www.cbse.gov.in/api/graphql with parameter - using payload -",
+        "validation_state": "requires-review",
+        "owasp_category": "Unknown",
+        "code_snippet": "",
+        "replay_plan": {
+          "method": "GET",
+          "url": "https://www.cbse.gov.in/api/graphql",
+          "parameter": "",
+          "payload": "",
+          "curl": "curl -i -X GET 'https://www.cbse.gov.in/api/graphql'",
+          "created_at": "2026-06-04T17:35:03.228585+00:00",
+          "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+        },
+        "finding_index": 6,
+        "exploitability": {
+          "score": 0.87,
+          "label": "likely exploitable"
+        }
+      },
+      {
+        "detector": "advanced_auth",
+        "severity": "high",
+        "url": "https://www.cbse.gov.in/rest/user/login",
+        "evidence": "IDOR/BOLA candidate requires role-differential authorization validation",
+        "recommendation": "Enforce server-side authorization, strong session lifecycle controls, MFA policy, and role-based regression tests.",
+        "confidence": "medium",
+        "parameter": null,
+        "payload": null,
+        "method": "get",
+        "category": "idor",
+        "baseline_status": null,
+        "mutated_status": null,
+        "baseline_length": null,
+        "mutated_length": null,
+        "reason": "Authenticated workflow heuristic",
+        "input_location": null,
+        "reflection_context": null,
+        "dom_observation": null,
+        "confidence_score": null,
+        "validation_signals": null,
+        "request_snapshot": null,
+        "response_snapshot": null,
+        "cwe_id": "CWE-693",
+        "cwe_title": "Protection Mechanism Failure",
+        "cvss_score": 8.7,
+        "remediation_priority": "P1",
+        "poc": "GET https://www.cbse.gov.in/rest/user/login with parameter - using payload -",
+        "validation_state": "requires-review",
+        "owasp_category": "Unknown",
+        "code_snippet": "",
+        "replay_plan": {
+          "method": "GET",
+          "url": "https://www.cbse.gov.in/rest/user/login",
+          "parameter": "",
+          "payload": "",
+          "curl": "curl -i -X GET 'https://www.cbse.gov.in/rest/user/login'",
+          "created_at": "2026-06-04T17:35:03.228590+00:00",
+          "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+        },
+        "finding_index": 8,
+        "exploitability": {
+          "score": 0.87,
+          "label": "likely exploitable"
+        }
+      }
+    ],
+    "attack_chain_hypotheses": [
+      {
+        "name": "public-critical-asset-exposure",
+        "confidence": "medium",
+        "steps": [
+          "internet-facing asset",
+          "validated finding",
+          "remediation workflow"
+        ]
+      }
+    ],
+    "deduplication": {
+      "strategy": "detector-url-parameter-payload hash clustering",
+      "cluster_count": 10
+    }
+  },
+  "telemetry_summary": {
+    "status": "completed",
+    "duration_ms": 138267.78,
+    "events": [
+      {
+        "phase": "startup",
+        "message": "Target reachable and scan initialized",
+        "progress": 5,
+        "timestamp": "2026-06-04T17:32:59.474290+00:00"
+      },
+      {
+        "phase": "crawl",
+        "message": "Mapped 1 pages, 3 forms, and 9 endpoints",
+        "progress": 30,
+        "timestamp": "2026-06-04T17:33:16.086539+00:00"
+      },
+      {
+        "phase": "validation",
+        "message": "Validated 11 candidate findings",
+        "progress": 88,
+        "timestamp": "2026-06-04T17:35:03.228401+00:00"
+      },
+      {
+        "phase": "recon",
+        "message": "Passive recon, endpoint risk, TLS, and low-impact discovery completed",
+        "progress": 92,
+        "timestamp": "2026-06-04T17:35:16.641574+00:00"
+      }
+    ],
+    "detector_timings": [
+      {
+        "detector": "sqli",
+        "elapsed_ms": 89024.48,
+        "finding_count": 0
+      },
+      {
+        "detector": "xss",
+        "elapsed_ms": 15202.32,
+        "finding_count": 0
+      },
+      {
+        "detector": "csrf",
+        "elapsed_ms": 0.12,
+        "finding_count": 3
+      },
+      {
+        "detector": "auth_bypass",
+        "elapsed_ms": 490.02,
+        "finding_count": 0
+      },
+      {
+        "detector": "advanced_surface",
+        "elapsed_ms": 0.11,
+        "finding_count": 2
+      },
+      {
+        "detector": "advanced_injection",
+        "elapsed_ms": 0.13,
+        "finding_count": 2
+      },
+      {
+        "detector": "advanced_client",
+        "elapsed_ms": 0.09,
+        "finding_count": 0
+      },
+      {
+        "detector": "advanced_auth",
+        "elapsed_ms": 0.09,
+        "finding_count": 2
+      },
+      {
+        "detector": "advanced_server",
+        "elapsed_ms": 0.13,
+        "finding_count": 2
+      }
+    ],
+    "throughput": {
+      "pages": 1,
+      "endpoints": 9,
+      "schema_probes": 6
+    },
+    "live_channels": [
+      "/api/ws/scans",
+      "/api/ws/scans/c254c7ae-ee29-49e1-bdbb-d8d7a09b0253"
+    ]
+  }
+}

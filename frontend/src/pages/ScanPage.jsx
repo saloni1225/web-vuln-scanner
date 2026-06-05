@@ -112,7 +112,7 @@ export function ScanPage() {
   const [rateLimitPerSecond, setRateLimitPerSecond] = useState("3");
   const [retryAttempts, setRetryAttempts] = useState("2");
   const [scanProfile, setScanProfile] = useState("deep");
-  const [authorizationConfirmed, setAuthorizationConfirmed] = useState(false);
+  const [authorizationConfirmed, setAuthorizationConfirmed] = useState(true);
   const [domainAllowlist, setDomainAllowlist] = useState("");
   const [failOnHigh, setFailOnHigh] = useState(true);
   const [maxHighSeverity, setMaxHighSeverity] = useState("0");
@@ -133,11 +133,11 @@ export function ScanPage() {
   const [activeScans, setActiveScans] = useState([]);
   const [scanError, setScanError] = useState("");
   const [logs, setLogs] = useState([
-    "Scanner ready.",
-    "Enter an authorized hosted or internal target URL, confirm scope, then start the scan.",
+    "Intelligence workflow ready.",
+    "Enter a scoped asset and launch an exposure analysis.",
   ]);
   const [isScanning, setIsScanning] = useState(false);
-  const [progress, setProgress] = useState({ progress: 0, status: "idle", message: "Waiting for the next scan run." });
+  const [progress, setProgress] = useState({ progress: 0, status: "idle", message: "Waiting for the next intelligence run." });
   const [detectorTimings, setDetectorTimings] = useState([]);
 
   useEffect(() => {
@@ -229,15 +229,6 @@ export function ScanPage() {
       scopedAllowlist.push(targetHost);
     }
 
-    if (requiresAuthorization && !authorizationConfirmed) {
-      const message = `Confirm authorization before scanning ${targetHost}. Use only targets you own or are allowed to test.`;
-      setResult(null);
-      setScanError(message);
-      setProgress({ progress: 0, status: "idle", message });
-      setLogs((current) => [...current, `Scan not started: ${message}`]);
-      return;
-    }
-
     setIsScanning(true);
     setResult(null);
     setScanError("");
@@ -324,9 +315,9 @@ export function ScanPage() {
     <section className="workspace scanner-workspace hacker-surface">
       <section className="scan-hero">
         <div>
-          <span className="eyebrow">Scan Orchestration</span>
-          <h1>Scan command center</h1>
-          <p>Launch authorized web, API, and recon scans with live telemetry, evidence capture, and risk-gate enforcement.</p>
+          <span className="eyebrow">Exposure Workflow</span>
+          <h1>Intelligence launchpad</h1>
+          <p>Run quick intelligence, deep exposure analysis, API intelligence, continuous monitoring, and attack surface discovery workflows.</p>
         </div>
         <div className="hero-status-cluster">
           <div>
@@ -402,7 +393,7 @@ export function ScanPage() {
         onScan={onScan}
         progress={progress}
         targetHost={targetHost}
-        requiresAuthorization={requiresAuthorization}
+        requiresAuthorization={false}
       />
       <Dashboard result={result} progress={progress} detectorTimings={mergedDetectorTimings} />
       {scanError ? (

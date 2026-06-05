@@ -37,6 +37,7 @@ from backend.risk.ai_risk import build_ai_risk_summary
 from backend.telemetry.engine import build_scan_telemetry
 from backend.validation.engine import build_validation_summary
 from backend.exposure.intelligence import build_exposure_intelligence
+from backend.ai.offensive_intelligence import build_offensive_ai_intelligence
 
 
 ProgressCallback = Callable[[dict[str, object]], Awaitable[None]]
@@ -263,6 +264,7 @@ class ScannerEngine:
             result["validation_summary"] = validation_summary
             result["compliance_summary"] = compliance_summary
             result["ai_risk_summary"] = build_ai_risk_summary(finding_dicts, result["attack_surface_inventory"])
+            result["offensive_ai_intelligence"] = build_offensive_ai_intelligence(result)
             result["telemetry_summary"] = build_scan_telemetry(result)
             save_scan(result)
             if progress_callback:

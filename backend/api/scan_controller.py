@@ -99,6 +99,11 @@ class ScanController:
         )
         result["risk_gate"] = evaluate_risk_gate(
             result.get("summary", {}),
+            exposure_intelligence=result.get("exposure_intelligence", {}),
+            attack_surface_graph=result.get("attack_surface_graph", {}),
+            auth_intelligence=result.get("auth_intelligence", {}),
+            drift_timeline=result.get("drift_timeline", {}),
+            offensive_ai_intelligence=result.get("offensive_ai_intelligence", {}),
             fail_on_high=request.fail_on_high,
             max_high=request.max_high_severity,
             max_medium=request.max_medium_severity,

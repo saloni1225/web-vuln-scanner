@@ -320,3 +320,117 @@ export async function resumeScan(scanId) {
   }
   return response.json();
 }
+
+export async function fetchAuthArchitecture() {
+  const response = await fetch(`${API_BASE_URL}/auth/architecture`);
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function registerAccount(payload) {
+  const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.detail ?? `API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function loginAccount(payload) {
+  const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.detail ?? `API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function verifyOtp(payload) {
+  const response = await fetch(`${API_BASE_URL}/auth/otp/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function requestPasswordReset(payload) {
+  const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchOnboarding() {
+  const response = await fetch(`${API_BASE_URL}/onboarding`);
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchBillingCatalog() {
+  const response = await fetch(`${API_BASE_URL}/billing/catalog`);
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchSubscriptionStatus() {
+  const response = await fetch(`${API_BASE_URL}/billing/subscription`);
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchTeamDirectory() {
+  const response = await fetch(`${API_BASE_URL}/team`);
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchNotificationCenter() {
+  const response = await fetch(`${API_BASE_URL}/notifications`);
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchMonitoringWorkflows() {
+  const response = await fetch(`${API_BASE_URL}/monitoring/workflows`);
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchTrustCenter() {
+  const response = await fetch(`${API_BASE_URL}/trust`);
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  return response.json();
+}

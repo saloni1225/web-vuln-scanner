@@ -17,6 +17,8 @@ def analyze_javascript_intelligence(base_url: str, script_bodies: list[dict[str,
     secrets: list[dict[str, object]] = []
     sinks: set[str] = set()
     debug_flags: set[str] = set()
+    source_maps: set[str] = set()
+    auth_signals: set[str] = set()
 
     for script in script_bodies:
         url = str(script.get("url", base_url))
@@ -35,6 +37,11 @@ def analyze_javascript_intelligence(base_url: str, script_bodies: list[dict[str,
         for flag in ("debug=true", "NODE_ENV", "__DEV__", "sourceMappingURL"):
             if flag in body:
                 debug_flags.add(flag)
+        for match in re.findall(r"sourceMappingURL=([^\s*]+)", body):
+            source_maps.add(urljoin(url, match))
+        for signal in ("Authorization", "Bearer ", "refreshToken", "accessToken", "isAdmin", "role", "tenantId"):
+            if signal in body:
+                auth_signals.add(signal)
 
     return {
         "script_count": len(script_bodies),
@@ -43,6 +50,13 @@ def analyze_javascript_intelligence(base_url: str, script_bodies: list[dict[str,
         "secret_findings": secrets[:50],
         "dom_sink_indicators": sorted(sinks),
         "debug_indicators": sorted(debug_flags),
+        "source_map_candidates": sorted(source_maps)[:50],
+        "auth_boundary_indicators": sorted(auth_signals),
+        "client_side_auth_analysis": {
+            "stores_tokens": any(token in auth_signals for token in ("refreshToken", "accessToken", "Bearer ")),
+            "role_logic_present": any(token in auth_signals for token in ("isAdmin", "role", "tenantId")),
+        },
+        "dom_taint_tracking_ready": bool(sinks),
         "risk_score": min(100, len(secrets) * 25 + len(sinks) * 8 + len(endpoints) * 2),
     }
 
@@ -57,4 +71,3 @@ def _extract_endpoint_candidates(body: str) -> list[str]:
     for pattern in patterns:
         candidates.extend(re.findall(pattern, body, flags=re.IGNORECASE))
     return [candidate for candidate in candidates if not candidate.startswith("data:")][:200]
-

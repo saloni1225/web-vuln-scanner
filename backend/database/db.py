@@ -105,10 +105,56 @@ def init_db() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS auth_users (
+                user_id TEXT PRIMARY KEY,
+                org_id TEXT NOT NULL,
+                email TEXT NOT NULL UNIQUE,
+                first_name TEXT NOT NULL,
+                last_name TEXT NOT NULL,
+                company_name TEXT NOT NULL,
+                role TEXT NOT NULL,
+                password_hash TEXT NOT NULL,
+                mfa_enabled INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                last_login_at TEXT NOT NULL,
+                FOREIGN KEY (org_id) REFERENCES organizations(org_id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS auth_otp_challenges (
+                challenge_id TEXT PRIMARY KEY,
+                email TEXT NOT NULL,
+                purpose TEXT NOT NULL,
+                code_hash TEXT NOT NULL,
+                expires_at INTEGER NOT NULL,
+                consumed_at TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS auth_refresh_sessions (
+                session_id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                refresh_token_hash TEXT NOT NULL,
+                expires_at INTEGER NOT NULL,
+                revoked_at TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES auth_users(user_id)
+            )
+            """
+        )
         conn.execute("CREATE INDEX IF NOT EXISTS idx_scans_target_started ON scans(target_url, started_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit_logs(created_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_workspaces_org ON workspaces(org_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_api_keys_workspace ON api_keys(workspace_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_auth_users_email ON auth_users(email)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_otp_email_purpose ON auth_otp_challenges(email, purpose, expires_at)")
 
 
 def save_scan(scan: dict[str, object]) -> None:
@@ -528,6 +574,155 @@ def get_tenancy_overview() -> dict[str, object]:
             {"role": "ci-bot", "permissions": ["scan:run", "scan:read", "report:read"]},
         ],
     }
+
+
+def create_auth_user(
+    *,
+    user_id: str,
+    org_id: str,
+    email: str,
+    first_name: str,
+    last_name: str,
+    company_name: str,
+    role: str,
+    password_hash_value: str,
+    mfa_enabled: bool = True,
+) -> dict[str, object]:
+    init_db()
+    created_at = datetime.now(timezone.utc).isoformat()
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO auth_users
+            (user_id, org_id, email, first_name, last_name, company_name, role, password_hash, mfa_enabled, created_at, last_login_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                user_id,
+                org_id,
+                email,
+                first_name,
+                last_name,
+                company_name,
+                role,
+                password_hash_value,
+                1 if mfa_enabled else 0,
+                created_at,
+                "",
+            ),
+        )
+    return {
+        "user_id": user_id,
+        "organization_id": org_id,
+        "email": email,
+        "first_name": first_name,
+        "last_name": last_name,
+        "company_name": company_name,
+        "role": role,
+        "mfa_required": mfa_enabled,
+        "created_at": created_at,
+    }
+
+
+def get_auth_user_by_email(email: str) -> dict[str, object] | None:
+    init_db()
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT user_id, org_id, email, first_name, last_name, company_name, role, password_hash, mfa_enabled, created_at, last_login_at
+            FROM auth_users
+            WHERE email = ?
+            """,
+            (email,),
+        ).fetchone()
+    if row is None:
+        return None
+    return {
+        "user_id": row[0],
+        "organization_id": row[1],
+        "email": row[2],
+        "first_name": row[3],
+        "last_name": row[4],
+        "company_name": row[5],
+        "role": row[6],
+        "password_hash": row[7],
+        "mfa_required": bool(row[8]),
+        "created_at": row[9],
+        "last_login_at": row[10],
+    }
+
+
+def mark_auth_user_login(email: str) -> None:
+    init_db()
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE auth_users SET last_login_at = ? WHERE email = ?",
+            (datetime.now(timezone.utc).isoformat(), email),
+        )
+
+
+def update_auth_user_password(email: str, password_hash_value: str) -> bool:
+    init_db()
+    with get_connection() as conn:
+        cursor = conn.execute(
+            "UPDATE auth_users SET password_hash = ? WHERE email = ?",
+            (password_hash_value, email),
+        )
+    return cursor.rowcount > 0
+
+
+def store_otp_challenge(*, email: str, purpose: str, code_hash: str, expires_at: int) -> dict[str, object]:
+    init_db()
+    challenge_id = str(uuid.uuid4())
+    created_at = datetime.now(timezone.utc).isoformat()
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO auth_otp_challenges
+            (challenge_id, email, purpose, code_hash, expires_at, consumed_at, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (challenge_id, email, purpose, code_hash, expires_at, "", created_at),
+        )
+    return {"challenge_id": challenge_id, "email": email, "purpose": purpose, "expires_at": expires_at, "created_at": created_at}
+
+
+def consume_otp_challenge(*, email: str, purpose: str, code_hash: str, now: int) -> bool:
+    init_db()
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT challenge_id, code_hash
+            FROM auth_otp_challenges
+            WHERE email = ? AND purpose = ? AND consumed_at = '' AND expires_at >= ?
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (email, purpose, now),
+        ).fetchone()
+        if row is None or not secrets.compare_digest(str(row[1]), code_hash):
+            return False
+        conn.execute(
+            "UPDATE auth_otp_challenges SET consumed_at = ? WHERE challenge_id = ?",
+            (datetime.now(timezone.utc).isoformat(), row[0]),
+        )
+    return True
+
+
+def create_refresh_session(*, user_id: str, refresh_token_hash: str, expires_at: int) -> dict[str, object]:
+    init_db()
+    session_id = str(uuid.uuid4())
+    created_at = datetime.now(timezone.utc).isoformat()
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO auth_refresh_sessions
+            (session_id, user_id, refresh_token_hash, expires_at, revoked_at, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (session_id, user_id, refresh_token_hash, expires_at, "", created_at),
+        )
+    return {"session_id": session_id, "user_id": user_id, "expires_at": expires_at, "created_at": created_at}
 
 
 def compare_scans(left_scan_id: str, right_scan_id: str) -> dict[str, object] | None:

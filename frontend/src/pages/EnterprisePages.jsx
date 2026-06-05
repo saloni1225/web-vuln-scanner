@@ -388,6 +388,171 @@ export function ThreatIntelligencePage() {
   );
 }
 
+export function DriftIntelligencePage() {
+  const { operations } = useEnterpriseData();
+  const drift = operations?.drift_intelligence ?? {};
+  const timeline = drift.timeline ?? [];
+  const spikes = drift.exposure_spikes ?? [];
+  return (
+    <section className="page-stack">
+      <PageHeader eyebrow="Drift Intelligence" title="Surface evolution" subtitle="Deployment drift, API drift, auth drift, cloud exposure drift, technology shifts, and exposure spike analysis." />
+      <KpiStrip items={[
+        { label: "Drift events", value: drift.drift_event_count ?? 0, meta: "surface changes", tone: drift.drift_event_count ? "warn" : "good" },
+        { label: "Exposure spikes", value: spikes.length, meta: "new endpoint/finding bursts", tone: spikes.length ? "danger" : "good" },
+        { label: "API drift", value: drift.api_drift?.length ?? 0, meta: "contract changes" },
+        { label: "Auth drift", value: drift.auth_drift?.length ?? 0, meta: "identity signals" },
+      ]} />
+      <section className="enterprise-grid">
+        <Card>
+          <CardHeader icon={Activity} title="Drift timeline" meta={`${timeline.length} snapshots`} />
+          <div className="timeline-list">
+            {timeline.length ? timeline.slice(-12).reverse().map((event) => (
+              <button type="button" key={event.scan_id} className="timeline-row clickable-row">
+                <strong>{event.target_url}</strong>
+                <small>{event.new_endpoint_count} new · {event.removed_endpoint_count} removed · {event.new_finding_count} findings</small>
+                <span>{event.drift_detected ? "drift" : "stable"}</span>
+              </button>
+            )) : <div className="empty-panel">No drift history yet</div>}
+          </div>
+        </Card>
+        <Card>
+          <CardHeader icon={ShieldAlert} title="Exposure spike alerts" meta={`${spikes.length} alerts`} />
+          <DataTable rows={spikes} columns={[
+            { key: "target", label: "Target" },
+            { key: "new_endpoints", label: "Endpoints" },
+            { key: "new_findings", label: "Findings" },
+            { key: "severity", label: "Severity", render: (row) => <SeverityBadge value={row.severity} /> },
+          ]} empty="No exposure spikes detected" />
+        </Card>
+        <Card>
+          <CardHeader icon={Code2} title="API drift" meta="contract movement" />
+          <DataTable rows={drift.api_drift ?? []} columns={[
+            { key: "target", label: "Target" },
+            { key: "api_count", label: "APIs" },
+            { key: "delta", label: "Delta" },
+            { key: "status", label: "State" },
+          ]} empty="No API drift detected" />
+        </Card>
+        <Card>
+          <CardHeader icon={KeyRound} title="Auth drift" meta="identity changes" />
+          <DataTable rows={drift.auth_drift ?? []} columns={[
+            { key: "target", label: "Target" },
+            { key: "signals", label: "Signals" },
+            { key: "status", label: "State", render: (row) => <StatusPill tone="warn">{row.status}</StatusPill> },
+          ]} empty="No auth drift signals" />
+        </Card>
+      </section>
+    </section>
+  );
+}
+
+export function AttackPathAnalysisPage() {
+  const { operations } = useEnterpriseData();
+  const analysis = operations?.attack_path_analysis ?? {};
+  const paths = analysis.paths ?? [];
+  const confidence = analysis.confidence ?? [];
+  const propagation = analysis.risk_propagation ?? {};
+  return (
+    <section className="page-stack">
+      <PageHeader eyebrow="Attack Path Analysis" title="Exploit-chain reasoning" subtitle="Attack-chain visualization, confidence scoring, privilege escalation candidates, and exposure propagation analysis." />
+      <KpiStrip items={[
+        { label: "Attack paths", value: paths.length, meta: "correlated chains", tone: paths.length ? "danger" : "good" },
+        { label: "Propagation score", value: propagation.propagation_score ?? 0, meta: `${propagation.high_risk_node_count ?? 0} high-risk nodes`, tone: (propagation.propagation_score ?? 0) >= 60 ? "danger" : "warn" },
+        { label: "Graph nodes", value: propagation.node_count ?? 0, meta: `${propagation.edge_count ?? 0} edges` },
+        { label: "Privilege candidates", value: analysis.privilege_escalation_candidates?.length ?? 0, meta: "identity/data pivots" },
+      ]} />
+      <section className="attack-graph-panel">
+        <div className="attack-graph">
+          {paths.slice(0, 6).map((path, index) => (
+            <button type="button" key={`${path.name}-${index}`} className="graph-node clickable-row" style={{ "--x": `${12 + (index % 3) * 30}%`, "--y": `${18 + Math.floor(index / 3) * 38}%` }}>
+              <strong>{path.name}</strong>
+              <span>{path.risk_score} · {path.severity}</span>
+            </button>
+          ))}
+          <div className="graph-core"><GitBranch size={24} /><strong>Attack Paths</strong></div>
+        </div>
+      </section>
+      <section className="enterprise-grid">
+        <Card>
+          <CardHeader icon={GitBranch} title="Path confidence" meta={`${confidence.length} scored`} />
+          <DataTable rows={confidence} columns={[
+            { key: "name", label: "Path" },
+            { key: "risk_score", label: "Risk" },
+            { key: "confidence", label: "Confidence" },
+            { key: "explainability", label: "Why" },
+          ]} empty="No attack paths yet" />
+        </Card>
+        <Card>
+          <CardHeader icon={KeyRound} title="Privilege escalation candidates" meta="identity pivots" />
+          <DataTable rows={analysis.privilege_escalation_candidates ?? []} columns={[
+            { key: "name", label: "Candidate" },
+            { key: "risk_score", label: "Risk" },
+            { key: "reason", label: "Reason" },
+          ]} empty="No privilege escalation candidates" />
+        </Card>
+      </section>
+    </section>
+  );
+}
+
+export function OperationalTelemetryPage() {
+  const { operations } = useEnterpriseData();
+  const telemetry = operations?.operational_telemetry ?? {};
+  const stream = telemetry.stream ?? [];
+  const alerts = telemetry.alerts ?? [];
+  const notifications = telemetry.notifications ?? [];
+  return (
+    <section className="page-stack">
+      <PageHeader eyebrow="Operational Telemetry" title="Live operations center" subtitle="Clickable notification center, operational activity feed, worker telemetry, exposure alerts, and offensive intelligence stream." />
+      <KpiStrip items={[
+        { label: "Telemetry events", value: stream.length, meta: "live stream" },
+        { label: "Alerts", value: alerts.length, meta: "operational" , tone: alerts.length ? "warn" : "good" },
+        { label: "Notifications", value: notifications.length, meta: "unread" },
+        { label: "Worker events", value: telemetry.worker_events?.length ?? 0, meta: "distributed execution" },
+      ]} />
+      <section className="enterprise-grid">
+        <Card>
+          <CardHeader icon={Activity} title="Activity feed" meta={`${stream.length} events`} />
+          <div className="timeline-list">
+            {stream.map((event, index) => (
+              <button type="button" key={`${event.event}-${index}`} className="timeline-row clickable-row">
+                <strong>{event.event}</strong>
+                <small>{event.value}</small>
+                <span>{event.status}</span>
+              </button>
+            ))}
+          </div>
+        </Card>
+        <Card>
+          <CardHeader icon={Siren} title="Operational alerts" meta={`${alerts.length} alerts`} />
+          <DataTable rows={alerts} columns={[
+            { key: "title", label: "Alert" },
+            { key: "severity", label: "Severity", render: (row) => <SeverityBadge value={row.severity} /> },
+            { key: "count", label: "Count" },
+          ]} empty="No operational alerts" />
+        </Card>
+        <Card>
+          <CardHeader icon={MonitorDot} title="Worker telemetry" meta="distributed fleet" />
+          <DataTable rows={telemetry.worker_events ?? []} columns={[
+            { key: "event", label: "Event" },
+            { key: "target", label: "Target" },
+            { key: "duration_ms", label: "Duration" },
+            { key: "detectors", label: "Detectors" },
+          ]} empty="No worker events yet" />
+        </Card>
+        <Card>
+          <CardHeader icon={CheckCircle2} title="Notification center" meta={`${notifications.length} unread`} />
+          <DataTable rows={notifications} columns={[
+            { key: "title", label: "Notification" },
+            { key: "severity", label: "Severity", render: (row) => <SeverityBadge value={row.severity} /> },
+            { key: "status", label: "Status" },
+          ]} empty="No notifications" />
+        </Card>
+      </section>
+    </section>
+  );
+}
+
 export function ApiSecurityPage() {
   const { reports, platform } = useEnterpriseData();
   const rows = reports.map((report) => ({

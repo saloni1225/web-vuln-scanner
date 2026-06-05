@@ -1,0 +1,1258 @@
+{
+  "scan_id": "a268e8a3-67ea-4af9-a082-cbe6d604d743",
+  "target_url": "https://net11.cc/home",
+  "summary": {
+    "page_count": 5,
+    "form_count": 3,
+    "endpoint_count": 28,
+    "finding_count": 7,
+    "high_severity_count": 1,
+    "medium_severity_count": 6,
+    "low_severity_count": 0,
+    "validated_finding_count": 0,
+    "passive_security_score": 78,
+    "open_port_count": 0,
+    "high_risk_endpoint_count": 3,
+    "api_endpoint_count": 8,
+    "graphql_endpoint_count": 2,
+    "schema_modeled_endpoint_count": 2,
+    "schema_fuzz_probe_count": 1,
+    "duration_ms": 26794.57
+  },
+  "findings": [
+    {
+      "detector": "csrf",
+      "severity": "medium",
+      "url": "https://net11.cc/rest/user/login",
+      "evidence": "POST form does not expose an obvious CSRF token field",
+      "recommendation": "Add per-request CSRF tokens and validate them server-side.",
+      "confidence": "medium",
+      "parameter": null,
+      "payload": null,
+      "method": "post",
+      "category": "form-field",
+      "baseline_status": null,
+      "mutated_status": null,
+      "baseline_length": null,
+      "mutated_length": null,
+      "reason": null,
+      "input_location": null,
+      "reflection_context": null,
+      "dom_observation": null,
+      "confidence_score": null,
+      "validation_signals": null,
+      "request_snapshot": null,
+      "response_snapshot": null,
+      "cwe_id": "CWE-352",
+      "cwe_title": "Cross-Site Request Forgery",
+      "cvss_score": 6.1,
+      "remediation_priority": "P2",
+      "poc": "POST https://net11.cc/rest/user/login with parameter - using payload -",
+      "validation_state": "requires-review",
+      "owasp_category": "Unknown",
+      "code_snippet": "",
+      "replay_plan": {
+        "method": "POST",
+        "url": "https://net11.cc/rest/user/login",
+        "parameter": "",
+        "payload": "",
+        "curl": "curl -i -X POST 'https://net11.cc/rest/user/login'",
+        "created_at": "2026-06-04T17:29:44.574353+00:00",
+        "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+      },
+      "finding_index": 0
+    },
+    {
+      "detector": "advanced_auth",
+      "severity": "medium",
+      "url": "https://net11.cc/rest/user/login",
+      "evidence": "Login flow requires MFA, brute-force, session fixation, and CSRF validation",
+      "recommendation": "Enforce server-side authorization, strong session lifecycle controls, MFA policy, and role-based regression tests.",
+      "confidence": "medium",
+      "parameter": null,
+      "payload": null,
+      "method": "get",
+      "category": "mfa-session",
+      "baseline_status": null,
+      "mutated_status": null,
+      "baseline_length": null,
+      "mutated_length": null,
+      "reason": "Authenticated workflow heuristic",
+      "input_location": null,
+      "reflection_context": null,
+      "dom_observation": null,
+      "confidence_score": null,
+      "validation_signals": null,
+      "request_snapshot": null,
+      "response_snapshot": null,
+      "cwe_id": "CWE-693",
+      "cwe_title": "Protection Mechanism Failure",
+      "cvss_score": 6.1,
+      "remediation_priority": "P2",
+      "poc": "GET https://net11.cc/rest/user/login with parameter - using payload -",
+      "validation_state": "requires-review",
+      "owasp_category": "Unknown",
+      "code_snippet": "",
+      "replay_plan": {
+        "method": "GET",
+        "url": "https://net11.cc/rest/user/login",
+        "parameter": "",
+        "payload": "",
+        "curl": "curl -i -X GET 'https://net11.cc/rest/user/login'",
+        "created_at": "2026-06-04T17:29:44.574361+00:00",
+        "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+      },
+      "finding_index": 1
+    },
+    {
+      "detector": "advanced_auth",
+      "severity": "high",
+      "url": "https://net11.cc/rest/user/login",
+      "evidence": "IDOR/BOLA candidate requires role-differential authorization validation",
+      "recommendation": "Enforce server-side authorization, strong session lifecycle controls, MFA policy, and role-based regression tests.",
+      "confidence": "medium",
+      "parameter": null,
+      "payload": null,
+      "method": "get",
+      "category": "idor",
+      "baseline_status": null,
+      "mutated_status": null,
+      "baseline_length": null,
+      "mutated_length": null,
+      "reason": "Authenticated workflow heuristic",
+      "input_location": null,
+      "reflection_context": null,
+      "dom_observation": null,
+      "confidence_score": null,
+      "validation_signals": null,
+      "request_snapshot": null,
+      "response_snapshot": null,
+      "cwe_id": "CWE-693",
+      "cwe_title": "Protection Mechanism Failure",
+      "cvss_score": 8.7,
+      "remediation_priority": "P1",
+      "poc": "GET https://net11.cc/rest/user/login with parameter - using payload -",
+      "validation_state": "requires-review",
+      "owasp_category": "Unknown",
+      "code_snippet": "",
+      "replay_plan": {
+        "method": "GET",
+        "url": "https://net11.cc/rest/user/login",
+        "parameter": "",
+        "payload": "",
+        "curl": "curl -i -X GET 'https://net11.cc/rest/user/login'",
+        "created_at": "2026-06-04T17:29:44.574365+00:00",
+        "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+      },
+      "finding_index": 2
+    },
+    {
+      "detector": "advanced_server",
+      "severity": "medium",
+      "url": "https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8d35eacdc4d",
+      "evidence": "Cache poisoning candidate requires header and key normalization validation",
+      "recommendation": "Validate this server-side surface with scoped safe replay, strict allowlists, canonicalization, and monitoring.",
+      "confidence": "medium",
+      "parameter": null,
+      "payload": null,
+      "method": "get",
+      "category": "cache-poisoning",
+      "baseline_status": null,
+      "mutated_status": null,
+      "baseline_length": null,
+      "mutated_length": null,
+      "reason": "Server-side attack surface heuristic",
+      "input_location": null,
+      "reflection_context": null,
+      "dom_observation": null,
+      "confidence_score": null,
+      "validation_signals": null,
+      "request_snapshot": null,
+      "response_snapshot": null,
+      "cwe_id": "CWE-693",
+      "cwe_title": "Protection Mechanism Failure",
+      "cvss_score": 6.1,
+      "remediation_priority": "P2",
+      "poc": "GET https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8d35eacdc4d with parameter - using payload -",
+      "validation_state": "requires-review",
+      "owasp_category": "Unknown",
+      "code_snippet": "",
+      "replay_plan": {
+        "method": "GET",
+        "url": "https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8d35eacdc4d",
+        "parameter": "",
+        "payload": "",
+        "curl": "curl -i -X GET 'https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8d35eacdc4d'",
+        "created_at": "2026-06-04T17:29:44.574368+00:00",
+        "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+      },
+      "finding_index": 3
+    },
+    {
+      "detector": "advanced_server",
+      "severity": "medium",
+      "url": "https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8db7ee20e50",
+      "evidence": "Cache poisoning candidate requires header and key normalization validation",
+      "recommendation": "Validate this server-side surface with scoped safe replay, strict allowlists, canonicalization, and monitoring.",
+      "confidence": "medium",
+      "parameter": null,
+      "payload": null,
+      "method": "get",
+      "category": "cache-poisoning",
+      "baseline_status": null,
+      "mutated_status": null,
+      "baseline_length": null,
+      "mutated_length": null,
+      "reason": "Server-side attack surface heuristic",
+      "input_location": null,
+      "reflection_context": null,
+      "dom_observation": null,
+      "confidence_score": null,
+      "validation_signals": null,
+      "request_snapshot": null,
+      "response_snapshot": null,
+      "cwe_id": "CWE-693",
+      "cwe_title": "Protection Mechanism Failure",
+      "cvss_score": 6.1,
+      "remediation_priority": "P2",
+      "poc": "GET https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8db7ee20e50 with parameter - using payload -",
+      "validation_state": "requires-review",
+      "owasp_category": "Unknown",
+      "code_snippet": "",
+      "replay_plan": {
+        "method": "GET",
+        "url": "https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8db7ee20e50",
+        "parameter": "",
+        "payload": "",
+        "curl": "curl -i -X GET 'https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8db7ee20e50'",
+        "created_at": "2026-06-04T17:29:44.574370+00:00",
+        "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+      },
+      "finding_index": 4
+    },
+    {
+      "detector": "advanced_server",
+      "severity": "medium",
+      "url": "https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8dff8ca9deb",
+      "evidence": "Cache poisoning candidate requires header and key normalization validation",
+      "recommendation": "Validate this server-side surface with scoped safe replay, strict allowlists, canonicalization, and monitoring.",
+      "confidence": "medium",
+      "parameter": null,
+      "payload": null,
+      "method": "get",
+      "category": "cache-poisoning",
+      "baseline_status": null,
+      "mutated_status": null,
+      "baseline_length": null,
+      "mutated_length": null,
+      "reason": "Server-side attack surface heuristic",
+      "input_location": null,
+      "reflection_context": null,
+      "dom_observation": null,
+      "confidence_score": null,
+      "validation_signals": null,
+      "request_snapshot": null,
+      "response_snapshot": null,
+      "cwe_id": "CWE-693",
+      "cwe_title": "Protection Mechanism Failure",
+      "cvss_score": 6.1,
+      "remediation_priority": "P2",
+      "poc": "GET https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8dff8ca9deb with parameter - using payload -",
+      "validation_state": "requires-review",
+      "owasp_category": "Unknown",
+      "code_snippet": "",
+      "replay_plan": {
+        "method": "GET",
+        "url": "https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8dff8ca9deb",
+        "parameter": "",
+        "payload": "",
+        "curl": "curl -i -X GET 'https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8dff8ca9deb'",
+        "created_at": "2026-06-04T17:29:44.574373+00:00",
+        "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+      },
+      "finding_index": 5
+    },
+    {
+      "detector": "advanced_server",
+      "severity": "medium",
+      "url": "https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8e3289f0e30",
+      "evidence": "Cache poisoning candidate requires header and key normalization validation",
+      "recommendation": "Validate this server-side surface with scoped safe replay, strict allowlists, canonicalization, and monitoring.",
+      "confidence": "medium",
+      "parameter": null,
+      "payload": null,
+      "method": "get",
+      "category": "cache-poisoning",
+      "baseline_status": null,
+      "mutated_status": null,
+      "baseline_length": null,
+      "mutated_length": null,
+      "reason": "Server-side attack surface heuristic",
+      "input_location": null,
+      "reflection_context": null,
+      "dom_observation": null,
+      "confidence_score": null,
+      "validation_signals": null,
+      "request_snapshot": null,
+      "response_snapshot": null,
+      "cwe_id": "CWE-693",
+      "cwe_title": "Protection Mechanism Failure",
+      "cvss_score": 6.1,
+      "remediation_priority": "P2",
+      "poc": "GET https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8e3289f0e30 with parameter - using payload -",
+      "validation_state": "requires-review",
+      "owasp_category": "Unknown",
+      "code_snippet": "",
+      "replay_plan": {
+        "method": "GET",
+        "url": "https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8e3289f0e30",
+        "parameter": "",
+        "payload": "",
+        "curl": "curl -i -X GET 'https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8e3289f0e30'",
+        "created_at": "2026-06-04T17:29:44.574375+00:00",
+        "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+      },
+      "finding_index": 6
+    }
+  ],
+  "replay_plans": [
+    {
+      "method": "POST",
+      "url": "https://net11.cc/rest/user/login",
+      "parameter": "",
+      "payload": "",
+      "curl": "curl -i -X POST 'https://net11.cc/rest/user/login'",
+      "created_at": "2026-06-04T17:29:44.574353+00:00",
+      "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+    },
+    {
+      "method": "GET",
+      "url": "https://net11.cc/rest/user/login",
+      "parameter": "",
+      "payload": "",
+      "curl": "curl -i -X GET 'https://net11.cc/rest/user/login'",
+      "created_at": "2026-06-04T17:29:44.574361+00:00",
+      "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+    },
+    {
+      "method": "GET",
+      "url": "https://net11.cc/rest/user/login",
+      "parameter": "",
+      "payload": "",
+      "curl": "curl -i -X GET 'https://net11.cc/rest/user/login'",
+      "created_at": "2026-06-04T17:29:44.574365+00:00",
+      "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+    },
+    {
+      "method": "GET",
+      "url": "https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8d35eacdc4d",
+      "parameter": "",
+      "payload": "",
+      "curl": "curl -i -X GET 'https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8d35eacdc4d'",
+      "created_at": "2026-06-04T17:29:44.574368+00:00",
+      "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+    },
+    {
+      "method": "GET",
+      "url": "https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8db7ee20e50",
+      "parameter": "",
+      "payload": "",
+      "curl": "curl -i -X GET 'https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8db7ee20e50'",
+      "created_at": "2026-06-04T17:29:44.574370+00:00",
+      "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+    },
+    {
+      "method": "GET",
+      "url": "https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8dff8ca9deb",
+      "parameter": "",
+      "payload": "",
+      "curl": "curl -i -X GET 'https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8dff8ca9deb'",
+      "created_at": "2026-06-04T17:29:44.574373+00:00",
+      "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+    },
+    {
+      "method": "GET",
+      "url": "https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8e3289f0e30",
+      "parameter": "",
+      "payload": "",
+      "curl": "curl -i -X GET 'https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8e3289f0e30'",
+      "created_at": "2026-06-04T17:29:44.574375+00:00",
+      "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+    }
+  ],
+  "attack_surface_inventory": {
+    "asset_count": 29,
+    "internet_facing_count": 29,
+    "high_risk_asset_count": 3,
+    "assets": [
+      {
+        "asset_id": "web:net11.cc",
+        "type": "web-app",
+        "name": "net11.cc",
+        "criticality": "high",
+        "exposure": "internet-facing"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/verify2",
+        "type": "page",
+        "name": "https://net11.cc/verify2",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8d35eacdc4d",
+        "type": "page",
+        "name": "https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8d35eacdc4d",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/verify2?__cf_chl_f_tk=WmSAjC3wPYbJ9b92eioB3QRp1czndE855i.UN.d0VVY-1780594163-1.0.1.1-VgVNkXNUKQ_wwORHZJTEAujHeNAsVFCBGCMcYsV_XDs",
+        "type": "page",
+        "name": "https://net11.cc/verify2?__cf_chl_f_tk=WmSAjC3wPYbJ9b92eioB3QRp1czndE855i.UN.d0VVY-1780594163-1.0.1.1-VgVNkXNUKQ_wwORHZJTEAujHeNAsVFCBGCMcYsV_XDs",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/verify2?__cf_chl_rt_tk=WmSAjC3wPYbJ9b92eioB3QRp1czndE855i.UN.d0VVY-1780594163-1.0.1.1-VgVNkXNUKQ_wwORHZJTEAujHeNAsVFCBGCMcYsV_XDs",
+        "type": "page",
+        "name": "https://net11.cc/verify2?__cf_chl_rt_tk=WmSAjC3wPYbJ9b92eioB3QRp1czndE855i.UN.d0VVY-1780594163-1.0.1.1-VgVNkXNUKQ_wwORHZJTEAujHeNAsVFCBGCMcYsV_XDs",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/verify2?__cf_chl_tk=WmSAjC3wPYbJ9b92eioB3QRp1czndE855i.UN.d0VVY-1780594163-1.0.1.1-VgVNkXNUKQ_wwORHZJTEAujHeNAsVFCBGCMcYsV_XDs",
+        "type": "page",
+        "name": "https://net11.cc/verify2?__cf_chl_tk=WmSAjC3wPYbJ9b92eioB3QRp1czndE855i.UN.d0VVY-1780594163-1.0.1.1-VgVNkXNUKQ_wwORHZJTEAujHeNAsVFCBGCMcYsV_XDs",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/3104501065:1780592430:nYbeUCxycNVcF3bDXufwr-pryCJvpNQVQyegLSm5Zv8/",
+        "type": "page",
+        "name": "https://net11.cc/3104501065:1780592430:nYbeUCxycNVcF3bDXufwr-pryCJvpNQVQyegLSm5Zv8/",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/8fc8ed1d8752/api.js?onload=NoWu9&render=explicit",
+        "type": "api",
+        "name": "https://net11.cc/8fc8ed1d8752/api.js?onload=NoWu9&render=explicit",
+        "criticality": "medium",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/b/ov1/3104501065:1780592430:nYbeUCxycNVcF3bDXufwr-pryCJvpNQVQyegLSm5Zv8/",
+        "type": "page",
+        "name": "https://net11.cc/b/ov1/3104501065:1780592430:nYbeUCxycNVcF3bDXufwr-pryCJvpNQVQyegLSm5Zv8/",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8db7ee20e50",
+        "type": "page",
+        "name": "https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8db7ee20e50",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/verify2?__cf_chl_f_tk=LMRd_HhVDbO3hJWCI9wwbQ3n6LBBPMpzS1Qd9BQGc9Q-1780594165-1.0.1.1-z0YRW53qpiOptVzkH5MhovYBbL.vgd0i8GVpVhO8ANA",
+        "type": "page",
+        "name": "https://net11.cc/verify2?__cf_chl_f_tk=LMRd_HhVDbO3hJWCI9wwbQ3n6LBBPMpzS1Qd9BQGc9Q-1780594165-1.0.1.1-z0YRW53qpiOptVzkH5MhovYBbL.vgd0i8GVpVhO8ANA",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/verify2?__cf_chl_rt_tk=LMRd_HhVDbO3hJWCI9wwbQ3n6LBBPMpzS1Qd9BQGc9Q-1780594165-1.0.1.1-z0YRW53qpiOptVzkH5MhovYBbL.vgd0i8GVpVhO8ANA",
+        "type": "page",
+        "name": "https://net11.cc/verify2?__cf_chl_rt_tk=LMRd_HhVDbO3hJWCI9wwbQ3n6LBBPMpzS1Qd9BQGc9Q-1780594165-1.0.1.1-z0YRW53qpiOptVzkH5MhovYBbL.vgd0i8GVpVhO8ANA",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/verify2?__cf_chl_tk=LMRd_HhVDbO3hJWCI9wwbQ3n6LBBPMpzS1Qd9BQGc9Q-1780594165-1.0.1.1-z0YRW53qpiOptVzkH5MhovYBbL.vgd0i8GVpVhO8ANA",
+        "type": "page",
+        "name": "https://net11.cc/verify2?__cf_chl_tk=LMRd_HhVDbO3hJWCI9wwbQ3n6LBBPMpzS1Qd9BQGc9Q-1780594165-1.0.1.1-z0YRW53qpiOptVzkH5MhovYBbL.vgd0i8GVpVhO8ANA",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8dff8ca9deb",
+        "type": "page",
+        "name": "https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8dff8ca9deb",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/verify2?__cf_chl_f_tk=JEKyMNCJYAMjnHJbl0vh0PmP62GhuuxXtKUJrNSKbVE-1780594165-1.0.1.1-CQwncmIfSgtHfYelq2aQGW05caMzksB_dHr9Hc.cniw",
+        "type": "page",
+        "name": "https://net11.cc/verify2?__cf_chl_f_tk=JEKyMNCJYAMjnHJbl0vh0PmP62GhuuxXtKUJrNSKbVE-1780594165-1.0.1.1-CQwncmIfSgtHfYelq2aQGW05caMzksB_dHr9Hc.cniw",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/verify2?__cf_chl_rt_tk=JEKyMNCJYAMjnHJbl0vh0PmP62GhuuxXtKUJrNSKbVE-1780594165-1.0.1.1-CQwncmIfSgtHfYelq2aQGW05caMzksB_dHr9Hc.cniw",
+        "type": "page",
+        "name": "https://net11.cc/verify2?__cf_chl_rt_tk=JEKyMNCJYAMjnHJbl0vh0PmP62GhuuxXtKUJrNSKbVE-1780594165-1.0.1.1-CQwncmIfSgtHfYelq2aQGW05caMzksB_dHr9Hc.cniw",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/verify2?__cf_chl_tk=JEKyMNCJYAMjnHJbl0vh0PmP62GhuuxXtKUJrNSKbVE-1780594165-1.0.1.1-CQwncmIfSgtHfYelq2aQGW05caMzksB_dHr9Hc.cniw",
+        "type": "page",
+        "name": "https://net11.cc/verify2?__cf_chl_tk=JEKyMNCJYAMjnHJbl0vh0PmP62GhuuxXtKUJrNSKbVE-1780594165-1.0.1.1-CQwncmIfSgtHfYelq2aQGW05caMzksB_dHr9Hc.cniw",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8e3289f0e30",
+        "type": "page",
+        "name": "https://net11.cc/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a068a8e3289f0e30",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/verify2?__cf_chl_f_tk=bk1zofXse0lgR2.4vVj_4SV70igT0EVodzQztexun.o-1780594166-1.0.1.1-xiWrFuSn6ShBP4DFbmPcxwR88Cl54XJ_G0QT_CPig74",
+        "type": "page",
+        "name": "https://net11.cc/verify2?__cf_chl_f_tk=bk1zofXse0lgR2.4vVj_4SV70igT0EVodzQztexun.o-1780594166-1.0.1.1-xiWrFuSn6ShBP4DFbmPcxwR88Cl54XJ_G0QT_CPig74",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/verify2?__cf_chl_rt_tk=bk1zofXse0lgR2.4vVj_4SV70igT0EVodzQztexun.o-1780594166-1.0.1.1-xiWrFuSn6ShBP4DFbmPcxwR88Cl54XJ_G0QT_CPig74",
+        "type": "page",
+        "name": "https://net11.cc/verify2?__cf_chl_rt_tk=bk1zofXse0lgR2.4vVj_4SV70igT0EVodzQztexun.o-1780594166-1.0.1.1-xiWrFuSn6ShBP4DFbmPcxwR88Cl54XJ_G0QT_CPig74",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/verify2?__cf_chl_tk=bk1zofXse0lgR2.4vVj_4SV70igT0EVodzQztexun.o-1780594166-1.0.1.1-xiWrFuSn6ShBP4DFbmPcxwR88Cl54XJ_G0QT_CPig74",
+        "type": "page",
+        "name": "https://net11.cc/verify2?__cf_chl_tk=bk1zofXse0lgR2.4vVj_4SV70igT0EVodzQztexun.o-1780594166-1.0.1.1-xiWrFuSn6ShBP4DFbmPcxwR88Cl54XJ_G0QT_CPig74",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/api",
+        "type": "api",
+        "name": "https://net11.cc/api",
+        "criticality": "medium",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/rest",
+        "type": "api",
+        "name": "https://net11.cc/rest",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/api/Products",
+        "type": "api",
+        "name": "https://net11.cc/api/Products",
+        "criticality": "medium",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/rest/products",
+        "type": "api",
+        "name": "https://net11.cc/rest/products",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/rest/products/search?q=apple",
+        "type": "api",
+        "name": "https://net11.cc/rest/products/search?q=apple",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/rest/user/login",
+        "type": "api",
+        "name": "https://net11.cc/rest/user/login",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/graphql",
+        "type": "graphql",
+        "name": "https://net11.cc/graphql",
+        "criticality": "high",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://net11.cc/api/graphql",
+        "type": "graphql",
+        "name": "https://net11.cc/api/graphql",
+        "criticality": "high",
+        "exposure": "public-http"
+      }
+    ],
+    "exposure_timeline": [
+      {
+        "scan_id": "a268e8a3-67ea-4af9-a082-cbe6d604d743",
+        "finished_at": "2026-06-04T17:29:46.565745+00:00",
+        "asset_count": 29,
+        "finding_count": 7
+      }
+    ],
+    "drift": {
+      "status": "baseline-created",
+      "new_assets": 29,
+      "removed_assets": 0
+    }
+  },
+  "api_security_summary": {
+    "rest_endpoint_count": 7,
+    "graphql_endpoint_count": 0,
+    "schema_fuzz_probe_count": 1,
+    "schema_learning": {
+      "openapi_detected": false,
+      "swagger_detected": false,
+      "graphql_introspection_candidate": false
+    },
+    "risk_tests": [
+      "BOLA/IDOR differential checks",
+      "mass-assignment candidate modeling",
+      "API auth bypass probes",
+      "rate-limit posture checks",
+      "undocumented endpoint discovery"
+    ],
+    "undocumented_endpoint_count": 7,
+    "undocumented_endpoint_samples": [
+      {
+        "type": "api",
+        "url": "https://net11.cc/8fc8ed1d8752/api.js?onload=NoWu9&render=explicit",
+        "method": "get",
+        "source": "bundle-candidate",
+        "query_params": [],
+        "schema_fields": [],
+        "status_code": null,
+        "content_type": ""
+      },
+      {
+        "type": "api",
+        "url": "https://net11.cc/api",
+        "method": "get",
+        "source": "common-probe",
+        "query_params": [],
+        "schema_fields": [],
+        "status_code": 404,
+        "content_type": "text/html; charset=iso-8859-1"
+      },
+      {
+        "type": "api",
+        "url": "https://net11.cc/rest",
+        "method": "get",
+        "source": "common-probe",
+        "query_params": [],
+        "schema_fields": [],
+        "status_code": 404,
+        "content_type": "text/html; charset=iso-8859-1"
+      },
+      {
+        "type": "api",
+        "url": "https://net11.cc/api/Products",
+        "method": "get",
+        "source": "common-probe",
+        "query_params": [],
+        "schema_fields": [],
+        "status_code": 404,
+        "content_type": "text/html; charset=iso-8859-1"
+      },
+      {
+        "type": "api",
+        "url": "https://net11.cc/rest/products",
+        "method": "get",
+        "source": "common-probe",
+        "query_params": [],
+        "schema_fields": [],
+        "status_code": 404,
+        "content_type": "text/html; charset=iso-8859-1"
+      },
+      {
+        "type": "api",
+        "url": "https://net11.cc/rest/products/search?q=apple",
+        "method": "get",
+        "source": "common-probe",
+        "query_params": [
+          "q"
+        ],
+        "schema_fields": [],
+        "status_code": 404,
+        "content_type": "text/html; charset=iso-8859-1"
+      },
+      {
+        "type": "api",
+        "url": "https://net11.cc/rest/user/login",
+        "method": "post",
+        "source": "common-probe",
+        "query_params": [],
+        "schema_fields": [],
+        "status_code": 200,
+        "content_type": ""
+      }
+    ],
+    "sensitive_endpoint_count": 0,
+    "sensitivity_score": 14,
+    "sensitive_endpoint_samples": [
+      {
+        "url": "https://net11.cc/rest/user/login",
+        "type": "api",
+        "score": 36,
+        "reasons": [
+          "user",
+          "state-changing"
+        ]
+      },
+      {
+        "url": "https://net11.cc/8fc8ed1d8752/api.js?onload=NoWu9&render=explicit",
+        "type": "api",
+        "score": 10,
+        "reasons": [
+          "generic-api"
+        ]
+      },
+      {
+        "url": "https://net11.cc/api",
+        "type": "api",
+        "score": 10,
+        "reasons": [
+          "generic-api"
+        ]
+      },
+      {
+        "url": "https://net11.cc/rest",
+        "type": "api",
+        "score": 10,
+        "reasons": [
+          "generic-api"
+        ]
+      },
+      {
+        "url": "https://net11.cc/api/Products",
+        "type": "api",
+        "score": 10,
+        "reasons": [
+          "generic-api"
+        ]
+      },
+      {
+        "url": "https://net11.cc/rest/products",
+        "type": "api",
+        "score": 10,
+        "reasons": [
+          "generic-api"
+        ]
+      },
+      {
+        "url": "https://net11.cc/rest/products/search?q=apple",
+        "type": "api",
+        "score": 10,
+        "reasons": [
+          "generic-api"
+        ]
+      }
+    ]
+  },
+  "validation_summary": {
+    "validated_count": 0,
+    "requires_review_count": 7,
+    "validation_cache_keys": [
+      "0893265f640e21d72278",
+      "17ace0fa499e62101a9c",
+      "17ace0fa499e62101a9c",
+      "32fcc692f496d617decd",
+      "e0824517db0f757a72cb",
+      "8f86cfaa8afb15c95108",
+      "a4c1bce1ef17cfe13371"
+    ],
+    "average_exploit_proof_score": 0.3,
+    "high_proof_count": 0,
+    "anomaly_clusters": [
+      {
+        "cluster": "cache-poisoning",
+        "finding_count": 4
+      },
+      {
+        "cluster": "form-field",
+        "finding_count": 1
+      },
+      {
+        "cluster": "mfa-session",
+        "finding_count": 1
+      },
+      {
+        "cluster": "idor",
+        "finding_count": 1
+      }
+    ],
+    "engines": [
+      "response-diff",
+      "timing-analysis",
+      "anomaly-analysis",
+      "safe-replay"
+    ],
+    "false_positive_reduction": "confidence-weighted validation with replayable evidence bundles",
+    "safe_replay_runner": {
+      "mode": "manual-confirmation",
+      "cache": "deduplicated by detector/url/parameter/payload",
+      "verification": "baseline and mutated response comparison with timing and content-length deltas"
+    }
+  },
+  "compliance_summary": {
+    "frameworks": [
+      {
+        "framework": "OWASP ASVS",
+        "controls": [
+          "V5",
+          "V7",
+          "V10",
+          "V14"
+        ],
+        "mapped_findings": 7
+      },
+      {
+        "framework": "OWASP Top 10",
+        "controls": [
+          "A01",
+          "A03",
+          "A05",
+          "A07"
+        ],
+        "mapped_findings": 7
+      },
+      {
+        "framework": "PCI DSS 4.0",
+        "controls": [
+          "6.2",
+          "6.3",
+          "6.4",
+          "11.3"
+        ],
+        "mapped_findings": 7
+      },
+      {
+        "framework": "ISO 27001",
+        "controls": [
+          "A.8.8",
+          "A.8.16",
+          "A.8.28"
+        ],
+        "mapped_findings": 7
+      },
+      {
+        "framework": "NIST CSF",
+        "controls": [
+          "ID.RA",
+          "DE.CM",
+          "RS.AN"
+        ],
+        "mapped_findings": 7
+      }
+    ],
+    "mapped_finding_count": 7,
+    "evidence_bundle_ready": true,
+    "mapped_findings": [
+      {
+        "title": "csrf",
+        "severity": "medium",
+        "cwe": "CWE-352",
+        "frameworks": {
+          "OWASP ASVS": [
+            "V5",
+            "V7",
+            "V10",
+            "V14"
+          ],
+          "OWASP Top 10": [
+            "A01",
+            "A03",
+            "A05",
+            "A07"
+          ],
+          "PCI DSS 4.0": [
+            "6.2",
+            "6.3",
+            "6.4",
+            "11.3"
+          ],
+          "ISO 27001": [
+            "A.8.8",
+            "A.8.16",
+            "A.8.28"
+          ],
+          "NIST CSF": [
+            "ID.RA",
+            "DE.CM",
+            "RS.AN"
+          ]
+        }
+      },
+      {
+        "title": "advanced_auth",
+        "severity": "medium",
+        "cwe": "CWE-693",
+        "frameworks": {
+          "OWASP ASVS": [
+            "V5",
+            "V7",
+            "V10",
+            "V14"
+          ],
+          "OWASP Top 10": [
+            "A01",
+            "A03",
+            "A05",
+            "A07"
+          ],
+          "PCI DSS 4.0": [
+            "6.2",
+            "6.3",
+            "6.4",
+            "11.3"
+          ],
+          "ISO 27001": [
+            "A.8.8",
+            "A.8.16",
+            "A.8.28"
+          ],
+          "NIST CSF": [
+            "ID.RA",
+            "DE.CM",
+            "RS.AN"
+          ]
+        }
+      },
+      {
+        "title": "advanced_auth",
+        "severity": "high",
+        "cwe": "CWE-693",
+        "frameworks": {
+          "OWASP ASVS": [
+            "V5",
+            "V7",
+            "V10",
+            "V14"
+          ],
+          "OWASP Top 10": [
+            "A01",
+            "A03",
+            "A05",
+            "A07"
+          ],
+          "PCI DSS 4.0": [
+            "6.2",
+            "6.3",
+            "6.4",
+            "11.3"
+          ],
+          "ISO 27001": [
+            "A.8.8",
+            "A.8.16",
+            "A.8.28"
+          ],
+          "NIST CSF": [
+            "ID.RA",
+            "DE.CM",
+            "RS.AN"
+          ]
+        }
+      },
+      {
+        "title": "advanced_server",
+        "severity": "medium",
+        "cwe": "CWE-693",
+        "frameworks": {
+          "OWASP ASVS": [
+            "V5",
+            "V7",
+            "V10",
+            "V14"
+          ],
+          "OWASP Top 10": [
+            "A01",
+            "A03",
+            "A05",
+            "A07"
+          ],
+          "PCI DSS 4.0": [
+            "6.2",
+            "6.3",
+            "6.4",
+            "11.3"
+          ],
+          "ISO 27001": [
+            "A.8.8",
+            "A.8.16",
+            "A.8.28"
+          ],
+          "NIST CSF": [
+            "ID.RA",
+            "DE.CM",
+            "RS.AN"
+          ]
+        }
+      },
+      {
+        "title": "advanced_server",
+        "severity": "medium",
+        "cwe": "CWE-693",
+        "frameworks": {
+          "OWASP ASVS": [
+            "V5",
+            "V7",
+            "V10",
+            "V14"
+          ],
+          "OWASP Top 10": [
+            "A01",
+            "A03",
+            "A05",
+            "A07"
+          ],
+          "PCI DSS 4.0": [
+            "6.2",
+            "6.3",
+            "6.4",
+            "11.3"
+          ],
+          "ISO 27001": [
+            "A.8.8",
+            "A.8.16",
+            "A.8.28"
+          ],
+          "NIST CSF": [
+            "ID.RA",
+            "DE.CM",
+            "RS.AN"
+          ]
+        }
+      },
+      {
+        "title": "advanced_server",
+        "severity": "medium",
+        "cwe": "CWE-693",
+        "frameworks": {
+          "OWASP ASVS": [
+            "V5",
+            "V7",
+            "V10",
+            "V14"
+          ],
+          "OWASP Top 10": [
+            "A01",
+            "A03",
+            "A05",
+            "A07"
+          ],
+          "PCI DSS 4.0": [
+            "6.2",
+            "6.3",
+            "6.4",
+            "11.3"
+          ],
+          "ISO 27001": [
+            "A.8.8",
+            "A.8.16",
+            "A.8.28"
+          ],
+          "NIST CSF": [
+            "ID.RA",
+            "DE.CM",
+            "RS.AN"
+          ]
+        }
+      },
+      {
+        "title": "advanced_server",
+        "severity": "medium",
+        "cwe": "CWE-693",
+        "frameworks": {
+          "OWASP ASVS": [
+            "V5",
+            "V7",
+            "V10",
+            "V14"
+          ],
+          "OWASP Top 10": [
+            "A01",
+            "A03",
+            "A05",
+            "A07"
+          ],
+          "PCI DSS 4.0": [
+            "6.2",
+            "6.3",
+            "6.4",
+            "11.3"
+          ],
+          "ISO 27001": [
+            "A.8.8",
+            "A.8.16",
+            "A.8.28"
+          ],
+          "NIST CSF": [
+            "ID.RA",
+            "DE.CM",
+            "RS.AN"
+          ]
+        }
+      }
+    ]
+  },
+  "ai_risk_summary": {
+    "prioritized_finding_count": 7,
+    "high_exploitability_count": 1,
+    "top_findings": [
+      {
+        "detector": "advanced_auth",
+        "severity": "high",
+        "url": "https://net11.cc/rest/user/login",
+        "evidence": "IDOR/BOLA candidate requires role-differential authorization validation",
+        "recommendation": "Enforce server-side authorization, strong session lifecycle controls, MFA policy, and role-based regression tests.",
+        "confidence": "medium",
+        "parameter": null,
+        "payload": null,
+        "method": "get",
+        "category": "idor",
+        "baseline_status": null,
+        "mutated_status": null,
+        "baseline_length": null,
+        "mutated_length": null,
+        "reason": "Authenticated workflow heuristic",
+        "input_location": null,
+        "reflection_context": null,
+        "dom_observation": null,
+        "confidence_score": null,
+        "validation_signals": null,
+        "request_snapshot": null,
+        "response_snapshot": null,
+        "cwe_id": "CWE-693",
+        "cwe_title": "Protection Mechanism Failure",
+        "cvss_score": 8.7,
+        "remediation_priority": "P1",
+        "poc": "GET https://net11.cc/rest/user/login with parameter - using payload -",
+        "validation_state": "requires-review",
+        "owasp_category": "Unknown",
+        "code_snippet": "",
+        "replay_plan": {
+          "method": "GET",
+          "url": "https://net11.cc/rest/user/login",
+          "parameter": "",
+          "payload": "",
+          "curl": "curl -i -X GET 'https://net11.cc/rest/user/login'",
+          "created_at": "2026-06-04T17:29:44.574365+00:00",
+          "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+        },
+        "finding_index": 2,
+        "exploitability": {
+          "score": 0.87,
+          "label": "likely exploitable"
+        }
+      }
+    ],
+    "attack_chain_hypotheses": [
+      {
+        "name": "public-critical-asset-exposure",
+        "confidence": "medium",
+        "steps": [
+          "internet-facing asset",
+          "validated finding",
+          "remediation workflow"
+        ]
+      }
+    ],
+    "deduplication": {
+      "strategy": "detector-url-parameter-payload hash clustering",
+      "cluster_count": 6
+    }
+  },
+  "telemetry_summary": {
+    "status": "completed",
+    "duration_ms": 26794.57,
+    "events": [
+      {
+        "phase": "startup",
+        "message": "Target reachable and scan initialized",
+        "progress": 5,
+        "timestamp": "2026-06-04T17:29:21.375844+00:00"
+      },
+      {
+        "phase": "crawl",
+        "message": "Mapped 5 pages, 3 forms, and 28 endpoints",
+        "progress": 30,
+        "timestamp": "2026-06-04T17:29:32.297868+00:00"
+      },
+      {
+        "phase": "validation",
+        "message": "Validated 7 candidate findings",
+        "progress": 88,
+        "timestamp": "2026-06-04T17:29:44.574188+00:00"
+      },
+      {
+        "phase": "recon",
+        "message": "Passive recon, endpoint risk, TLS, and low-impact discovery completed",
+        "progress": 92,
+        "timestamp": "2026-06-04T17:29:46.564732+00:00"
+      }
+    ],
+    "detector_timings": [
+      {
+        "detector": "sqli",
+        "elapsed_ms": 1975.03,
+        "finding_count": 0
+      },
+      {
+        "detector": "xss",
+        "elapsed_ms": 7252.1,
+        "finding_count": 0
+      },
+      {
+        "detector": "csrf",
+        "elapsed_ms": 0.08,
+        "finding_count": 1
+      },
+      {
+        "detector": "auth_bypass",
+        "elapsed_ms": 876.54,
+        "finding_count": 0
+      },
+      {
+        "detector": "advanced_surface",
+        "elapsed_ms": 1.12,
+        "finding_count": 0
+      },
+      {
+        "detector": "advanced_injection",
+        "elapsed_ms": 0.96,
+        "finding_count": 0
+      },
+      {
+        "detector": "advanced_client",
+        "elapsed_ms": 0.65,
+        "finding_count": 0
+      },
+      {
+        "detector": "advanced_auth",
+        "elapsed_ms": 0.8,
+        "finding_count": 2
+      },
+      {
+        "detector": "advanced_server",
+        "elapsed_ms": 0.39,
+        "finding_count": 4
+      }
+    ],
+    "throughput": {
+      "pages": 5,
+      "endpoints": 28,
+      "schema_probes": 1
+    },
+    "live_channels": [
+      "/api/ws/scans",
+      "/api/ws/scans/a268e8a3-67ea-4af9-a082-cbe6d604d743"
+    ]
+  }
+}

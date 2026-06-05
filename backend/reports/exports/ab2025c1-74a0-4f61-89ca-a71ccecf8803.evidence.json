@@ -1,0 +1,755 @@
+{
+  "scan_id": "ab2025c1-74a0-4f61-89ca-a71ccecf8803",
+  "target_url": "https://music.youtube.com/",
+  "summary": {
+    "page_count": 1,
+    "form_count": 3,
+    "endpoint_count": 9,
+    "finding_count": 3,
+    "high_severity_count": 1,
+    "medium_severity_count": 2,
+    "low_severity_count": 0,
+    "validated_finding_count": 0,
+    "passive_security_score": 78,
+    "open_port_count": 0,
+    "high_risk_endpoint_count": 3,
+    "api_endpoint_count": 6,
+    "graphql_endpoint_count": 2,
+    "schema_modeled_endpoint_count": 2,
+    "schema_fuzz_probe_count": 5,
+    "duration_ms": 15256.21
+  },
+  "findings": [
+    {
+      "detector": "csrf",
+      "severity": "medium",
+      "url": "https://music.youtube.com/rest/user/login",
+      "evidence": "POST form does not expose an obvious CSRF token field",
+      "recommendation": "Add per-request CSRF tokens and validate them server-side.",
+      "confidence": "medium",
+      "parameter": null,
+      "payload": null,
+      "method": "post",
+      "category": "form-field",
+      "baseline_status": null,
+      "mutated_status": null,
+      "baseline_length": null,
+      "mutated_length": null,
+      "reason": null,
+      "input_location": null,
+      "reflection_context": null,
+      "dom_observation": null,
+      "confidence_score": null,
+      "validation_signals": null,
+      "request_snapshot": null,
+      "response_snapshot": null,
+      "cwe_id": "CWE-352",
+      "cwe_title": "Cross-Site Request Forgery",
+      "cvss_score": 6.1,
+      "remediation_priority": "P2",
+      "poc": "POST https://music.youtube.com/rest/user/login with parameter - using payload -",
+      "validation_state": "requires-review",
+      "owasp_category": "Unknown",
+      "code_snippet": "",
+      "replay_plan": {
+        "method": "POST",
+        "url": "https://music.youtube.com/rest/user/login",
+        "parameter": "",
+        "payload": "",
+        "curl": "curl -i -X POST 'https://music.youtube.com/rest/user/login'",
+        "created_at": "2026-05-28T05:17:36.177794+00:00",
+        "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+      },
+      "finding_index": 0
+    },
+    {
+      "detector": "advanced_auth",
+      "severity": "medium",
+      "url": "https://music.youtube.com/rest/user/login",
+      "evidence": "Login flow requires MFA, brute-force, session fixation, and CSRF validation",
+      "recommendation": "Enforce server-side authorization, strong session lifecycle controls, MFA policy, and role-based regression tests.",
+      "confidence": "medium",
+      "parameter": null,
+      "payload": null,
+      "method": "get",
+      "category": "mfa-session",
+      "baseline_status": null,
+      "mutated_status": null,
+      "baseline_length": null,
+      "mutated_length": null,
+      "reason": "Authenticated workflow heuristic",
+      "input_location": null,
+      "reflection_context": null,
+      "dom_observation": null,
+      "confidence_score": null,
+      "validation_signals": null,
+      "request_snapshot": null,
+      "response_snapshot": null,
+      "cwe_id": "CWE-693",
+      "cwe_title": "Protection Mechanism Failure",
+      "cvss_score": 6.1,
+      "remediation_priority": "P2",
+      "poc": "GET https://music.youtube.com/rest/user/login with parameter - using payload -",
+      "validation_state": "requires-review",
+      "owasp_category": "Unknown",
+      "code_snippet": "",
+      "replay_plan": {
+        "method": "GET",
+        "url": "https://music.youtube.com/rest/user/login",
+        "parameter": "",
+        "payload": "",
+        "curl": "curl -i -X GET 'https://music.youtube.com/rest/user/login'",
+        "created_at": "2026-05-28T05:17:36.177806+00:00",
+        "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+      },
+      "finding_index": 1
+    },
+    {
+      "detector": "advanced_auth",
+      "severity": "high",
+      "url": "https://music.youtube.com/rest/user/login",
+      "evidence": "IDOR/BOLA candidate requires role-differential authorization validation",
+      "recommendation": "Enforce server-side authorization, strong session lifecycle controls, MFA policy, and role-based regression tests.",
+      "confidence": "medium",
+      "parameter": null,
+      "payload": null,
+      "method": "get",
+      "category": "idor",
+      "baseline_status": null,
+      "mutated_status": null,
+      "baseline_length": null,
+      "mutated_length": null,
+      "reason": "Authenticated workflow heuristic",
+      "input_location": null,
+      "reflection_context": null,
+      "dom_observation": null,
+      "confidence_score": null,
+      "validation_signals": null,
+      "request_snapshot": null,
+      "response_snapshot": null,
+      "cwe_id": "CWE-693",
+      "cwe_title": "Protection Mechanism Failure",
+      "cvss_score": 8.7,
+      "remediation_priority": "P1",
+      "poc": "GET https://music.youtube.com/rest/user/login with parameter - using payload -",
+      "validation_state": "requires-review",
+      "owasp_category": "Unknown",
+      "code_snippet": "",
+      "replay_plan": {
+        "method": "GET",
+        "url": "https://music.youtube.com/rest/user/login",
+        "parameter": "",
+        "payload": "",
+        "curl": "curl -i -X GET 'https://music.youtube.com/rest/user/login'",
+        "created_at": "2026-05-28T05:17:36.177813+00:00",
+        "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+      },
+      "finding_index": 2
+    }
+  ],
+  "replay_plans": [
+    {
+      "method": "POST",
+      "url": "https://music.youtube.com/rest/user/login",
+      "parameter": "",
+      "payload": "",
+      "curl": "curl -i -X POST 'https://music.youtube.com/rest/user/login'",
+      "created_at": "2026-05-28T05:17:36.177794+00:00",
+      "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+    },
+    {
+      "method": "GET",
+      "url": "https://music.youtube.com/rest/user/login",
+      "parameter": "",
+      "payload": "",
+      "curl": "curl -i -X GET 'https://music.youtube.com/rest/user/login'",
+      "created_at": "2026-05-28T05:17:36.177806+00:00",
+      "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+    },
+    {
+      "method": "GET",
+      "url": "https://music.youtube.com/rest/user/login",
+      "parameter": "",
+      "payload": "",
+      "curl": "curl -i -X GET 'https://music.youtube.com/rest/user/login'",
+      "created_at": "2026-05-28T05:17:36.177813+00:00",
+      "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+    }
+  ],
+  "attack_surface_inventory": {
+    "asset_count": 10,
+    "internet_facing_count": 10,
+    "high_risk_asset_count": 3,
+    "assets": [
+      {
+        "asset_id": "web:music.youtube.com",
+        "type": "web-app",
+        "name": "music.youtube.com",
+        "criticality": "high",
+        "exposure": "internet-facing"
+      },
+      {
+        "asset_id": "endpoint:https://music.youtube.com/",
+        "type": "page",
+        "name": "https://music.youtube.com/",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://music.youtube.com/api",
+        "type": "api",
+        "name": "https://music.youtube.com/api",
+        "criticality": "medium",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://music.youtube.com/rest",
+        "type": "api",
+        "name": "https://music.youtube.com/rest",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://music.youtube.com/api/Products",
+        "type": "api",
+        "name": "https://music.youtube.com/api/Products",
+        "criticality": "medium",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://music.youtube.com/rest/products",
+        "type": "api",
+        "name": "https://music.youtube.com/rest/products",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://music.youtube.com/rest/products/search?q=apple",
+        "type": "api",
+        "name": "https://music.youtube.com/rest/products/search?q=apple",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://music.youtube.com/rest/user/login",
+        "type": "api",
+        "name": "https://music.youtube.com/rest/user/login",
+        "criticality": "low",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://music.youtube.com/graphql",
+        "type": "graphql",
+        "name": "https://music.youtube.com/graphql",
+        "criticality": "high",
+        "exposure": "public-http"
+      },
+      {
+        "asset_id": "endpoint:https://music.youtube.com/api/graphql",
+        "type": "graphql",
+        "name": "https://music.youtube.com/api/graphql",
+        "criticality": "high",
+        "exposure": "public-http"
+      }
+    ],
+    "exposure_timeline": [
+      {
+        "scan_id": "ab2025c1-74a0-4f61-89ca-a71ccecf8803",
+        "finished_at": "2026-05-28T05:17:37.369293+00:00",
+        "asset_count": 10,
+        "finding_count": 3
+      }
+    ],
+    "drift": {
+      "status": "baseline-created",
+      "new_assets": 10,
+      "removed_assets": 0
+    }
+  },
+  "api_security_summary": {
+    "rest_endpoint_count": 6,
+    "graphql_endpoint_count": 0,
+    "schema_fuzz_probe_count": 5,
+    "schema_learning": {
+      "openapi_detected": false,
+      "swagger_detected": false,
+      "graphql_introspection_candidate": false
+    },
+    "risk_tests": [
+      "BOLA/IDOR differential checks",
+      "mass-assignment candidate modeling",
+      "API auth bypass probes",
+      "rate-limit posture checks",
+      "undocumented endpoint discovery"
+    ],
+    "undocumented_endpoint_count": 6,
+    "undocumented_endpoint_samples": [
+      {
+        "type": "api",
+        "url": "https://music.youtube.com/api",
+        "method": "get",
+        "source": "common-probe",
+        "query_params": [],
+        "schema_fields": [],
+        "status_code": 200,
+        "content_type": "text/html; charset=utf-8"
+      },
+      {
+        "type": "api",
+        "url": "https://music.youtube.com/rest",
+        "method": "get",
+        "source": "common-probe",
+        "query_params": [],
+        "schema_fields": [],
+        "status_code": 200,
+        "content_type": "text/html; charset=utf-8"
+      },
+      {
+        "type": "api",
+        "url": "https://music.youtube.com/api/Products",
+        "method": "get",
+        "source": "common-probe",
+        "query_params": [],
+        "schema_fields": [],
+        "status_code": 200,
+        "content_type": "text/html; charset=utf-8"
+      },
+      {
+        "type": "api",
+        "url": "https://music.youtube.com/rest/products",
+        "method": "get",
+        "source": "common-probe",
+        "query_params": [],
+        "schema_fields": [],
+        "status_code": 200,
+        "content_type": "text/html; charset=utf-8"
+      },
+      {
+        "type": "api",
+        "url": "https://music.youtube.com/rest/products/search?q=apple",
+        "method": "get",
+        "source": "common-probe",
+        "query_params": [
+          "q"
+        ],
+        "schema_fields": [],
+        "status_code": 200,
+        "content_type": "text/html; charset=utf-8"
+      },
+      {
+        "type": "api",
+        "url": "https://music.youtube.com/rest/user/login",
+        "method": "post",
+        "source": "common-probe",
+        "query_params": [],
+        "schema_fields": [],
+        "status_code": 405,
+        "content_type": "text/html; charset=UTF-8"
+      }
+    ],
+    "sensitive_endpoint_count": 0,
+    "sensitivity_score": 14,
+    "sensitive_endpoint_samples": [
+      {
+        "url": "https://music.youtube.com/rest/user/login",
+        "type": "api",
+        "score": 36,
+        "reasons": [
+          "user",
+          "state-changing"
+        ]
+      },
+      {
+        "url": "https://music.youtube.com/api",
+        "type": "api",
+        "score": 10,
+        "reasons": [
+          "generic-api"
+        ]
+      },
+      {
+        "url": "https://music.youtube.com/rest",
+        "type": "api",
+        "score": 10,
+        "reasons": [
+          "generic-api"
+        ]
+      },
+      {
+        "url": "https://music.youtube.com/api/Products",
+        "type": "api",
+        "score": 10,
+        "reasons": [
+          "generic-api"
+        ]
+      },
+      {
+        "url": "https://music.youtube.com/rest/products",
+        "type": "api",
+        "score": 10,
+        "reasons": [
+          "generic-api"
+        ]
+      },
+      {
+        "url": "https://music.youtube.com/rest/products/search?q=apple",
+        "type": "api",
+        "score": 10,
+        "reasons": [
+          "generic-api"
+        ]
+      }
+    ]
+  },
+  "validation_summary": {
+    "validated_count": 0,
+    "requires_review_count": 3,
+    "validation_cache_keys": [
+      "38c1843299432bb27e1f",
+      "1fd2794d1f5a8c3c56f3",
+      "1fd2794d1f5a8c3c56f3"
+    ],
+    "average_exploit_proof_score": 0.3,
+    "high_proof_count": 0,
+    "anomaly_clusters": [
+      {
+        "cluster": "form-field",
+        "finding_count": 1
+      },
+      {
+        "cluster": "mfa-session",
+        "finding_count": 1
+      },
+      {
+        "cluster": "idor",
+        "finding_count": 1
+      }
+    ],
+    "engines": [
+      "response-diff",
+      "timing-analysis",
+      "anomaly-analysis",
+      "safe-replay"
+    ],
+    "false_positive_reduction": "confidence-weighted validation with replayable evidence bundles",
+    "safe_replay_runner": {
+      "mode": "manual-confirmation",
+      "cache": "deduplicated by detector/url/parameter/payload",
+      "verification": "baseline and mutated response comparison with timing and content-length deltas"
+    }
+  },
+  "compliance_summary": {
+    "frameworks": [
+      {
+        "framework": "OWASP ASVS",
+        "controls": [
+          "V5",
+          "V7",
+          "V10",
+          "V14"
+        ],
+        "mapped_findings": 3
+      },
+      {
+        "framework": "OWASP Top 10",
+        "controls": [
+          "A01",
+          "A03",
+          "A05",
+          "A07"
+        ],
+        "mapped_findings": 3
+      },
+      {
+        "framework": "PCI DSS 4.0",
+        "controls": [
+          "6.2",
+          "6.3",
+          "6.4",
+          "11.3"
+        ],
+        "mapped_findings": 3
+      },
+      {
+        "framework": "ISO 27001",
+        "controls": [
+          "A.8.8",
+          "A.8.16",
+          "A.8.28"
+        ],
+        "mapped_findings": 3
+      },
+      {
+        "framework": "NIST CSF",
+        "controls": [
+          "ID.RA",
+          "DE.CM",
+          "RS.AN"
+        ],
+        "mapped_findings": 3
+      }
+    ],
+    "mapped_finding_count": 3,
+    "evidence_bundle_ready": true,
+    "mapped_findings": [
+      {
+        "title": "csrf",
+        "severity": "medium",
+        "cwe": "CWE-352",
+        "frameworks": {
+          "OWASP ASVS": [
+            "V5",
+            "V7",
+            "V10",
+            "V14"
+          ],
+          "OWASP Top 10": [
+            "A01",
+            "A03",
+            "A05",
+            "A07"
+          ],
+          "PCI DSS 4.0": [
+            "6.2",
+            "6.3",
+            "6.4",
+            "11.3"
+          ],
+          "ISO 27001": [
+            "A.8.8",
+            "A.8.16",
+            "A.8.28"
+          ],
+          "NIST CSF": [
+            "ID.RA",
+            "DE.CM",
+            "RS.AN"
+          ]
+        }
+      },
+      {
+        "title": "advanced_auth",
+        "severity": "medium",
+        "cwe": "CWE-693",
+        "frameworks": {
+          "OWASP ASVS": [
+            "V5",
+            "V7",
+            "V10",
+            "V14"
+          ],
+          "OWASP Top 10": [
+            "A01",
+            "A03",
+            "A05",
+            "A07"
+          ],
+          "PCI DSS 4.0": [
+            "6.2",
+            "6.3",
+            "6.4",
+            "11.3"
+          ],
+          "ISO 27001": [
+            "A.8.8",
+            "A.8.16",
+            "A.8.28"
+          ],
+          "NIST CSF": [
+            "ID.RA",
+            "DE.CM",
+            "RS.AN"
+          ]
+        }
+      },
+      {
+        "title": "advanced_auth",
+        "severity": "high",
+        "cwe": "CWE-693",
+        "frameworks": {
+          "OWASP ASVS": [
+            "V5",
+            "V7",
+            "V10",
+            "V14"
+          ],
+          "OWASP Top 10": [
+            "A01",
+            "A03",
+            "A05",
+            "A07"
+          ],
+          "PCI DSS 4.0": [
+            "6.2",
+            "6.3",
+            "6.4",
+            "11.3"
+          ],
+          "ISO 27001": [
+            "A.8.8",
+            "A.8.16",
+            "A.8.28"
+          ],
+          "NIST CSF": [
+            "ID.RA",
+            "DE.CM",
+            "RS.AN"
+          ]
+        }
+      }
+    ]
+  },
+  "ai_risk_summary": {
+    "prioritized_finding_count": 3,
+    "high_exploitability_count": 1,
+    "top_findings": [
+      {
+        "detector": "advanced_auth",
+        "severity": "high",
+        "url": "https://music.youtube.com/rest/user/login",
+        "evidence": "IDOR/BOLA candidate requires role-differential authorization validation",
+        "recommendation": "Enforce server-side authorization, strong session lifecycle controls, MFA policy, and role-based regression tests.",
+        "confidence": "medium",
+        "parameter": null,
+        "payload": null,
+        "method": "get",
+        "category": "idor",
+        "baseline_status": null,
+        "mutated_status": null,
+        "baseline_length": null,
+        "mutated_length": null,
+        "reason": "Authenticated workflow heuristic",
+        "input_location": null,
+        "reflection_context": null,
+        "dom_observation": null,
+        "confidence_score": null,
+        "validation_signals": null,
+        "request_snapshot": null,
+        "response_snapshot": null,
+        "cwe_id": "CWE-693",
+        "cwe_title": "Protection Mechanism Failure",
+        "cvss_score": 8.7,
+        "remediation_priority": "P1",
+        "poc": "GET https://music.youtube.com/rest/user/login with parameter - using payload -",
+        "validation_state": "requires-review",
+        "owasp_category": "Unknown",
+        "code_snippet": "",
+        "replay_plan": {
+          "method": "GET",
+          "url": "https://music.youtube.com/rest/user/login",
+          "parameter": "",
+          "payload": "",
+          "curl": "curl -i -X GET 'https://music.youtube.com/rest/user/login'",
+          "created_at": "2026-05-28T05:17:36.177813+00:00",
+          "note": "Replay plans are generated for authorized validation only and are not auto-executed by the API."
+        },
+        "finding_index": 2,
+        "exploitability": {
+          "score": 0.87,
+          "label": "likely exploitable"
+        }
+      }
+    ],
+    "attack_chain_hypotheses": [
+      {
+        "name": "public-critical-asset-exposure",
+        "confidence": "medium",
+        "steps": [
+          "internet-facing asset",
+          "validated finding",
+          "remediation workflow"
+        ]
+      }
+    ],
+    "deduplication": {
+      "strategy": "detector-url-parameter-payload hash clustering",
+      "cluster_count": 2
+    }
+  },
+  "telemetry_summary": {
+    "status": "completed",
+    "duration_ms": 15256.21,
+    "events": [
+      {
+        "phase": "startup",
+        "message": "Target reachable and scan initialized",
+        "progress": 5,
+        "timestamp": "2026-05-28T05:17:22.894284+00:00"
+      },
+      {
+        "phase": "crawl",
+        "message": "Mapped 1 pages, 3 forms, and 9 endpoints",
+        "progress": 30,
+        "timestamp": "2026-05-28T05:17:33.236088+00:00"
+      },
+      {
+        "phase": "validation",
+        "message": "Validated 3 candidate findings",
+        "progress": 88,
+        "timestamp": "2026-05-28T05:17:36.177655+00:00"
+      },
+      {
+        "phase": "recon",
+        "message": "Passive recon, endpoint risk, TLS, and low-impact discovery completed",
+        "progress": 92,
+        "timestamp": "2026-05-28T05:17:37.368014+00:00"
+      }
+    ],
+    "detector_timings": [
+      {
+        "detector": "sqli",
+        "elapsed_ms": 1333.62,
+        "finding_count": 0
+      },
+      {
+        "detector": "xss",
+        "elapsed_ms": 416.81,
+        "finding_count": 0
+      },
+      {
+        "detector": "csrf",
+        "elapsed_ms": 0.35,
+        "finding_count": 1
+      },
+      {
+        "detector": "auth_bypass",
+        "elapsed_ms": 197.09,
+        "finding_count": 0
+      },
+      {
+        "detector": "advanced_surface",
+        "elapsed_ms": 0.37,
+        "finding_count": 0
+      },
+      {
+        "detector": "advanced_injection",
+        "elapsed_ms": 0.46,
+        "finding_count": 0
+      },
+      {
+        "detector": "advanced_client",
+        "elapsed_ms": 0.48,
+        "finding_count": 0
+      },
+      {
+        "detector": "advanced_auth",
+        "elapsed_ms": 0.41,
+        "finding_count": 2
+      },
+      {
+        "detector": "advanced_server",
+        "elapsed_ms": 0.41,
+        "finding_count": 0
+      }
+    ],
+    "throughput": {
+      "pages": 1,
+      "endpoints": 9,
+      "schema_probes": 5
+    },
+    "live_channels": [
+      "/api/ws/scans",
+      "/api/ws/scans/ab2025c1-74a0-4f61-89ca-a71ccecf8803"
+    ]
+  }
+}
