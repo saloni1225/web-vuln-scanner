@@ -72,10 +72,33 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         h["Permissions-Policy"] = _PERMISSIONS_POLICY
 
         # Content Security Policy
-        h.setdefault("Content-Security-Policy", _CSP)
+        path = request.url.path
+        is_docs_route = (
+            path.startswith("/api/docs")
+            or path.startswith("/api/redoc")
+            or path.startswith("/api/openapi.json")
+        )
+
+        if is_docs_route:
+            # Relax CSP for Swagger / ReDoc to load CDN assets
+            docs_csp = (
+                "default-src 'self'; "
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "
+                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
+                "font-src 'self' https://fonts.gstatic.com data:; "
+                "img-src 'self' data: blob: https: https://fastapi.tiangolo.com; "
+                "connect-src 'self' http://127.0.0.1:8000 ws://127.0.0.1:8000 http://localhost:8000 ws://localhost:8000; "
+                "frame-ancestors 'none'; "
+                "base-uri 'self'; "
+                "form-action 'self'; "
+                "object-src 'none';"
+            )
+            h["Content-Security-Policy"] = docs_csp
+        else:
+            h.setdefault("Content-Security-Policy", _CSP)
 
         # Cache control for API responses
-        if request.url.path.startswith("/api/"):
+        if path.startswith("/api/"):
             h["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
             h["Pragma"] = "no-cache"
             h["Expires"] = "0"
@@ -88,8 +111,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         h["Server"] = "AdaptiveScan"
 
         # Cross-Origin policies (tighten resource isolation)
-        h["Cross-Origin-Opener-Policy"] = "same-origin"
-        h["Cross-Origin-Embedder-Policy"] = "require-corp"
-        h["Cross-Origin-Resource-Policy"] = "same-origin"
+        if not is_docs_route:
+            h["Cross-Origin-Opener-Policy"] = "same-origin"
+            h["Cross-Origin-Embedder-Policy"] = "require-corp"
+            h["Cross-Origin-Resource-Policy"] = "same-origin"
 
         return response

@@ -1,8 +1,6 @@
-from fastapi.testclient import TestClient
-
 from backend.api_security.schema import analyze_graphql_schema, parse_openapi_document, parse_postman_collection
-from backend.app import app
 from backend.exposure.intelligence import aggregate_exposure, build_exposure_intelligence
+from tests.auth_helpers import admin_client as client
 
 
 def _scan():
@@ -79,7 +77,6 @@ def test_api_schema_parsers_extract_sensitive_operations():
 
 
 def test_exposure_and_schema_routes_are_registered():
-    client = TestClient(app)
     exposure = client.get("/api/exposure/overview")
     graphql = client.post(
         "/api/api-intelligence/analyze-schema",

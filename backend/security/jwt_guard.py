@@ -24,14 +24,14 @@ from backend.rbac.policy import can
 
 
 # ---------------------------------------------------------------------------
-# Secret key — loaded from environment, never hardcoded in production
+# Secret key — loaded from settings (which reads .env), never hardcoded
 # ---------------------------------------------------------------------------
-_RAW_SECRET = os.environ.get("ADAPTIVESCAN_JWT_SECRET") or os.environ.get("SECRET_KEY")
-if not _RAW_SECRET:
-    # Fallback for dev: use the same literal that saas_auth.py currently has
-    _RAW_SECRET = "adaptivescan-local-development-secret"
+from backend.config.settings import settings as _settings
+
+_RAW_SECRET = _settings.adaptivescan_jwt_secret or os.environ.get("SECRET_KEY") or "adaptivescan-local-development-secret"
 
 JWT_SECRET = _RAW_SECRET.encode("utf-8")
+
 
 ACCESS_TOKEN_TTL = 900          # 15 minutes
 REFRESH_TOKEN_TTL = 86400 * 7   # 7 days

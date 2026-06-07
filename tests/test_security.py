@@ -277,7 +277,8 @@ class TestAuthRouteValidation:
         assert response.status_code == 400
 
     def test_scan_blocks_localhost_target(self):
-        response = client.post("/api/scan", json={
+        from tests.auth_helpers import admin_client
+        response = admin_client.post("/api/scan", json={
             "target_url": "http://localhost/admin",
             "authorization_confirmed": True,
         })
@@ -286,7 +287,8 @@ class TestAuthRouteValidation:
         assert "ssrf_blocked" in str(body)
 
     def test_scan_blocks_private_ip(self):
-        response = client.post("/api/scan", json={
+        from tests.auth_helpers import admin_client
+        response = admin_client.post("/api/scan", json={
             "target_url": "http://192.168.0.1/",
             "authorization_confirmed": True,
         })
@@ -302,3 +304,32 @@ class TestAuthRouteValidation:
         body = response.json()
         assert "csrf_token" in body
         assert len(body["csrf_token"]) > 32
+
+
+# ---------------------------------------------------------------------------
+# Deny-by-Default Middleware Tests
+# ---------------------------------------------------------------------------
+
+class TestDenyByDefault:
+    def test_unauthenticated_request_blocked(self):
+        """Verify deny-by-default middleware blocks unauthenticated access."""
+        from fastapi.testclient import TestClient
+        from backend.app import app
+        anon = TestClient(app)
+        response = anon.get("/api/reports")
+        assert response.status_code == 401
+        body = response.json()
+        assert body["error"] == "not_authenticated"
+
+    def test_public_routes_accessible(self):
+        from fastapi.testclient import TestClient
+        from backend.app import app
+        anon = TestClient(app)
+        assert anon.get("/api/health").status_code == 200
+        assert anon.get("/api/auth/architecture").status_code == 200
+        assert anon.get("/api/auth/csrf").status_code == 200
+
+    def test_authenticated_request_passes(self):
+        from tests.auth_helpers import admin_client
+        response = admin_client.get("/api/reports")
+        assert response.status_code == 200

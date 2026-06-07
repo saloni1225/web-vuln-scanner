@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useAuth } from "../context/AuthContext.jsx";
 import {
   Activity,
   ArrowRight,
@@ -168,6 +169,7 @@ export function ContactPage() {
 }
 
 export function AuthPage({ mode = "login", onNavigate }) {
+  const { login } = useAuth();
   const [form, setForm] = useState(() => ({
     first_name: "",
     last_name: "",
@@ -423,13 +425,17 @@ export function AuthPage({ mode = "login", onNavigate }) {
         const result = await requestPasswordReset({ email: form.email });
         setMessage(`Reset OTP issued. Dev OTP: ${result.reset?.dev_code ?? "sent"}`);
       } else {
-        const result = await loginAccount({ email: form.email, password: form.password });
-        setMessage(result.requires_mfa ? `MFA required. Dev OTP: ${result.mfa?.challenge?.dev_code ?? "sent"}` : "Welcome back.");
-        window.localStorage.setItem("adaptiveScan.pendingEmail", form.email);
-        window.localStorage.setItem("adaptiveScan.accessToken", result.tokens?.access_token ?? "");
-        window.localStorage.setItem("adaptiveScan.refreshToken", result.tokens?.refresh_token ?? "");
-        if (result.requires_mfa) onNavigate("mfa");
-        if (!result.requires_mfa) onNavigate("home");
+        const result = await login(form.email, form.password);
+        if (result.success) {
+          setMessage(result.data?.requires_mfa ? `MFA required. Dev OTP: ${result.data?.mfa?.challenge?.dev_code ?? "sent"}` : "Welcome back.");
+          window.localStorage.setItem("adaptiveScan.pendingEmail", form.email);
+          window.localStorage.setItem("adaptiveScan.accessToken", result.data?.tokens?.access_token ?? "");
+          window.localStorage.setItem("adaptiveScan.refreshToken", result.data?.tokens?.refresh_token ?? "");
+          if (result.data?.requires_mfa) onNavigate("mfa");
+          if (!result.data?.requires_mfa) onNavigate("home");
+        } else {
+          setMessage(result.message);
+        }
       }
     } catch (error) {
       setMessage(String(error.message ?? error));

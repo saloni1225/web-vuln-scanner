@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
 import { EnterpriseLayout } from "./components/EnterpriseLayout.jsx";
 import { Home } from "./pages/Home.jsx";
 import { ScanPage } from "./pages/ScanPage.jsx";
@@ -12,9 +13,11 @@ import { AuthPage, BillingPage, ContactPage, DocumentationPage, FeaturesPage, Ma
 import { Logo } from "./components/Logo.jsx";
 import "./styles/dashboard.css";
 
-export default function App() {
+
+function AppContent() {
   const [page, setPage] = useState("marketing");
   const [theme, setTheme] = useState("cyberpunk-dark");
+  const { isAuthenticated, loading, logout, user } = useAuth();
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -39,6 +42,35 @@ export default function App() {
   };
   const activePage = pageAliases[page] ?? page;
 
+  // ── If authenticated user tries to visit login/register, redirect to dashboard ──
+  useEffect(() => {
+    if (isAuthenticated && authModes.has(page)) {
+      setPage("dashboard");
+    }
+  }, [isAuthenticated, page]);
+
+  // ── Show loading spinner during initial session check ──
+  if (loading) {
+    return (
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "center",
+        height: "100vh", background: "#0a0a0f",
+        color: "#00f0ff", fontFamily: "monospace", fontSize: "1.1rem",
+      }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{
+            width: 40, height: 40, border: "3px solid transparent",
+            borderTop: "3px solid #00f0ff", borderRadius: "50%",
+            animation: "spin 0.8s linear infinite", margin: "0 auto 16px",
+          }} />
+          <div>Initializing secure session…</div>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </div>
+    );
+  }
+
+  // ── PUBLIC PAGES (marketing, auth, etc.) ──────────────────────────────────
   if (publicPages.has(page)) {
     return (
       <div className="public-shell">
@@ -49,8 +81,8 @@ export default function App() {
             onClick={() => setPage("marketing")}
             style={{ display: "inline-flex", alignItems: "center", gap: "8px", border: 0, background: "transparent", cursor: "pointer" }}
           >
-            <Logo size={28} />
-            <span>AdaptiveScan</span>
+            <Logo size={42} />
+            <span style={{ fontSize: "1.5rem" }}>AdaptiveScan</span>
           </button>
           <nav>
             <button type="button" onClick={() => setPage("features")}>Features</button>
@@ -64,8 +96,17 @@ export default function App() {
               <span style={{ display: "inline-block", width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "#ff007f", boxShadow: "0 0 6px #ff007f" }}></span>
               Cyberpunk Edition
             </div>
-            <button className="ghost-button" type="button" onClick={() => setPage("login")}>Login</button>
-            <button className="primary-action" type="button" onClick={() => setPage("register")}>Start Free Trial</button>
+            {isAuthenticated ? (
+              <>
+                <button className="ghost-button" type="button" onClick={() => setPage("dashboard")}>Dashboard</button>
+                <button className="primary-action" type="button" onClick={logout}>Logout</button>
+              </>
+            ) : (
+              <>
+                <button className="ghost-button" type="button" onClick={() => setPage("login")}>Login</button>
+                <button className="primary-action" type="button" onClick={() => setPage("register")}>Start Free Trial</button>
+              </>
+            )}
           </div>
         </header>
         {page === "marketing" && <MarketingHome onNavigate={setPage} />}
@@ -76,6 +117,51 @@ export default function App() {
         {page === "contact" && <ContactPage />}
         {authModes.has(page) && <AuthPage mode={page} onNavigate={setPage} />}
         {page === "onboarding" && <OnboardingPage onNavigate={setPage} />}
+      </div>
+    );
+  }
+
+  // ── PROTECTED PAGES — require authentication ──────────────────────────────
+  if (!isAuthenticated) {
+    // Redirect to login if trying to access any protected page
+    return (
+      <div className="public-shell">
+        <header className="public-nav">
+          <button
+            className="public-brand"
+            type="button"
+            onClick={() => setPage("marketing")}
+            style={{ display: "inline-flex", alignItems: "center", gap: "8px", border: 0, background: "transparent", cursor: "pointer" }}
+          >
+            <Logo size={42} />
+            <span style={{ fontSize: "1.5rem" }}>AdaptiveScan</span>
+          </button>
+        </header>
+        <div style={{
+          display: "flex", flexDirection: "column", alignItems: "center",
+          justifyContent: "center", minHeight: "60vh", color: "#e0e0e0",
+          fontFamily: "monospace", textAlign: "center", padding: "2rem",
+        }}>
+          <div style={{
+            fontSize: "3rem", marginBottom: "1rem",
+            textShadow: "0 0 20px rgba(255,0,127,0.5)",
+          }}>🔒</div>
+          <h2 style={{
+            color: "#ff007f", fontSize: "1.5rem", marginBottom: "0.5rem",
+            textShadow: "0 0 10px rgba(255,0,127,0.3)",
+          }}>Access Restricted</h2>
+          <p style={{ color: "#888", marginBottom: "1.5rem", maxWidth: "400px" }}>
+            This area requires authentication. Please log in with your admin credentials to continue.
+          </p>
+          <button
+            className="primary-action"
+            type="button"
+            onClick={() => setPage("login")}
+            style={{ padding: "10px 32px", fontSize: "1rem" }}
+          >
+            Log In
+          </button>
+        </div>
       </div>
     );
   }
@@ -108,5 +194,13 @@ export default function App() {
       {activePage === "billing" && <BillingPage />}
       {activePage === "settings" && <><SettingsPage /><SaaSSettingsPage /></>}
     </EnterpriseLayout>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

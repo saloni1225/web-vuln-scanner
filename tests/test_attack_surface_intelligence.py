@@ -1,10 +1,8 @@
-from fastapi.testclient import TestClient
-
 from backend.api_security.engine import analyze_api_surface
-from backend.app import app
 from backend.attack_surface.graph import build_attack_surface_graph, build_drift_timeline, correlate_attack_paths
 from backend.auth.intelligence import build_auth_intelligence
 from backend.recon.javascript import analyze_javascript_intelligence
+from tests.auth_helpers import admin_client as client
 
 
 def _scan(scan_id="scan-1"):
@@ -85,8 +83,6 @@ def test_api_security_scores_undocumented_graphql_surface():
 
 
 def test_attack_surface_routes_are_registered():
-    client = TestClient(app)
-
     assert client.get("/api/attack-surface/graph").status_code == 200
     assert client.get("/api/attack-surface/drift").status_code == 200
     assert client.get("/api/attack-paths").status_code == 200

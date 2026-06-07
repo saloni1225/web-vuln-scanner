@@ -1,10 +1,7 @@
-from fastapi.testclient import TestClient
-
-from backend.app import app
+from tests.auth_helpers import admin_client as client
 
 
 def test_platform_routes_are_integrated():
-    client = TestClient(app)
     health = client.get("/api/health")
     overview = client.get("/api/platform/overview")
     operations = client.get("/api/platform/operations")

@@ -6,6 +6,14 @@ export default defineConfig({
   server: {
     host: "127.0.0.1",
     port: 5173,
+    proxy: {
+      // Proxy /api requests to FastAPI backend — required for httpOnly cookie auth
+      "/api": {
+        target: "http://127.0.0.1:8000",
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
   preview: {
     host: "127.0.0.1",

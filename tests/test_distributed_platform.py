@@ -1,10 +1,8 @@
-from fastapi.testclient import TestClient
-
-from backend.app import app
 from backend.database.migrations import database_backend_status
 from backend.observability.service import observability_status, prometheus_metrics
 from backend.queue.orchestrator import build_distributed_execution_plan, build_scan_job, queue_health_snapshot, route_scan_job
 from backend.workers.scan_worker import worker_heartbeat, worker_pool_status
+from tests.auth_helpers import admin_client as client
 
 
 def test_distributed_queue_routing_and_execution_plan_are_deterministic():
@@ -41,8 +39,6 @@ def test_database_and_observability_platform_surfaces():
 
 
 def test_platform_routes_expose_distributed_operational_state():
-    client = TestClient(app)
-
     queue = client.get("/api/platform/queue")
     database = client.get("/api/platform/database")
     observability = client.get("/api/platform/observability")

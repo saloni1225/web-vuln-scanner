@@ -1,9 +1,4 @@
-from fastapi.testclient import TestClient
-
-from backend.app import app
-
-
-client = TestClient(app)
+from tests.auth_helpers import admin_client as client
 
 
 def test_public_api_catalog_and_marketplace_architecture():

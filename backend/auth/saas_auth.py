@@ -20,26 +20,28 @@ from passlib.hash import argon2, pbkdf2_sha256
 
 from backend.database.db import create_auth_user, create_organization, create_refresh_session, create_workspace, consume_otp_challenge, get_auth_user_by_email, mark_auth_user_login, store_otp_challenge, update_auth_user_password, write_audit_log
 from backend.rbac.policy import ROLE_PERMISSIONS, rbac_overview
+from backend.config.settings import settings
 
 
 # ── JWT secret ───────────────────────────────────────────────────────────────
-# Load from environment. Never commit a real secret to source control.
+# In an enterprise environment, use a robust 256-bit+ secret.
 _RAW_JWT_SECRET = (
-    os.environ.get("ADAPTIVESCAN_JWT_SECRET")
+    settings.adaptivescan_jwt_secret
     or os.environ.get("SECRET_KEY")
     or ""
 )
 if not _RAW_JWT_SECRET:
     _FALLBACK = "adaptivescan-local-development-secret"
     warnings.warn(
-        "\n\n[AdaptiveScan] ⚠️  ADAPTIVESCAN_JWT_SECRET is not set in your environment!\n"
-        f"  Using insecure fallback: '{_FALLBACK}'\n"
-        "  Set ADAPTIVESCAN_JWT_SECRET=<64 random hex chars> in your .env file before deployment.",
-        stacklevel=1,
+        "\n  \n  [AdaptiveScan] ⚠️  ADAPTIVESCAN_JWT_SECRET is not set in your environment!\n"
+        f"    Using insecure fallback: '{_FALLBACK}'\n"
+        "    Set ADAPTIVESCAN_JWT_SECRET=<64 random hex chars> in your .env file before deployment.",
+        UserWarning
     )
     _RAW_JWT_SECRET = _FALLBACK
 
 JWT_SECRET: str = _RAW_JWT_SECRET
+ALGORITHM = "HS256"
 ACCESS_TOKEN_TTL_SECONDS = 900       # 15 minutes
 REFRESH_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 7   # 7 days (was 14)
 
