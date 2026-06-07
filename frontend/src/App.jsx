@@ -14,6 +14,63 @@ import { Logo } from "./components/Logo.jsx";
 import "./styles/dashboard.css";
 
 
+const ROLE_PERMISSIONS = {
+  owner: new Set([
+    "org:admin", "workspace:admin", "scan:run", "scan:read", "finding:manage", "report:read", "api_key:manage",
+    "exposure:read", "attack_graph:read", "attack_path:read", "drift:read", "telemetry:read", "orchestration:read",
+    "threat_intel:read", "ai:read", "compliance:read", "integration:manage", "devsecops:read", "rbac:admin"
+  ]),
+  admin: new Set([
+    "workspace:admin", "scan:run", "scan:read", "finding:manage", "report:read", "api_key:manage",
+    "exposure:read", "attack_graph:read", "attack_path:read", "drift:read", "telemetry:read", "orchestration:read",
+    "threat_intel:read", "ai:read", "compliance:read", "integration:manage", "devsecops:read"
+  ]),
+  security_engineer: new Set([
+    "workspace:read", "scan:run", "scan:read", "finding:manage", "report:read",
+    "exposure:read", "attack_graph:read", "attack_path:read", "drift:read", "telemetry:read",
+    "threat_intel:read", "ai:read", "devsecops:read"
+  ]),
+  analyst: new Set(["workspace:read", "scan:run", "scan:read", "finding:manage", "report:read", "monitoring:read"]),
+  viewer: new Set(["workspace:read", "scan:read", "report:read", "monitoring:read"]),
+  "ci-bot": new Set(["scan:run", "scan:read", "report:read", "devsecops:read"]),
+};
+
+function hasPermission(role, permission) {
+  if (!role) return false;
+  const permissions = ROLE_PERMISSIONS[role.toLowerCase().replace("-", "_")] || ROLE_PERMISSIONS[role] || new Set();
+  return permissions.has(permission);
+}
+
+const PAGE_PERMISSIONS = {
+  dashboard: "scan:read",
+  assets: "workspace:read",
+  recon: "scan:read",
+  scan: "scan:run",
+  exposure: "exposure:read",
+  "attack-paths": "attack_path:read",
+  research: "ai:read",
+  "threat-intel": "threat_intel:read",
+  drift: "drift:read",
+  telemetry: "telemetry:read",
+  findings: "scan:read",
+  "attack-surface": "attack_graph:read",
+  apis: "scan:read",
+  reports: "report:read",
+  "technical-reports": "report:read",
+  compliance: "compliance:read",
+  integrations: "integration:manage",
+  monitoring: "monitoring:read",
+  workflows: "monitoring:read",
+  notifications: "monitoring:read",
+  cicd: "devsecops:read",
+  capabilities: "scan:read",
+  platform: "orchestration:read",
+  team: "rbac:admin",
+  billing: "org:admin",
+  settings: "workspace:admin",
+};
+
+
 function AppContent() {
   const [page, setPage] = useState("marketing");
   const [theme, setTheme] = useState("cyberpunk-dark");
@@ -160,6 +217,53 @@ function AppContent() {
             style={{ padding: "10px 32px", fontSize: "1rem" }}
           >
             Log In
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── ROLE-BASED ACCESS CONTROL (RBAC) GATING ───────────────────────────────
+  const userRole = user?.role || "viewer";
+  const requiredPermission = PAGE_PERMISSIONS[activePage];
+  if (requiredPermission && !hasPermission(userRole, requiredPermission)) {
+    return (
+      <div className="public-shell">
+        <header className="public-nav">
+          <button
+            className="public-brand"
+            type="button"
+            onClick={() => setPage("marketing")}
+            style={{ display: "inline-flex", alignItems: "center", gap: "8px", border: 0, background: "transparent", cursor: "pointer" }}
+          >
+            <Logo size={42} />
+            <span style={{ fontSize: "1.5rem" }}>AdaptiveScan</span>
+          </button>
+        </header>
+        <div style={{
+          display: "flex", flexDirection: "column", alignItems: "center",
+          justifyContent: "center", minHeight: "60vh", color: "#e0e0e0",
+          fontFamily: "monospace", textAlign: "center", padding: "2rem",
+        }}>
+          <div style={{
+            fontSize: "3rem", marginBottom: "1rem",
+            textShadow: "0 0 20px rgba(255,0,127,0.5)",
+          }}>🚫</div>
+          <h2 style={{
+            color: "#ff007f", fontSize: "1.5rem", marginBottom: "0.5rem",
+            textShadow: "0 0 10px rgba(255,0,127,0.3)",
+          }}>Access Denied</h2>
+          <p style={{ color: "#888", marginBottom: "1.5rem", maxWidth: "450px" }}>
+            Your role (<strong>{userRole}</strong>) does not have sufficient permissions to access the <strong>{activePage}</strong> page.<br />
+            Required scope: <code style={{ color: "#00f0ff" }}>{requiredPermission}</code>
+          </p>
+          <button
+            className="primary-action"
+            type="button"
+            onClick={() => setPage("dashboard")}
+            style={{ padding: "10px 32px", fontSize: "1rem" }}
+          >
+            Return to Dashboard
           </button>
         </div>
       </div>

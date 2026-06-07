@@ -25,6 +25,11 @@ async function apiFetch(path, options = {}) {
     throw new Error("Session expired. Please log in again.");
   }
 
+  if (response.status === 403) {
+    window.dispatchEvent(new CustomEvent("adaptivescan:access-denied", { detail: { path } }));
+    throw new Error("Access restricted. Insufficient permissions.");
+  }
+
   if (!response.ok) {
     let message = `API returned ${response.status}`;
     try {

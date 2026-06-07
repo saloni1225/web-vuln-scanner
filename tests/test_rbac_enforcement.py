@@ -65,3 +65,34 @@ def test_owner_is_allowed_mutating_actions():
     # 5. Replay should pass RBAC and fail with 404, not 403
     resp = client.get("/api/replay/missing-scan-id/0")
     assert resp.status_code == 404
+
+
+def test_new_admin_and_read_rbac_enforcement():
+    """Verify newly protected admin and informational endpoints behave correctly under RBAC."""
+    viewer = authenticated_client("viewer")
+    owner = authenticated_client("owner")
+
+    # 1. Viewer must be blocked (403) from admin endpoints
+    assert viewer.post("/api/organizations", json={"name": "test org"}).status_code == 403
+    assert viewer.post("/api/workspaces", json={"org_id": "test-org", "name": "test ws"}).status_code == 403
+    assert viewer.post("/api/api-keys", json={"workspace_id": "test-ws", "name": "test key"}).status_code == 403
+    assert viewer.get("/api/audit-logs").status_code == 403
+    assert viewer.get("/api/tenancy/overview").status_code == 403
+
+    # 2. Viewer must be allowed (no 403) on informational scan:read endpoints
+    assert viewer.get("/api/detectors").status_code != 403
+    assert viewer.get("/api/scan-profiles").status_code != 403
+    assert viewer.get("/api/platform/overview").status_code != 403
+    assert viewer.get("/api/platform/lifecycle-policy").status_code != 403
+    assert viewer.get("/api/platform/monitoring").status_code != 403
+
+    # 3. Owner must be allowed (no 403) on admin endpoints
+    with patch("backend.api.routes.create_organization", return_value={}) as mock_create_org, \
+         patch("backend.api.routes.create_workspace", return_value={}) as mock_create_ws, \
+         patch("backend.api.routes.create_api_key", return_value={}) as mock_create_key:
+        assert owner.post("/api/organizations", json={"name": "test org"}).status_code != 403
+        assert owner.post("/api/workspaces", json={"org_id": "test-org", "name": "test ws"}).status_code != 403
+        assert owner.post("/api/api-keys", json={"workspace_id": "test-ws", "name": "test key"}).status_code != 403
+
+    assert owner.get("/api/audit-logs").status_code != 403
+    assert owner.get("/api/tenancy/overview").status_code != 403

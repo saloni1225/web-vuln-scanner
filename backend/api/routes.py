@@ -409,12 +409,12 @@ async def scan_history(limit: int = 25, _: Principal = Depends(require_permissio
 
 
 @router.get("/detectors")
-async def detectors() -> list[dict[str, object]]:
+async def detectors(_: Principal = Depends(require_permission("scan:read"))) -> list[dict[str, object]]:
     return describe_loaded_detectors()
 
 
 @router.get("/plugins/marketplace")
-async def plugin_marketplace() -> dict[str, object]:
+async def plugin_marketplace(_: Principal = Depends(require_permission("scan:read"))) -> dict[str, object]:
     detectors = describe_loaded_detectors()
     return {
         "detectors": detectors,
@@ -426,22 +426,22 @@ async def plugin_marketplace() -> dict[str, object]:
 
 
 @router.get("/scan-profiles")
-async def scan_profiles() -> list[dict[str, object]]:
+async def scan_profiles(_: Principal = Depends(require_permission("scan:read"))) -> list[dict[str, object]]:
     return list_scan_profiles()
 
 
 @router.get("/product/capabilities")
-async def product_capabilities() -> dict[str, object]:
+async def product_capabilities(_: Principal = Depends(require_permission("scan:read"))) -> dict[str, object]:
     return list_product_capabilities()
 
 
 @router.get("/product/enterprise-foundation")
-async def enterprise_foundation() -> dict[str, object]:
+async def enterprise_foundation(_: Principal = Depends(require_permission("scan:read"))) -> dict[str, object]:
     return get_enterprise_foundation()
 
 
 @router.get("/platform/overview")
-async def platform_overview() -> dict[str, object]:
+async def platform_overview(_: Principal = Depends(require_permission("scan:read"))) -> dict[str, object]:
     return build_platform_overview(list_scans())
 
 
@@ -500,12 +500,12 @@ async def worker_heartbeat_route(worker_id: str, pool: str = "crawl", active_tas
 
 
 @router.get("/platform/lifecycle-policy")
-async def platform_lifecycle_policy() -> dict[str, object]:
+async def platform_lifecycle_policy(_: Principal = Depends(require_permission("scan:read"))) -> dict[str, object]:
     return lifecycle_policy()
 
 
 @router.get("/platform/monitoring")
-async def platform_monitoring() -> dict[str, object]:
+async def platform_monitoring(_: Principal = Depends(require_permission("scan:read"))) -> dict[str, object]:
     return monitoring_overview(list_scans())
 
 
@@ -586,7 +586,7 @@ async def report_compare(left_scan_id: str, right_scan_id: str, _: Principal = D
 
 
 @router.get("/roles/compare/{left_scan_id}/{right_scan_id}")
-async def role_compare(left_scan_id: str, right_scan_id: str) -> dict[str, object]:
+async def role_compare(left_scan_id: str, right_scan_id: str, _: Principal = Depends(require_permission("report:read"))) -> dict[str, object]:
     comparison = compare_roles(left_scan_id, right_scan_id)
     if comparison is None:
         raise HTTPException(status_code=404, detail="One or both scan reports were not found")
@@ -650,24 +650,24 @@ async def add_lifecycle_comment(scan_id: str, finding_index: int, comment: Findi
 
 
 @router.get("/audit-logs")
-async def audit_logs(limit: int = 100) -> list[dict[str, object]]:
+async def audit_logs(limit: int = 100, _: Principal = Depends(require_permission("rbac:admin"))) -> list[dict[str, object]]:
     return list_audit_logs(limit=max(1, min(limit, 500)))
 
 
 @router.get("/tenancy/overview")
-async def tenancy_overview() -> dict[str, object]:
+async def tenancy_overview(_: Principal = Depends(require_permission("org:admin"))) -> dict[str, object]:
     return get_tenancy_overview()
 
 
 @router.post("/organizations")
-async def organizations(payload: OrganizationCreate) -> dict[str, object]:
+async def organizations(payload: OrganizationCreate, _: Principal = Depends(require_permission("org:admin"))) -> dict[str, object]:
     if not payload.name.strip():
         raise HTTPException(status_code=400, detail="Organization name is required")
     return create_organization(payload.name.strip(), plan=payload.plan.strip() or "team", actor=payload.actor)
 
 
 @router.post("/workspaces")
-async def workspaces(payload: WorkspaceCreate) -> dict[str, object]:
+async def workspaces(payload: WorkspaceCreate, _: Principal = Depends(require_permission("workspace:admin"))) -> dict[str, object]:
     if not payload.name.strip():
         raise HTTPException(status_code=400, detail="Workspace name is required")
     try:
@@ -682,7 +682,7 @@ async def workspaces(payload: WorkspaceCreate) -> dict[str, object]:
 
 
 @router.post("/api-keys")
-async def api_keys(payload: ApiKeyCreate) -> dict[str, object]:
+async def api_keys(payload: ApiKeyCreate, _: Principal = Depends(require_permission("api_key:manage"))) -> dict[str, object]:
     if not payload.name.strip():
         raise HTTPException(status_code=400, detail="API key name is required")
     try:

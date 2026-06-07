@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useCursorGlow } from "../hooks/useCursorGlow.js";
+import { useAuth } from "../context/AuthContext.jsx";
 import {
   Activity,
   Bell,
@@ -125,6 +126,62 @@ function SidebarButton({ children, className = "", magnetic = true, ...props }) 
   );
 }
 
+const ROLE_PERMISSIONS = {
+  owner: new Set([
+    "org:admin", "workspace:admin", "scan:run", "scan:read", "finding:manage", "report:read", "api_key:manage",
+    "exposure:read", "attack_graph:read", "attack_path:read", "drift:read", "telemetry:read", "orchestration:read",
+    "threat_intel:read", "ai:read", "compliance:read", "integration:manage", "devsecops:read", "rbac:admin"
+  ]),
+  admin: new Set([
+    "workspace:admin", "scan:run", "scan:read", "finding:manage", "report:read", "api_key:manage",
+    "exposure:read", "attack_graph:read", "attack_path:read", "drift:read", "telemetry:read", "orchestration:read",
+    "threat_intel:read", "ai:read", "compliance:read", "integration:manage", "devsecops:read"
+  ]),
+  security_engineer: new Set([
+    "workspace:read", "scan:run", "scan:read", "finding:manage", "report:read",
+    "exposure:read", "attack_graph:read", "attack_path:read", "drift:read", "telemetry:read",
+    "threat_intel:read", "ai:read", "devsecops:read"
+  ]),
+  analyst: new Set(["workspace:read", "scan:run", "scan:read", "finding:manage", "report:read", "monitoring:read"]),
+  viewer: new Set(["workspace:read", "scan:read", "report:read", "monitoring:read"]),
+  "ci-bot": new Set(["scan:run", "scan:read", "report:read", "devsecops:read"]),
+};
+
+function hasPermission(role, permission) {
+  if (!role) return false;
+  const permissions = ROLE_PERMISSIONS[role.toLowerCase().replace("-", "_")] || ROLE_PERMISSIONS[role] || new Set();
+  return permissions.has(permission);
+}
+
+const PAGE_PERMISSIONS = {
+  dashboard: "scan:read",
+  assets: "workspace:read",
+  recon: "scan:read",
+  scan: "scan:run",
+  exposure: "exposure:read",
+  "attack-paths": "attack_path:read",
+  research: "ai:read",
+  "threat-intel": "threat_intel:read",
+  drift: "drift:read",
+  telemetry: "telemetry:read",
+  findings: "scan:read",
+  "attack-surface": "attack_graph:read",
+  apis: "scan:read",
+  reports: "report:read",
+  "technical-reports": "report:read",
+  compliance: "compliance:read",
+  integrations: "integration:manage",
+  monitoring: "monitoring:read",
+  workflows: "monitoring:read",
+  notifications: "monitoring:read",
+  cicd: "devsecops:read",
+  capabilities: "scan:read",
+  platform: "orchestration:read",
+  team: "rbac:admin",
+  billing: "org:admin",
+  settings: "workspace:admin",
+};
+
 export function EnterpriseLayout({ page, onNavigate, theme = "dark", onChangeTheme, children }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -147,6 +204,27 @@ export function EnterpriseLayout({ page, onNavigate, theme = "dark", onChangeThe
   const [jwtToken, setJwtToken] = useState("");
   const [authHeader, setAuthHeader] = useState("");
   const [toast, setToast] = useState("");
+  const { user } = useAuth();
+  const userRole = user?.role || "viewer";
+
+  const filteredNavSections = useMemo(() => {
+    return navSections
+      .map((section) => {
+        if (section.route) {
+          const reqPerm = PAGE_PERMISSIONS[section.route];
+          if (reqPerm && !hasPermission(userRole, reqPerm)) return null;
+          return section;
+        }
+        const visibleItems = section.items.filter(([key]) => {
+          const reqPerm = PAGE_PERMISSIONS[key];
+          return !reqPerm || hasPermission(userRole, reqPerm);
+        });
+        if (visibleItems.length === 0) return null;
+        return { ...section, items: visibleItems };
+      })
+      .filter(Boolean);
+  }, [userRole]);
+
   const current = useMemo(() => {
     for (const section of navSections) {
       if (section.route === page) return section.label;
@@ -335,7 +413,7 @@ export function EnterpriseLayout({ page, onNavigate, theme = "dark", onChangeThe
         </div>
 
         <nav className="sidebar-nav" aria-label="Primary navigation">
-          {navSections.map((section) => (
+          {filteredNavSections.map((section) => (
             <div key={section.label} className={`sidebar-section ${section.route === page ? "active-section" : ""}`}>
               {section.route ? (
                 <SidebarButton
@@ -418,31 +496,35 @@ export function EnterpriseLayout({ page, onNavigate, theme = "dark", onChangeThe
               <strong>AdaptiveScan / Global Exposure</strong>
             </div>
           </div>
-          <section className="ops-command-bar" aria-label="Operational scan command">
-            <label className="ops-target-input">
-              <Search size={16} />
-              <input
-                value={target}
-                placeholder="Add domain, API, or internet-facing asset"
-                onChange={(event) => setTarget(event.target.value)}
-                onFocus={() => setDrawerOpen(true)}
-              />
-            </label>
-            <button type="button" className="ops-run primary" onClick={() => launchScan("quick")} disabled={isRunning}>
-              {isRunning && runMode.includes("Quick") ? <LoaderCircle className="spin" size={15} /> : <Radar size={15} />}
-              Assess Asset
-            </button>
-            <button type="button" className="ops-run" onClick={() => launchScan("deep")} disabled={isRunning}>
-              {isRunning && runMode.includes("Deep") ? <LoaderCircle className="spin" size={15} /> : <Shield size={15} />}
-              Analyze Exposure
-            </button>
-            <button type="button" className="ops-run" onClick={() => launchScan("monitoring")} disabled={isRunning}>
-              <MonitorDot size={15} />
-              Start Monitoring
-            </button>
-          </section>
+          {hasPermission(userRole, "scan:run") && (
+            <section className="ops-command-bar" aria-label="Operational scan command">
+              <label className="ops-target-input">
+                <Search size={16} />
+                <input
+                  value={target}
+                  placeholder="Add domain, API, or internet-facing asset"
+                  onChange={(event) => setTarget(event.target.value)}
+                  onFocus={() => setDrawerOpen(true)}
+                />
+              </label>
+              <button type="button" className="ops-run primary" onClick={() => launchScan("quick")} disabled={isRunning}>
+                {isRunning && runMode.includes("Quick") ? <LoaderCircle className="spin" size={15} /> : <Radar size={15} />}
+                Assess Asset
+              </button>
+              <button type="button" className="ops-run" onClick={() => launchScan("deep")} disabled={isRunning}>
+                {isRunning && runMode.includes("Deep") ? <LoaderCircle className="spin" size={15} /> : <Shield size={15} />}
+                Analyze Exposure
+              </button>
+              <button type="button" className="ops-run" onClick={() => launchScan("monitoring")} disabled={isRunning}>
+                <MonitorDot size={15} />
+                Start Monitoring
+              </button>
+            </section>
+          )}
           <div className="topbar-actions">
-            <button type="button" className="quick-scan" title="Open scan drawer" onClick={() => setDrawerOpen(true)}><Rocket size={17} /></button>
+            {hasPermission(userRole, "scan:run") && (
+              <button type="button" className="quick-scan" title="Open scan drawer" onClick={() => setDrawerOpen(true)}><Rocket size={17} /></button>
+            )}
             <button type="button" className={paletteOpen ? "active" : ""} title="Command palette" onClick={() => setPaletteOpen(true)}><Command size={17} /></button>
             <button type="button" className={activePanel === "notifications" ? "active" : ""} title="Notifications" onClick={() => setPanel("notifications")}>
               <Bell size={17} />

@@ -420,6 +420,18 @@ class ScannerEngine:
             if not finding.recommendation or finding.recommendation == "Sanitize input.":
                 finding.recommendation = remediation["fix"]
             finding.code_snippet = remediation["code_snippet"]
+
+            # Enrich canonical finding fields if they are missing or default
+            finding.title = finding.title or f"{finding.detector.upper()} vulnerability detected"
+            finding.description = finding.description or f"A potential {finding.detector.upper()} vulnerability has been identified at {finding.url}. Evidence: {finding.evidence}"
+            
+            # Populate affected_asset based on target URL netloc
+            from urllib.parse import urlparse
+            try:
+                finding.affected_asset = finding.affected_asset or urlparse(finding.url).netloc
+            except Exception:
+                finding.affected_asset = finding.affected_asset or "unknown-asset"
+
         return findings
 
     @staticmethod
