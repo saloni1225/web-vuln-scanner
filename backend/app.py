@@ -118,9 +118,14 @@ async def enforce_authentication(request: Request, call_next):
 
 
 app.include_router(router, prefix="/api")
+
+# ── Exports static files — served under /api/exports so auth middleware applies ─
+# WARNING: Do NOT mount this at a path outside /api — it would bypass JWT enforcement.
+exports_dir = ROOT_DIR / "backend" / "reports" / "exports"
+exports_dir.mkdir(parents=True, exist_ok=True)
 app.mount(
-    "/exports",
-    StaticFiles(directory=ROOT_DIR / "backend" / "reports" / "exports"),
+    "/api/exports",
+    StaticFiles(directory=exports_dir),
     name="exports",
 )
 
@@ -129,25 +134,45 @@ app.mount(
 async def startup() -> None:
     init_db()
 
-    # Seed default admin user if it doesn't exist
-    from backend.database.db import get_auth_user_by_email, create_organization, create_workspace, create_auth_user
-    from backend.auth.saas_auth import password_hash
-    import uuid
-
-    if not get_auth_user_by_email("test@test.com"):
-        org = create_organization("Default Admin Org", plan="enterprise", actor="system")
-        create_workspace(org["org_id"], "Default Workspace", default_allowlist=[], actor="system")
-        create_auth_user(
-            user_id=str(uuid.uuid4()),
-            org_id=str(org["org_id"]),
-            email="test@test.com",
-            first_name="Admin",
-            last_name="User",
-            company_name="Default Admin Org",
-            role="owner",
-            password_hash_value=password_hash("Test@1234"),
-            mfa_enabled=False,
+    # Seed default admin user only when explicitly enabled via env flag.
+    # SECURITY: Never enable ADAPTIVESCAN_SEED_ADMIN=true in production deployments.
+    if settings.adaptivescan_seed_admin:
+        import uuid
+        from backend.auth.saas_auth import password_hash
+        from backend.database.db import (
+            create_auth_user,
+            create_organization,
+            create_workspace,
+            get_auth_user_by_email,
         )
+
+        seed_email = settings.adaptivescan_seed_email
+        seed_password = settings.adaptivescan_seed_password
+        if not seed_password:
+            import warnings
+            warnings.warn(
+                "[AdaptiveScan] ADAPTIVESCAN_SEED_ADMIN is true but ADAPTIVESCAN_SEED_PASSWORD is not set. "
+                "Skipping seed to avoid insecure default credentials.",
+                UserWarning,
+                stacklevel=1,
+            )
+        elif not get_auth_user_by_email(seed_email):
+            org = create_organization("Admin Organization", plan="enterprise", actor="system")
+            create_workspace(org["org_id"], "Default Workspace", default_allowlist=[], actor="system")
+            create_auth_user(
+                user_id=str(uuid.uuid4()),
+                org_id=str(org["org_id"]),
+                email=seed_email,
+                first_name="Admin",
+                last_name="User",
+                company_name="Admin Organization",
+                role="owner",
+                password_hash_value=password_hash(seed_password),
+                mfa_enabled=False,
+            )
+            import logging
+            logging.getLogger("adaptivescan").info("[startup] Seeded admin user: %s", seed_email)
+
 
 
 @app.get("/docs", include_in_schema=False)

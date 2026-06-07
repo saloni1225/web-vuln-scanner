@@ -5,7 +5,7 @@ defining multi-hop attack paths.
 """
 from __future__ import annotations
 import uuid
-from backend.detection.base_detector import Finding
+from backend.core.finding_schema import CanonicalFinding
 
 # Mappings of vulnerability categories and detector names to downstream exploitation steps.
 # e.g., Information disclosure leads to Auth bypass/Weak Auth, which leads to IDOR, which leads to RCE/Data Leak.
@@ -23,7 +23,7 @@ CATEGORY_TRANSITIONS = {
 class AttackGraphEngine:
     """Builds a directed vulnerability dependency graph and generates attack chains."""
 
-    def __init__(self, findings: list[Finding]):
+    def __init__(self, findings: list[CanonicalFinding]):
         self.findings = findings
         self.nodes = {str(getattr(f, "finding_id", None) or uuid.uuid4()): f for f in findings}
         self.edges: list[tuple[str, str]] = []
@@ -52,6 +52,11 @@ class AttackGraphEngine:
         chains: list[list[str]] = []
         for node_id in self.nodes:
             if not self._has_incoming(node_id):
+                self._dfs_trace(node_id, [], chains)
+
+        # Fallback: if there are cycles and no node is incoming-free, start from every node to find paths
+        if not chains and self.edges:
+            for node_id in self.nodes:
                 self._dfs_trace(node_id, [], chains)
 
         # Distribute chain IDs back to finding nodes
@@ -93,7 +98,7 @@ class AttackGraphEngine:
             "compound_severity": "critical" if risk_score >= 8.5 else "high" if risk_score >= 7.0 else "medium" if risk_score >= 4.0 else "low",
         }
 
-    def _can_transition(self, src: Finding, dest: Finding) -> bool:
+    def _can_transition(self, src: CanonicalFinding, dest: CanonicalFinding) -> bool:
         """Determines if vulnerability 'src' can be leveraged to reach 'dest'."""
         src_cat = src.category or "generic"
         dest_cat = dest.category or "generic"
@@ -110,6 +115,19 @@ class AttackGraphEngine:
         if src.detector in {"auth_bypass", "oauth", "api_authz"} and dest.detector in {"idor", "graphql_authz"}:
             return True
 
+        # Case 4: Exposed API + Weak auth
+        if src.detector in {"cloud_exposure", "advanced_surface"} or src_cat == "javascript_intel":
+            if dest.detector in {"auth_bypass", "oauth", "api_authz", "graphql_authz"}:
+                return True
+
+        # Case 5: IDOR + Sensitive data exposure
+        if src.detector == "idor" and (dest.detector == "cloud_exposure" or dest_cat == "javascript_intel"):
+            return True
+
+        # Case 6: SSRF + Internal service / pivot / RCE
+        if src.detector == "ssrf" and dest.detector in {"rce", "xxe", "deser", "smuggling"}:
+            return True
+
         return False
 
     def _has_incoming(self, node_id: str) -> bool:
@@ -118,13 +136,12 @@ class AttackGraphEngine:
     def _dfs_trace(self, current: str, path: list[str], chains: list[list[str]]):
         path.append(current)
         children = [dst for src, dst in self.edges if src == current]
-        if not children:
+        valid_children = [c for c in children if c not in path]
+        if not valid_children:
             chains.append(list(path))
         else:
-            for child in children:
-                # Prevent cycles
-                if child not in path:
-                    self._dfs_trace(child, path, chains)
+            for child in valid_children:
+                self._dfs_trace(child, path, chains)
         path.pop()
 
     def _calculate_compound_score(self, chains: list[list[str]]) -> float:

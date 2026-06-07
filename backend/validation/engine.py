@@ -42,7 +42,10 @@ def build_validation_summary(findings: list[dict[str, object]]) -> dict[str, obj
 
 
 def _validation_cache_key(finding: dict[str, object]) -> str:
-    raw = "|".join(str(finding.get(key, "")) for key in ("detector", "url", "parameter", "payload"))
+    eb = finding.get("evidence_bundle") or {}
+    param = finding.get("parameter") or eb.get("parameter") or ""
+    payload = finding.get("payload") or eb.get("payload") or ""
+    raw = "|".join(str(val) for val in (finding.get("detector", ""), finding.get("url", ""), param, payload))
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:20]
 
 
@@ -54,14 +57,24 @@ def _exploit_proof_score(finding: dict[str, object]) -> float:
         score += 0.2
     elif finding.get("confidence") == "medium":
         score += 0.1
-    if finding.get("baseline_status") != finding.get("mutated_status") and finding.get("mutated_status") is not None:
+        
+    eb = finding.get("evidence_bundle") or {}
+    b_status = finding.get("baseline_status") or eb.get("baseline_status")
+    m_status = finding.get("mutated_status") or eb.get("mutated_status")
+    if b_status != m_status and m_status is not None:
         score += 0.15
-    baseline_length = finding.get("baseline_length")
-    mutated_length = finding.get("mutated_length")
+        
+    baseline_length = finding.get("baseline_length") or eb.get("baseline_length")
+    mutated_length = finding.get("mutated_length") or eb.get("mutated_length")
     if isinstance(baseline_length, int) and isinstance(mutated_length, int) and abs(baseline_length - mutated_length) > 20:
         score += 0.1
-    if finding.get("payload"):
+        
+    payload = finding.get("payload") or eb.get("payload")
+    if payload:
         score += 0.05
-    if finding.get("request_snapshot") or finding.get("response_snapshot"):
+        
+    req_snap = finding.get("request_snapshot") or eb.get("request_snapshot")
+    res_snap = finding.get("response_snapshot") or eb.get("response_snapshot")
+    if req_snap or res_snap:
         score += 0.05
     return round(min(score, 1.0), 2)

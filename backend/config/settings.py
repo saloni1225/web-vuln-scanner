@@ -78,10 +78,17 @@ class Settings(BaseSettings):
     openvas_username: str = "admin"
     openvas_password: str = "admin"
     # ── Security settings ─────────────────────────────────────────────────────
-    adaptivescan_jwt_secret: str = ""   # Set ADAPTIVESCAN_JWT_SECRET in .env
+    adaptivescan_jwt_secret: str = ""    # Set ADAPTIVESCAN_JWT_SECRET in .env
     cookie_secure: bool = False          # True when serving over HTTPS
     adaptivescan_expose_docs: bool = True   # False in production
     adaptivescan_hsts: bool = False      # True when serving over HTTPS
+    # ── Admin seed (LOCAL DEV ONLY) ───────────────────────────────────────────
+    # Set ADAPTIVESCAN_SEED_ADMIN=true in .env to create an initial admin on startup.
+    # Never enable in shared or production environments.
+    adaptivescan_seed_admin: bool = False
+    adaptivescan_seed_email: str = "admin@localhost"
+    adaptivescan_seed_password: str = ""  # Must be set explicitly; empty = seed skipped
+
 
     model_config = SettingsConfigDict(env_file=ROOT_DIR / ".env", env_file_encoding="utf-8")
 

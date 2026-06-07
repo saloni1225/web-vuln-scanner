@@ -1,3 +1,13 @@
+"""
+Asset-Level Graph Engine for AdaptiveScan.
+
+This module handles asset-level graphs (representing network topology, hosts, endpoints,
+and services).
+
+DISTINCTION:
+- Asset Graph (this file): Models the physical and logical architecture/topology of the attack surface.
+- Attack Graph (backend/core/correlation.py): Models exploit chains and vulnerability dependency paths.
+"""
 from __future__ import annotations
 
 import hashlib
@@ -80,6 +90,8 @@ def build_attack_surface_graph(scan: dict[str, object]) -> dict[str, object]:
         "edge_count": len(edges),
         "attack_paths": paths,
         "highest_risk_path": paths[0] if paths else None,
+        # Cross-reference finding-level exploit chains from core/correlation.py
+        "finding_level_chains": scan.get("attack_chain_summary", {}).get("chains", []),
     }
 
 

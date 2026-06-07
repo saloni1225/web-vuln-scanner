@@ -83,7 +83,9 @@ def issue_otp(email: str, purpose: str) -> dict[str, object]:
     expires_at = int(time.time()) + 600
     challenge = store_otp_challenge(email=email, purpose=purpose, code_hash=_otp_hash(email, purpose, code), expires_at=expires_at)
     write_audit_log("auth.otp.issued", actor=email, target=email, details={"purpose": purpose, "expires_at": expires_at})
-    return {"delivery": "email", "email": email, "purpose": purpose, "challenge_id": challenge["challenge_id"], "expires_at": expires_at, "dev_code": code}
+    # NOTE: dev_code intentionally NOT returned — codes are delivered out-of-band (email/TOTP).
+    # To test locally, query the auth_otp_challenges table directly or check server logs.
+    return {"delivery": "email", "email": email, "purpose": purpose, "challenge_id": challenge["challenge_id"], "expires_at": expires_at}
 
 
 def verify_otp(email: str, code: str, purpose: str) -> dict[str, object]:
@@ -181,11 +183,26 @@ def login_response(email: str, password: str | None = None, passwordless: bool =
         return {"authenticated": False, "reason": "Invalid email or password."}
     mark_auth_user_login(email)
     write_audit_log("auth.login.succeeded", actor=email, target=str(user["user_id"]), details={"role": user["role"]})
+
+    mfa_required = bool(user.get("mfa_required") or user.get("mfa_enabled"))
+
+    if mfa_required:
+        # SECURITY: Do NOT issue real tokens until MFA step is completed.
+        # Return a short-lived MFA challenge; real tokens are issued after OTP verification.
+        return {
+            "authenticated": False,
+            "requires_mfa": True,
+            "mfa": {"methods": ["email_otp", "totp", "backup_code"], "challenge": issue_otp(email, "login_mfa")},
+            # pending_mfa_email is used by the verify-otp endpoint to know which user to finalize
+            "pending_mfa_email": email,
+        }
+
+    # No MFA — issue tokens immediately
     return {
         "authenticated": True,
-        "requires_mfa": bool(user["mfa_required"]),
-        "mfa": {"methods": ["email_otp", "totp", "backup_code"], "challenge": issue_otp(email, "login_mfa")},
+        "requires_mfa": False,
         "tokens": issue_tokens(email, role=str(user["role"]), organization_id=str(user["organization_id"])),
+        "user": {"email": email, "role": str(user["role"]), "first_name": str(user.get("first_name", ""))},
     }
 
 

@@ -369,7 +369,7 @@ async def founder_dashboard() -> dict[str, object]:
 
 
 @router.post("/scan")
-async def scan(request: Request, scan_request: ScanRequest, _body_ok=Depends(limit_request_size)) -> dict[str, object]:
+async def scan(request: Request, scan_request: ScanRequest, _body_ok=Depends(limit_request_size), _: Principal = Depends(require_permission("scan:run"))) -> dict[str, object]:
     check_rate_limit(request)
     # SSRF protection: validate the target URL before scanning
     validate_scan_target(str(scan_request.target_url))
@@ -399,12 +399,12 @@ async def scan(request: Request, scan_request: ScanRequest, _body_ok=Depends(lim
 
 
 @router.get("/reports")
-async def reports() -> list[dict[str, object]]:
+async def reports(_: Principal = Depends(require_permission("report:read"))) -> list[dict[str, object]]:
     return list_scans()
 
 
 @router.get("/scans/history")
-async def scan_history(limit: int = 25) -> dict[str, object]:
+async def scan_history(limit: int = 25, _: Principal = Depends(require_permission("report:read"))) -> dict[str, object]:
     return get_scan_history(limit=max(1, min(limit, 100)))
 
 
@@ -573,12 +573,12 @@ async def api_schema_analyze(request: ApiSchemaAnalyzeRequest) -> dict[str, obje
 
 
 @router.get("/scans/active")
-async def active_scans() -> list[dict[str, object]]:
+async def active_scans(_: Principal = Depends(require_permission("report:read"))) -> list[dict[str, object]]:
     return job_registry.list_jobs()
 
 
 @router.get("/reports/compare/{left_scan_id}/{right_scan_id}")
-async def report_compare(left_scan_id: str, right_scan_id: str) -> dict[str, object]:
+async def report_compare(left_scan_id: str, right_scan_id: str, _: Principal = Depends(require_permission("report:read"))) -> dict[str, object]:
     comparison = compare_scans(left_scan_id, right_scan_id)
     if comparison is None:
         raise HTTPException(status_code=404, detail="One or both scan reports were not found")
@@ -594,7 +594,7 @@ async def role_compare(left_scan_id: str, right_scan_id: str) -> dict[str, objec
 
 
 @router.get("/reports/{scan_id}")
-async def report_detail(scan_id: str) -> dict[str, object]:
+async def report_detail(scan_id: str, _: Principal = Depends(require_permission("report:read"))) -> dict[str, object]:
     scan = get_scan(scan_id)
     if scan is None:
         raise HTTPException(status_code=404, detail="Scan report not found")
@@ -605,7 +605,7 @@ async def report_detail(scan_id: str) -> dict[str, object]:
 
 
 @router.get("/findings/{scan_id}/{finding_index}/lifecycle")
-async def finding_lifecycle(scan_id: str, finding_index: int) -> dict[str, object]:
+async def finding_lifecycle(scan_id: str, finding_index: int, _: Principal = Depends(require_permission("report:read"))) -> dict[str, object]:
     scan = get_scan(scan_id)
     if scan is None:
         raise HTTPException(status_code=404, detail="Scan report not found")
@@ -616,7 +616,7 @@ async def finding_lifecycle(scan_id: str, finding_index: int) -> dict[str, objec
 
 
 @router.put("/findings/{scan_id}/{finding_index}/lifecycle")
-async def update_lifecycle(scan_id: str, finding_index: int, update: FindingLifecycleUpdate) -> dict[str, object]:
+async def update_lifecycle(scan_id: str, finding_index: int, update: FindingLifecycleUpdate, _: Principal = Depends(require_permission("finding:manage"))) -> dict[str, object]:
     allowed_states = {"open", "triaged", "assigned", "retesting", "resolved", "closed"}
     if update.state not in allowed_states:
         raise HTTPException(status_code=400, detail="Unsupported lifecycle state")
@@ -637,7 +637,7 @@ async def update_lifecycle(scan_id: str, finding_index: int, update: FindingLife
 
 
 @router.post("/findings/{scan_id}/{finding_index}/comments")
-async def add_lifecycle_comment(scan_id: str, finding_index: int, comment: FindingCommentCreate) -> dict[str, object]:
+async def add_lifecycle_comment(scan_id: str, finding_index: int, comment: FindingCommentCreate, _: Principal = Depends(require_permission("finding:manage"))) -> dict[str, object]:
     if not comment.body.strip():
         raise HTTPException(status_code=400, detail="Comment body is required")
     scan = get_scan(scan_id)
@@ -697,7 +697,7 @@ async def api_keys(payload: ApiKeyCreate) -> dict[str, object]:
 
 
 @router.get("/replay/{scan_id}/{finding_index}")
-async def replay_finding(scan_id: str, finding_index: int) -> dict[str, object]:
+async def replay_finding(scan_id: str, finding_index: int, _: Principal = Depends(require_permission("scan:run"))) -> dict[str, object]:
     scan = get_scan(scan_id)
     if scan is None:
         raise HTTPException(status_code=404, detail="Scan report not found")
@@ -711,7 +711,7 @@ async def replay_finding(scan_id: str, finding_index: int) -> dict[str, object]:
 
 
 @router.post("/scans/{scan_id}/resume")
-async def resume_scan(scan_id: str) -> dict[str, object]:
+async def resume_scan(scan_id: str, _: Principal = Depends(require_permission("scan:run"))) -> dict[str, object]:
     previous = get_scan(scan_id)
     if previous is None:
         raise HTTPException(status_code=404, detail="Scan report not found")

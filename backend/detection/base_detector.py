@@ -72,9 +72,15 @@ class Finding:
     cvss_vector: str | None = None
     parent_findings: list[str] | None = None
     attack_chain_ids: list[str] | None = None
+    title: str | None = None
+    description: str | None = None
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
+
+    def to_canonical(self):
+        from backend.core.finding_schema import CanonicalFinding
+        return CanonicalFinding.from_finding(self)
 
 
 class BaseDetector(ABC):

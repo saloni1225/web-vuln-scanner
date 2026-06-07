@@ -175,7 +175,7 @@ class ResponseAnalyzer:
         score += min(0.2, latency_delta / 5000)
         return round(min(1.0, score), 2)
 
-    def snapshot_response(self, response: HttpResponse, limit: int = 220) -> str:
+    def snapshot_response(self, response: HttpResponse, limit: int = 4096) -> str:
         body = response.text.strip().replace("\n", " ")
         if len(body) <= limit:
             return body

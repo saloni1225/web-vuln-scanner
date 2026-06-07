@@ -158,6 +158,21 @@ class ScannerEngine:
                 self._timeline(timeline, "validation", f"Validated {len(findings)} candidate findings", 88)
                 
             findings = self._enrich_findings(findings)
+
+            # Canonical Finding Schema integration and validation
+            from backend.core.finding_schema import CanonicalFinding
+            import logging
+            logger = logging.getLogger("scanner_engine")
+            
+            canonical_findings = []
+            for f in findings:
+                cf = CanonicalFinding.from_finding(f)
+                warnings = cf.validate()
+                if warnings:
+                    logger.warning(f"CanonicalFinding validation warning: {', '.join(warnings)}")
+                canonical_findings.append(cf)
+            findings = canonical_findings
+
             graph_engine = AttackGraphEngine(findings)
             attack_graph = graph_engine.build_graph()
             finding_dicts = [finding.to_dict() for finding in findings]
