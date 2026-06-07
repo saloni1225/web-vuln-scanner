@@ -1,0 +1,13 @@
+{{7*7}}
+${7*7}
+<%= 7*7 %>
+#{7*7}
+{7*7}
+{{7*'7'}}
+{{config}}
+{{settings}}
+${.now}
+{{_self.env}}
+<%= self.class %>
+{{request}}
+${T(java.lang.Runtime)}

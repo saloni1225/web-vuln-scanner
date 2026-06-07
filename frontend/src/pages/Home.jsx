@@ -30,7 +30,7 @@ export function Home({ onStart }) {
   const maxTotal = Math.max(1, ...trendRows.map((item) => item.total ?? 0));
   const latestFindings = reports.slice(0, 6).map((report) => ({
     target: report.target_url,
-    severity: report.high_severity_count ? "high" : report.medium_severity_count ? "medium" : "low",
+    severity: report.confirmed_high_severity_count ? "high" : report.confirmed_medium_severity_count ? "medium" : "low",
     findings: report.findings_count,
     status: report.risk_gate_status,
     finished: report.finished_at,
@@ -94,13 +94,26 @@ export function Home({ onStart }) {
         <Card className="wide-card trend-card">
           <CardHeader icon={TrendingUp} title="Severity trend analytics" meta={`${trendRows.length} scans`} />
           <div className="mini-trend">
-            {trendRows.length ? trendRows.map((point) => (
-              <div key={point.scan_id} title={`${point.target_url}: ${point.total} findings`}>
-                <span className="trend-high" style={{ height: `${Math.max(4, ((point.high ?? 0) / maxTotal) * 100)}%` }} />
-                <span className="trend-medium" style={{ height: `${Math.max(4, ((point.medium ?? 0) / maxTotal) * 100)}%` }} />
-                <span className="trend-low" style={{ height: `${Math.max(4, ((point.low ?? 0) / maxTotal) * 100)}%` }} />
-              </div>
-            )) : <div className="empty-panel">No trend data yet</div>}
+            {trendRows.length ? trendRows.map((point) => {
+              const total = (point.high ?? 0) + (point.medium ?? 0) + (point.low ?? 0);
+              const barHeight = Math.max(6, (total / maxTotal) * 100);
+              
+              const highPct = total > 0 ? ((point.high ?? 0) / total) * 100 : 0;
+              const medPct = total > 0 ? ((point.medium ?? 0) / total) * 100 : 0;
+              const lowPct = total > 0 ? ((point.low ?? 0) / total) * 100 : 100;
+              
+              return (
+                <div 
+                  key={point.scan_id} 
+                  title={`${point.target_url}: ${total} findings (${point.high ?? 0}H, ${point.medium ?? 0}M, ${point.low ?? 0}L)`}
+                  style={{ height: `${barHeight}%` }}
+                >
+                  {highPct > 0 && <span className="trend-high" style={{ height: `${highPct}%` }} />}
+                  {medPct > 0 && <span className="trend-medium" style={{ height: `${medPct}%` }} />}
+                  {lowPct > 0 && <span className="trend-low" style={{ height: `${lowPct}%` }} />}
+                </div>
+              );
+            }) : <div className="empty-panel">No trend data yet</div>}
           </div>
         </Card>
 

@@ -1,0 +1,10 @@
+; echo AWVS_RCE_49
+| echo AWVS_RCE_49
+`echo AWVS_RCE_49`
+$(echo AWVS_RCE_49)
+& echo AWVS_RCE_49
+; sleep 5
+| timeout /t 5 /nobreak
+`sleep 5`
+$(sleep 5)
+$(expr 41 + 1)

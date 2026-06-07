@@ -72,6 +72,16 @@ class Settings(BaseSettings):
     enable_opentelemetry: bool = False
     default_workspace_id: str = "local-workspace"
     cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
+    enable_openvas_integration: bool = False
+    openvas_host: str = "127.0.0.1"
+    openvas_port: int = 9390
+    openvas_username: str = "admin"
+    openvas_password: str = "admin"
+    # ── Security settings ─────────────────────────────────────────────────────
+    adaptivescan_jwt_secret: str = ""   # Set ADAPTIVESCAN_JWT_SECRET in .env
+    cookie_secure: bool = False          # True when serving over HTTPS
+    adaptivescan_expose_docs: bool = True   # False in production
+    adaptivescan_hsts: bool = False      # True when serving over HTTPS
 
     model_config = SettingsConfigDict(env_file=ROOT_DIR / ".env", env_file_encoding="utf-8")
 

@@ -61,6 +61,21 @@ class PayloadGenerator:
             {"query": f'mutation AWVS {{ __typename }}', "variables": f'{{"marker":"{marker}"}}'},
         ]
 
+    def nosql_payloads(self) -> list[str]:
+        return self._read_payloads("nosql_payloads.txt")
+
+    def ssti_payloads(self) -> list[str]:
+        return self._read_payloads("ssti_payloads.txt")
+
+    def xxe_payloads(self) -> list[str]:
+        return self._read_payloads("xxe_payloads.txt")
+
+    def rce_payloads(self) -> list[str]:
+        return self._read_payloads("rce_payloads.txt")
+
+    def ssrf_payloads(self) -> list[str]:
+        return self._read_payloads("ssrf_payloads.txt")
+
     def _read_payloads(self, filename: str) -> list[str]:
         path = PAYLOAD_DIR / filename
         return [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]

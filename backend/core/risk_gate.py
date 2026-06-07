@@ -43,11 +43,14 @@ def evaluate_exposure_posture(
     failures: list[str] = []
     reasoning: list[str] = []
 
-    if fail_on_high and high_count > max_high:
-        failures.append(f"{high_count} high severity findings exceeds allowed {max_high}")
-        reasoning.append("High-severity findings require validation in the current policy.")
-    if max_medium is not None and medium_count > max_medium:
-        failures.append(f"{medium_count} medium severity findings exceeds allowed {max_medium}")
+    confirmed_high_count = int(summary.get("confirmed_high_severity_count") if summary.get("confirmed_high_severity_count") is not None else high_count)
+    confirmed_medium_count = int(summary.get("confirmed_medium_severity_count") if summary.get("confirmed_medium_severity_count") is not None else medium_count)
+
+    if fail_on_high and confirmed_high_count > max_high:
+        failures.append(f"{confirmed_high_count} confirmed high severity findings exceeds allowed {max_high}")
+        reasoning.append("Confirmed high-severity findings require validation in the current policy.")
+    if max_medium is not None and confirmed_medium_count > max_medium:
+        failures.append(f"{confirmed_medium_count} confirmed medium severity findings exceeds allowed {max_medium}")
     if max_total is not None and total_count > max_total:
         failures.append(f"{total_count} total findings exceeds allowed {max_total}")
 
@@ -88,14 +91,14 @@ def evaluate_exposure_posture(
     if high_risk_endpoints:
         reasoning.append(f"{high_risk_endpoints} high-risk endpoints are internet reachable.")
 
-    gate_status = "failed" if failures else state_key
+    gate_status = "failed" if failures else "passed"
 
     return {
         "status": gate_status,
         "label": EXPOSURE_STATES[state_key],
         "posture": EXPOSURE_STATES[state_key],
         "score": posture_score,
-        "passed": state_key in {"protected", "monitoring"},
+        "passed": not failures,
         "failures": failures,
         "reasoning": reasoning or ["Exposure posture is based on internet reachability, drift, attack paths, and validation state."],
         "recommended_actions": _recommended_actions(state_key),

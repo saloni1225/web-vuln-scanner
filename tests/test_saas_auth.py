@@ -25,8 +25,8 @@ def test_register_login_and_otp_flow():
         "last_name": "Lovelace",
         "company_name": "Example Security",
         "work_email": email,
-        "password": "CorrectHorse42",
-        "confirm_password": "CorrectHorse42",
+        "password": "CorrectHorse42!",
+        "confirm_password": "CorrectHorse42!",
     }
     register_response = client.post("/api/auth/register", json=payload)
 
@@ -40,7 +40,7 @@ def test_register_login_and_otp_flow():
     assert bad_login_response.status_code == 200
     assert bad_login_response.json()["authenticated"] is False
 
-    login_response = client.post("/api/auth/login", json={"email": email, "password": "CorrectHorse42"})
+    login_response = client.post("/api/auth/login", json={"email": email, "password": "CorrectHorse42!"})
     assert login_response.status_code == 200
     login = login_response.json()
     assert login["authenticated"] is True

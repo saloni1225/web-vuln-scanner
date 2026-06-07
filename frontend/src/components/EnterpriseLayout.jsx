@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useCursorGlow } from "../hooks/useCursorGlow.js";
 import {
   Activity,
   Bell,
@@ -35,6 +36,7 @@ import {
   X,
 } from "lucide-react";
 import { fetchActiveScans, fetchOperationsIntelligence, fetchReports, startScan } from "../services/api.js";
+import { Logo } from "./Logo.jsx";
 import { createScanSocket } from "../services/socket.js";
 
 const navSections = [
@@ -111,7 +113,19 @@ const navSections = [
   },
 ];
 
-export function EnterpriseLayout({ page, onNavigate, children }) {
+function SidebarButton({ children, className = "", magnetic = true, ...props }) {
+  const ref = useCursorGlow({ magnetic, magneticStrength: 0.12 });
+  return (
+    <button ref={ref} className={`${className} spotlight-sidebar-item`} {...props}>
+      <span className="spotlight-sidebar-glow" />
+      <span className="spotlight-sidebar-content" style={{ display: "inline-flex", alignItems: "center", width: "100%", gap: "inherit" }}>
+        {children}
+      </span>
+    </button>
+  );
+}
+
+export function EnterpriseLayout({ page, onNavigate, theme = "dark", onChangeTheme, children }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [expandedSection, setExpandedSection] = useState(() => {
@@ -313,7 +327,7 @@ export function EnterpriseLayout({ page, onNavigate, children }) {
     <div className={`enterprise-shell ${collapsed ? "sidebar-collapsed" : ""} ${mobileOpen ? "mobile-nav-open" : ""}`}>
       <aside className="enterprise-sidebar">
         <div className="sidebar-brand">
-          <div className="brand-mark"><Shield size={18} /></div>
+          <Logo size={24} />
           <div className="brand-text">
             <strong>AdaptiveScan</strong>
             <span>External Exposure Platform</span>
@@ -324,7 +338,7 @@ export function EnterpriseLayout({ page, onNavigate, children }) {
           {navSections.map((section) => (
             <div key={section.label} className={`sidebar-section ${section.route === page ? "active-section" : ""}`}>
               {section.route ? (
-                <button
+                <SidebarButton
                   type="button"
                   className={`sidebar-link root-link ${page === section.route ? "active" : ""}`}
                   onClick={() => navigateTo(section.route)}
@@ -332,10 +346,10 @@ export function EnterpriseLayout({ page, onNavigate, children }) {
                 >
                   <section.icon size={18} />
                   <span>{section.label}</span>
-                </button>
+                </SidebarButton>
               ) : (
                 <>
-                  <button
+                  <SidebarButton
                     type="button"
                     className={`sidebar-group-trigger ${expandedSection === section.label ? "expanded" : ""}`}
                     aria-expanded={expandedSection === section.label}
@@ -346,14 +360,14 @@ export function EnterpriseLayout({ page, onNavigate, children }) {
                     <section.icon size={18} />
                     <span>{section.label}</span>
                     <ChevronDown className="sidebar-chevron" size={15} />
-                  </button>
+                  </SidebarButton>
                   <div
                     id={`nav-section-${section.label.toLowerCase().replaceAll(" ", "-")}`}
                     className="sidebar-subnav"
                     data-expanded={expandedSection === section.label}
                   >
                     {section.items.map(([key, Icon, label]) => (
-                      <button
+                      <SidebarButton
                         type="button"
                         key={key}
                         className={`sidebar-link ${page === key ? "active" : ""}`}
@@ -362,7 +376,7 @@ export function EnterpriseLayout({ page, onNavigate, children }) {
                       >
                         <Icon size={16} />
                         <span>{label}</span>
-                      </button>
+                      </SidebarButton>
                     ))}
                   </div>
                 </>
@@ -370,6 +384,21 @@ export function EnterpriseLayout({ page, onNavigate, children }) {
             </div>
           ))}
         </nav>
+
+        <div className="theme-selector-container" style={{ display: "flex", flexDirection: "column", gap: "4px", padding: "8px 18px", borderTop: "1px solid var(--border-soft)", marginBottom: "8px" }}>
+          {!collapsed && (
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#00ffcc", textShadow: "0 0 8px rgba(0, 255, 204, 0.4)", fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+              <span style={{ display: "inline-block", width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "#00ffcc", boxShadow: "0 0 6px #00ffcc" }}></span>
+              Cyberpunk Edition
+            </div>
+          )}
+        </div>
+
+        {!collapsed && (
+          <div className="sidebar-copyright-recoxy" style={{ padding: "8px 18px", fontSize: "0.7rem", color: "var(--subtle)", borderTop: "1px solid var(--border-soft)", marginBottom: "4px" }}>
+            All rights reserved to Recoxy
+          </div>
+        )}
 
         <button className="collapse-button" type="button" onClick={() => setCollapsed((value) => !value)}>
           {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
@@ -439,7 +468,7 @@ export function EnterpriseLayout({ page, onNavigate, children }) {
           />
         ) : null}
         <div className="workspace-frame">
-          <main>{children}</main>
+          <main key={page} className="page-transition-wrapper">{children}</main>
           <aside className="intelligence-drawer" aria-label="Contextual intelligence">
             <div className="drawer-signal">
               <Sparkles size={16} />

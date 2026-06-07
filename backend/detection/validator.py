@@ -36,6 +36,50 @@ class FindingValidator:
                         finding.validation_state = "confirmed"
                 else:
                     finding.validation_state = "confirmed" # Harder to quickly re-validate time/bool without baseline, assume confirmed if it reached here
+            elif finding.detector == "ssti":
+                # For SSTI, check if the evaluated expression still appears
+                if finding.payload and "49" in response1.text and "49" in response2.text:
+                    finding.validation_state = "confirmed"
+                elif finding.payload and "49" not in response1.text:
+                    finding.validation_state = "flaky"
+                    finding.confidence = "low"
+            elif finding.detector == "ssrf":
+                # For SSRF, re-check if internal signatures persist
+                from backend.detection.ssrf_detector import _INTERNAL_SIGS
+                body1 = response1.text.lower()
+                if any(sig.lower() in body1 for sig in _INTERNAL_SIGS):
+                    finding.validation_state = "confirmed"
+                elif finding.category == "ssrf-blind":
+                    finding.validation_state = "confirmed"  # Timing-based, trust original measurement
+            elif finding.detector == "idor":
+                # For IDOR, re-request to confirm consistent behavior
+                if response1.status_code == 200 and response2.status_code == 200:
+                    if self.analyzer.has_length_anomaly(response1, response2, ratio=0.1):
+                        finding.validation_state = "flaky"
+                        finding.confidence = "low"
+                    else:
+                        finding.validation_state = "confirmed"
+            elif finding.detector == "nosql":
+                # For NoSQL, check if error signatures persist
+                nosql_sigs = ("mongoerror", "bson", "objectid", "casteerror")
+                body1 = response1.text.lower()
+                if any(s in body1 for s in nosql_sigs):
+                    finding.validation_state = "confirmed"
+                elif self.analyzer.has_error_signature(response1):
+                    finding.validation_state = "confirmed"
+            elif finding.detector in {"rce", "xxe", "deser"}:
+                # For these, rely on original detection confidence
+                if finding.confidence == "high":
+                    finding.validation_state = "confirmed"
+            elif finding.detector in {"cloud_exposure"}:
+                # Re-check if sensitive file is still accessible
+                if response1.status_code == 200:
+                    finding.validation_state = "confirmed"
+                else:
+                    finding.validation_state = "flaky"
+                    finding.confidence = "low"
+            # For other detectors (api_authz, graphql_authz, oauth, smuggling, race, cache_poison),
+            # keep the original validation state from detection phase
         except Exception:
             finding.validation_state = "flaky"
             finding.confidence = "low"

@@ -1,0 +1,4 @@
+<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe "AWVS_XXE_CANARY">]><root>&xxe;</root>
+<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY a "AAAA"><!ENTITY b "&a;&a;&a;&a;">]><root>&b;</root>
+<?xml version="1.0"?><!DOCTYPE foo SYSTEM "file:///dev/null"><root>test</root>
+<?xml version="1.0"?><root><![CDATA[AWVS_XXE_CANARY]]></root>

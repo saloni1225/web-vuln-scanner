@@ -189,6 +189,11 @@ def list_scans() -> list[dict[str, object]]:
         summary = scan.get("summary", {}) if isinstance(scan, dict) else {}
         scan_options = scan.get("scan_options", {}) if isinstance(scan, dict) else {}
         risk_gate = scan.get("risk_gate", {}) if isinstance(scan, dict) else {}
+        findings = scan.get("findings", []) if isinstance(scan, dict) else []
+        confirmed_high = int(summary.get("confirmed_high_severity_count") if summary.get("confirmed_high_severity_count") is not None else sum(1 for f in findings if isinstance(f, dict) and f.get("severity") == "high" and f.get("validation_state") in ("confirmed", "validated")))
+        confirmed_medium = int(summary.get("confirmed_medium_severity_count") if summary.get("confirmed_medium_severity_count") is not None else sum(1 for f in findings if isinstance(f, dict) and f.get("severity") == "medium" and f.get("validation_state") in ("confirmed", "validated")))
+        confirmed_low = int(summary.get("confirmed_low_severity_count") if summary.get("confirmed_low_severity_count") is not None else sum(1 for f in findings if isinstance(f, dict) and f.get("severity") == "low" and f.get("validation_state") in ("confirmed", "validated")))
+
         reports.append({
             "scan_id": row[0],
             "target_url": row[1],
@@ -198,6 +203,9 @@ def list_scans() -> list[dict[str, object]]:
             "high_severity_count": int(summary.get("high_severity_count", 0) or 0) if isinstance(summary, dict) else 0,
             "medium_severity_count": int(summary.get("medium_severity_count", 0) or 0) if isinstance(summary, dict) else 0,
             "low_severity_count": int(summary.get("low_severity_count", 0) or 0) if isinstance(summary, dict) else 0,
+            "confirmed_high_severity_count": confirmed_high,
+            "confirmed_medium_severity_count": confirmed_medium,
+            "confirmed_low_severity_count": confirmed_low,
             "endpoint_count": int(summary.get("endpoint_count", 0) or 0) if isinstance(summary, dict) else 0,
             "high_risk_endpoint_count": int(summary.get("high_risk_endpoint_count", 0) or 0) if isinstance(summary, dict) else 0,
             "scan_profile": scan_options.get("scan_profile", "deep") if isinstance(scan_options, dict) else "deep",

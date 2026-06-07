@@ -1,0 +1,12 @@
+{"$gt":""}
+{"$ne":null}
+{"$regex":".*"}
+{"$exists":true}
+'; return true; var x='
+"; return true; var x="
+true, $where: '1'=='1'
+{$where: 'this.a == this.a'}
+[$gt]=
+[$ne]=null
+[$regex]=.*
+{"$or":[{},{"a":"a"}]}

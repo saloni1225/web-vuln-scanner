@@ -28,10 +28,11 @@ from backend.detection.base_detector import Finding
 from backend.detection.registry import describe_loaded_detectors
 from backend.detection.registry import load_detectors
 from backend.utils.helpers import is_private_host
-from backend.utils.helpers import map_cwe
+from backend.utils.helpers import map_cwe, map_cvss_vector
 from backend.detection.validator import FindingValidator
 from backend.utils.helpers import build_target_advisory
 from backend.utils.remediation import get_remediation
+from backend.core.correlation import AttackGraphEngine
 from backend.recon.intelligence import build_reconnaissance_matrix
 from backend.risk.ai_risk import build_ai_risk_summary
 from backend.telemetry.engine import build_scan_telemetry
@@ -157,6 +158,8 @@ class ScannerEngine:
                 self._timeline(timeline, "validation", f"Validated {len(findings)} candidate findings", 88)
                 
             findings = self._enrich_findings(findings)
+            graph_engine = AttackGraphEngine(findings)
+            attack_graph = graph_engine.build_graph()
             finding_dicts = [finding.to_dict() for finding in findings]
             for index, finding in enumerate(finding_dicts):
                 finding["replay_plan"] = build_replay_plan(finding)
@@ -166,7 +169,10 @@ class ScannerEngine:
             api_summary = site_map.get("api_summary", {})
             behavioral_summary = self._build_behavioral_summary(site_map, findings)
             auth_summary = self._build_auth_summary(request_handler, detector_site_map)
-            attack_chain_summary = self._build_attack_chain_summary(detector_site_map, findings, auth_summary)
+            attack_chain_summary = {
+                **self._build_attack_chain_summary(detector_site_map, findings, auth_summary),
+                **attack_graph
+            }
             reconnaissance_matrix = build_reconnaissance_matrix(target_url, site_map, recon_summary)
             modern_crawl_summary = summarize_modern_crawl(detector_site_map)
             api_security_summary = analyze_api_surface(detector_site_map, schema_fuzz_summary)
@@ -180,6 +186,9 @@ class ScannerEngine:
                 "high_severity_count": sum(1 for finding in findings if finding.severity == "high"),
                 "medium_severity_count": sum(1 for finding in findings if finding.severity == "medium"),
                 "low_severity_count": sum(1 for finding in findings if finding.severity == "low"),
+                "confirmed_high_severity_count": sum(1 for finding in findings if finding.severity == "high" and finding.validation_state in ("confirmed", "validated")),
+                "confirmed_medium_severity_count": sum(1 for finding in findings if finding.severity == "medium" and finding.validation_state in ("confirmed", "validated")),
+                "confirmed_low_severity_count": sum(1 for finding in findings if finding.severity == "low" and finding.validation_state in ("confirmed", "validated")),
                 "validated_finding_count": sum(1 for finding in findings if finding.validation_state == "validated"),
                 "passive_security_score": recon_summary.get("passive_security", {}).get("score", 0),
                 "open_port_count": len(recon_summary.get("port_summary", {}).get("open_ports", [])),
@@ -207,6 +216,7 @@ class ScannerEngine:
                 "behavioral_summary": behavioral_summary,
                 "auth_summary": auth_summary,
                 "attack_chain_summary": attack_chain_summary,
+                "attack_graph": attack_graph,
                 "role_summary": self._build_role_summary(auth_context, target_url),
                 "detector_timings": detector_timings,
                 "detector_registry": describe_loaded_detectors(selected_detector_names),
@@ -375,10 +385,12 @@ class ScannerEngine:
         severity_base = {"high": 8.6, "medium": 6.1, "low": 3.8}
         confidence_mod = {"high": 0.5, "medium": 0.0, "low": -0.7}
         for finding in findings:
+            finding.finding_id = finding.finding_id or str(uuid.uuid4())
             confidence_score = finding.confidence_score if finding.confidence_score is not None else {"high": 0.85, "medium": 0.55, "low": 0.3}.get(finding.confidence or "medium", 0.5)
             score = severity_base.get(finding.severity, 5.0) + confidence_mod.get(finding.confidence or "medium", 0.0) + (confidence_score - 0.5)
             finding.cvss_score = round(min(10.0, max(0.1, score)), 1)
             finding.remediation_priority = "P1" if finding.cvss_score >= 8.5 else "P2" if finding.cvss_score >= 6.0 else "P3"
+            finding.cvss_vector = map_cvss_vector(finding.detector, finding.severity)
             if not finding.validation_state:
                 finding.validation_state = "validated" if finding.confidence == "high" else "requires-review"
             cwe = map_cwe(finding.detector, finding.category)

@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Response, WebSocket
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, WebSocket
 from pydantic import BaseModel, Field
 from starlette.websockets import WebSocketDisconnect
 
@@ -44,6 +44,22 @@ from backend.database.db import list_audit_logs
 from backend.database.db import save_scan
 from backend.database.db import update_finding_lifecycle
 from backend.detection.registry import describe_loaded_detectors
+from backend.security.rate_limiter import (
+    check_auth_lockout,
+    check_rate_limit,
+    clear_auth_failures,
+    record_auth_failure,
+    _client_ip,
+)
+from backend.security.ssrf_guard import validate_scan_target
+from backend.security.csrf import enforce_csrf, set_csrf_cookie
+from backend.security.input_validation import (
+    validate_email,
+    validate_password_strength,
+    detect_injection,
+    limit_request_size,
+)
+from backend.security.jwt_guard import set_auth_cookies, clear_auth_cookies
 
 
 router = APIRouter()
@@ -138,52 +154,94 @@ async def auth_foundation() -> dict[str, object]:
 
 
 @router.post("/auth/register")
-async def auth_register(payload: RegisterRequest) -> dict[str, object]:
+async def auth_register(request: Request, payload: RegisterRequest, response: Response) -> dict[str, object]:
+    check_rate_limit(request)
+    check_auth_lockout(request)
+    email = validate_email(payload.work_email)
+    validate_password_strength(payload.password)
     if payload.password != payload.confirm_password:
         raise HTTPException(status_code=400, detail="Passwords do not match")
-    if len(payload.password) < 8:
-        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
-    if "@" not in payload.work_email:
-        raise HTTPException(status_code=400, detail="A valid work email is required")
-    return create_registration(payload.model_dump())
+    detect_injection(payload.first_name, "first_name")
+    detect_injection(payload.last_name, "last_name")
+    detect_injection(payload.company_name, "company_name")
+    result = create_registration({**payload.model_dump(), "work_email": email})
+    # Issue CSRF cookie after successful registration
+    csrf_token = set_csrf_cookie(response)
+    result["csrf_token"] = csrf_token
+    return result
 
 
 @router.post("/auth/login")
-async def auth_login(payload: LoginRequest) -> dict[str, object]:
-    if "@" not in payload.email:
-        raise HTTPException(status_code=400, detail="A valid email is required")
-    return login_response(payload.email.strip().lower(), payload.password, passwordless=payload.passwordless)
+async def auth_login(request: Request, payload: LoginRequest, response: Response) -> dict[str, object]:
+    check_rate_limit(request)
+    check_auth_lockout(request)
+    email = validate_email(payload.email)
+    result = login_response(email, payload.password, passwordless=payload.passwordless)
+    if not result.get("authenticated", True) and not result.get("requires_otp"):
+        record_auth_failure(_client_ip(request))
+    else:
+        clear_auth_failures(_client_ip(request))
+        # Set tokens in httpOnly cookies in addition to response body
+        tokens = result.get("tokens")
+        if isinstance(tokens, dict):
+            set_auth_cookies(
+                response,
+                access_token=str(tokens.get("access_token", "")),
+                refresh_token=str(tokens.get("refresh_token", "")),
+            )
+    csrf_token = set_csrf_cookie(response)
+    result["csrf_token"] = csrf_token
+    return result
 
 
 @router.post("/auth/otp/send")
-async def auth_send_otp(payload: OtpRequest) -> dict[str, object]:
-    if "@" not in payload.email:
-        raise HTTPException(status_code=400, detail="A valid email is required")
-    return issue_otp(payload.email.strip().lower(), payload.purpose)
+async def auth_send_otp(request: Request, payload: OtpRequest) -> dict[str, object]:
+    check_rate_limit(request)
+    check_auth_lockout(request)
+    email = validate_email(payload.email)
+    return issue_otp(email, payload.purpose)
 
 
 @router.post("/auth/otp/verify")
-async def auth_verify_otp(payload: OtpRequest) -> dict[str, object]:
-    return verify_otp(payload.email.strip().lower(), payload.code, payload.purpose)
+async def auth_verify_otp(request: Request, payload: OtpRequest, response: Response) -> dict[str, object]:
+    check_rate_limit(request)
+    check_auth_lockout(request)
+    email = validate_email(payload.email)
+    result = verify_otp(email, payload.code, payload.purpose)
+    if not result.get("verified"):
+        record_auth_failure(_client_ip(request))
+    else:
+        clear_auth_failures(_client_ip(request))
+    return result
 
 
 @router.post("/auth/forgot-password")
-async def auth_forgot_password(payload: ForgotPasswordRequest) -> dict[str, object]:
-    if "@" not in payload.email:
-        raise HTTPException(status_code=400, detail="A valid email is required")
-    return {"reset": issue_otp(payload.email.strip().lower(), "password_reset"), "next_step": "verify-reset-otp"}
+async def auth_forgot_password(request: Request, payload: ForgotPasswordRequest) -> dict[str, object]:
+    check_rate_limit(request)
+    check_auth_lockout(request)
+    email = validate_email(payload.email)
+    return {"reset": issue_otp(email, "password_reset"), "next_step": "verify-reset-otp"}
 
 
 @router.post("/auth/password-reset")
-async def auth_password_reset(payload: PasswordResetRequest) -> dict[str, object]:
-    if len(payload.new_password) < 8:
-        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+async def auth_password_reset(request: Request, payload: PasswordResetRequest) -> dict[str, object]:
+    check_rate_limit(request)
+    check_auth_lockout(request)
+    validate_password_strength(payload.new_password)
     return password_reset_response(payload.email.strip().lower(), payload.code, payload.new_password)
 
 
 @router.post("/auth/logout")
-async def auth_logout(payload: LogoutRequest) -> dict[str, object]:
+async def auth_logout(request: Request, payload: LogoutRequest, response: Response) -> dict[str, object]:
+    clear_auth_cookies(response)
     return logout_response(payload.email.strip().lower())
+
+
+@router.get("/auth/csrf")
+async def auth_csrf_token(response: Response) -> dict[str, str]:
+    """Issue a fresh CSRF token — call this before any state-changing request."""
+    csrf_token = set_csrf_cookie(response)
+    return {"csrf_token": csrf_token}
 
 
 @router.get("/onboarding")
@@ -311,9 +369,12 @@ async def founder_dashboard() -> dict[str, object]:
 
 
 @router.post("/scan")
-async def scan(request: ScanRequest) -> dict[str, object]:
+async def scan(request: Request, scan_request: ScanRequest, _body_ok=Depends(limit_request_size)) -> dict[str, object]:
+    check_rate_limit(request)
+    # SSRF protection: validate the target URL before scanning
+    validate_scan_target(str(scan_request.target_url))
     scan_id = str(uuid.uuid4())
-    job_registry.register(scan_id, str(request.target_url))
+    job_registry.register(scan_id, str(scan_request.target_url))
 
     async def emit_progress(event: dict[str, object]) -> None:
         job_registry.update(
@@ -325,7 +386,7 @@ async def scan(request: ScanRequest) -> dict[str, object]:
         await scan_hub.broadcast_to_scan(scan_id, event)
 
     try:
-        result = await controller.start_scan(request, scan_id=scan_id, progress_callback=emit_progress)
+        result = await controller.start_scan(scan_request, scan_id=scan_id, progress_callback=emit_progress)
     except RuntimeError as exc:
         job_registry.update(scan_id, status="failed", progress=100, message=str(exc))
         raise HTTPException(status_code=400, detail=str(exc)) from exc

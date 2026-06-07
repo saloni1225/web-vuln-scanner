@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ArrowUpDown, Columns3, Download, Filter, Search } from "lucide-react";
+import { useCursorGlow } from "../hooks/useCursorGlow.js";
 
 export function PageHeader({ eyebrow, title, subtitle, actions }) {
   return (
@@ -14,8 +15,13 @@ export function PageHeader({ eyebrow, title, subtitle, actions }) {
   );
 }
 
-export function Card({ children, className = "" }) {
-  return <article className={`as-card ${className}`}>{children}</article>;
+export function Card({ children, className = "", ...props }) {
+  const ref = useCursorGlow();
+  return (
+    <article ref={ref} className={`as-card spotlight-card ${className}`} {...props}>
+      <div className="spotlight-content">{children}</div>
+    </article>
+  );
 }
 
 export function CardHeader({ icon: Icon, title, meta }) {
@@ -27,12 +33,44 @@ export function CardHeader({ icon: Icon, title, meta }) {
   );
 }
 
-export function StatCard({ icon: Icon, label, value, delta, tone = "neutral" }) {
+export function GlowingCounter({ value, duration = 800 }) {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const end = parseInt(value, 10);
+    if (isNaN(end)) {
+      setCount(value);
+      return;
+    }
+
+    let startTime = null;
+
+    const animate = (timestamp) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      setCount(Math.floor(progress * end));
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
+    };
+
+    requestAnimationFrame(animate);
+  }, [value, duration]);
+
+  return <span className="glowing-counter">{count}</span>;
+}
+
+export function StatCard({ icon: Icon, label, value, delta, tone = "neutral", ...props }) {
+  const ref = useCursorGlow();
   return (
-    <article className={`stat-card tone-${tone}`}>
-      <div>{Icon ? <Icon size={18} /> : null}<span>{label}</span></div>
-      <strong>{value}</strong>
-      {delta ? <small>{delta}</small> : null}
+    <article ref={ref} className={`stat-card spotlight-card tone-${tone}`} {...props}>
+      <div className="spotlight-content">
+        <div>{Icon ? <Icon size={18} /> : null}<span>{label}</span></div>
+        <strong>
+          <GlowingCounter value={value} />
+        </strong>
+        {delta ? <small>{delta}</small> : null}
+      </div>
     </article>
   );
 }
@@ -57,6 +95,15 @@ export function SeverityBadge({ value = "info" }) {
 
 export function StatusPill({ children, tone = "neutral" }) {
   return <span className={`status-pill tone-${tone}`}>{children}</span>;
+}
+
+function SpotlightTableRow({ children, ...props }) {
+  const ref = useCursorGlow();
+  return (
+    <tr ref={ref} className="spotlight-row" {...props}>
+      {children}
+    </tr>
+  );
 }
 
 export function DataTable({ columns, rows, getKey, empty = "No data available" }) {
@@ -114,11 +161,11 @@ export function DataTable({ columns, rows, getKey, empty = "No data available" }
           </thead>
           <tbody>
             {filtered.length ? filtered.map((row, index) => (
-              <tr key={getKey ? getKey(row, index) : index}>
+              <SpotlightTableRow key={getKey ? getKey(row, index) : index}>
                 {columns.map((column) => (
                   <td key={column.key}>{column.render ? column.render(row) : row[column.key]}</td>
                 ))}
-              </tr>
+              </SpotlightTableRow>
             )) : (
               <tr><td colSpan={columns.length} className="empty-cell">{empty}</td></tr>
             )}

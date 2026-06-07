@@ -9,15 +9,17 @@ import { CapabilitiesPage } from "./pages/CapabilitiesPage.jsx";
 import { PlatformPage } from "./pages/PlatformPage.jsx";
 import { ApiSecurityPage, AssetsPage, AttackPathAnalysisPage, AttackSurfacePage, CompliancePage, DriftIntelligencePage, ExposureOperationsPage, FindingsPage, MonitoringPage, OffensiveResearchPage, OperationalTelemetryPage, ReconPage, SettingsPage, ThreatIntelligencePage } from "./pages/EnterprisePages.jsx";
 import { AuthPage, BillingPage, ContactPage, DocumentationPage, FeaturesPage, MarketingHome, MonitoringWorkflowsPage, NotificationCenterPage, OnboardingPage, PricingPage, SaaSSettingsPage, TeamManagementPage, TrustPage } from "./pages/SaaSPages.jsx";
+import { Logo } from "./components/Logo.jsx";
 import "./styles/dashboard.css";
 
 export default function App() {
   const [page, setPage] = useState("marketing");
+  const [theme, setTheme] = useState("cyberpunk-dark");
 
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", "dark");
+    document.documentElement.setAttribute("data-theme", theme);
     document.documentElement.setAttribute("data-background-mode", "enterprise");
-  }, []);
+  }, [theme]);
 
   const publicPages = new Set(["marketing", "features", "pricing", "trust", "documentation", "contact", "login", "register", "otp", "forgot", "mfa", "onboarding"]);
   const authModes = new Set(["login", "register", "otp", "forgot", "mfa"]);
@@ -41,7 +43,15 @@ export default function App() {
     return (
       <div className="public-shell">
         <header className="public-nav">
-          <button className="public-brand" type="button" onClick={() => setPage("marketing")}>AdaptiveScan</button>
+          <button
+            className="public-brand"
+            type="button"
+            onClick={() => setPage("marketing")}
+            style={{ display: "inline-flex", alignItems: "center", gap: "8px", border: 0, background: "transparent", cursor: "pointer" }}
+          >
+            <Logo size={28} />
+            <span>AdaptiveScan</span>
+          </button>
           <nav>
             <button type="button" onClick={() => setPage("features")}>Features</button>
             <button type="button" onClick={() => setPage("pricing")}>Pricing</button>
@@ -49,7 +59,11 @@ export default function App() {
             <button type="button" onClick={() => setPage("documentation")}>Documentation</button>
             <button type="button" onClick={() => setPage("contact")}>Contact</button>
           </nav>
-          <div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#ff007f", textShadow: "0 0 8px rgba(255, 0, 127, 0.4)", fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", marginRight: "10px" }}>
+              <span style={{ display: "inline-block", width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "#ff007f", boxShadow: "0 0 6px #ff007f" }}></span>
+              Cyberpunk Edition
+            </div>
             <button className="ghost-button" type="button" onClick={() => setPage("login")}>Login</button>
             <button className="primary-action" type="button" onClick={() => setPage("register")}>Start Free Trial</button>
           </div>
@@ -67,7 +81,7 @@ export default function App() {
   }
 
   return (
-    <EnterpriseLayout page={page} onNavigate={setPage}>
+    <EnterpriseLayout page={page} onNavigate={setPage} theme={theme} onChangeTheme={setTheme}>
       {activePage === "dashboard" && <Home onStart={() => setPage("attack-surface")} />}
       {activePage === "assets" && <AssetsPage />}
       {activePage === "recon" && <ReconPage />}

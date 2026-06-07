@@ -58,6 +58,7 @@ class Finding:
     dom_observation: str | None = None
     confidence_score: float | None = None
     validation_signals: list[str] | None = None
+    finding_id: str | None = None
     request_snapshot: str | None = None
     response_snapshot: str | None = None
     cwe_id: str | None = None
@@ -68,8 +69,11 @@ class Finding:
     validation_state: str | None = None
     owasp_category: str | None = None
     code_snippet: str | None = None
+    cvss_vector: str | None = None
+    parent_findings: list[str] | None = None
+    attack_chain_ids: list[str] | None = None
 
-    def to_dict(self) -> dict[str, str | None]:
+    def to_dict(self) -> dict[str, object]:
         return asdict(self)
 
 

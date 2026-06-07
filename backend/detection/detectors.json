@@ -80,6 +80,132 @@
       "category": "server-side",
       "description": "Flags SSRF, file upload, traversal, cache poisoning, host header, WebSocket, race, and request smuggling candidates.",
       "supports": ["ssrf", "file-upload", "path-traversal", "cache-poisoning", "host-header", "websocket", "race", "request-smuggling"]
+    },
+    {
+      "name": "idor",
+      "module": "backend.detection.idor_detector",
+      "class": "IDORDetector",
+      "enabled": true,
+      "category": "authorization",
+      "description": "Actively tests for Broken Object-Level Authorization by swapping resource IDs in paths and query params.",
+      "supports": ["api", "query", "path"]
+    },
+    {
+      "name": "ssrf",
+      "module": "backend.detection.ssrf_detector",
+      "class": "SSRFDetector",
+      "enabled": true,
+      "category": "server-side",
+      "description": "Injects internal-network and cloud-metadata URL probes to detect full-read and blind SSRF.",
+      "supports": ["query", "form", "api"]
+    },
+    {
+      "name": "api_authz",
+      "module": "backend.detection.api_authz_detector",
+      "class": "APIAuthzDetector",
+      "enabled": true,
+      "category": "authorization",
+      "description": "Tests API endpoints for missing authentication and HTTP method override vulnerabilities.",
+      "supports": ["api"]
+    },
+    {
+      "name": "graphql_authz",
+      "module": "backend.detection.graphql_authz_detector",
+      "class": "GraphQLAuthzDetector",
+      "enabled": true,
+      "category": "authorization",
+      "description": "Tests GraphQL introspection exposure, query depth limits, batching abuse, and unauthed access.",
+      "supports": ["graphql"]
+    },
+    {
+      "name": "nosql",
+      "module": "backend.detection.nosql_detector",
+      "class": "NoSQLDetector",
+      "enabled": true,
+      "category": "injection",
+      "description": "Tests for NoSQL operator injection and JavaScript injection on MongoDB/CouchDB-style backends.",
+      "supports": ["query", "form", "api", "json"]
+    },
+    {
+      "name": "ssti",
+      "module": "backend.detection.ssti_detector",
+      "class": "SSTIDetector",
+      "enabled": true,
+      "category": "injection",
+      "description": "Detects Server-Side Template Injection via safe math-expression probes with engine fingerprinting.",
+      "supports": ["query", "form", "api"]
+    },
+    {
+      "name": "xxe",
+      "module": "backend.detection.xxe_detector",
+      "class": "XXEDetector",
+      "enabled": true,
+      "category": "injection",
+      "description": "Tests XML-accepting endpoints for external entity injection via safe internal entity probes.",
+      "supports": ["xml", "soap", "api"]
+    },
+    {
+      "name": "smuggling",
+      "module": "backend.detection.smuggling_detector",
+      "class": "SmugglingDetector",
+      "enabled": true,
+      "category": "protocol",
+      "description": "Detects HTTP request smuggling via safe CL.TE/TE.CL timing differential probes.",
+      "supports": ["http"]
+    },
+    {
+      "name": "race",
+      "module": "backend.detection.race_detector",
+      "class": "RaceDetector",
+      "enabled": true,
+      "category": "logic",
+      "description": "Tests for race conditions via concurrent request replay on business-critical endpoints.",
+      "supports": ["api", "form"]
+    },
+    {
+      "name": "cache_poison",
+      "module": "backend.detection.cache_poison_detector",
+      "class": "CachePoisonDetector",
+      "enabled": true,
+      "category": "protocol",
+      "description": "Detects web cache poisoning via unkeyed header injection and cache key analysis.",
+      "supports": ["http", "cdn"]
+    },
+    {
+      "name": "oauth",
+      "module": "backend.detection.oauth_detector",
+      "class": "OAuthDetector",
+      "enabled": true,
+      "category": "auth",
+      "description": "Tests OAuth/OIDC flows for open redirect, missing state parameter, and implicit flow misconfigurations.",
+      "supports": ["oauth", "oidc", "auth"]
+    },
+    {
+      "name": "rce",
+      "module": "backend.detection.rce_detector",
+      "class": "RCEDetector",
+      "enabled": true,
+      "category": "injection",
+      "description": "Safe command injection detection via non-destructive echo canaries and timing probes.",
+      "supports": ["query", "form", "api"]
+    },
+    {
+      "name": "deser",
+      "module": "backend.detection.deser_detector",
+      "class": "DeserDetector",
+      "enabled": true,
+      "category": "injection",
+      "description": "Detects insecure deserialization via Java/Python/PHP/YAML probe payloads and error signatures.",
+      "supports": ["api", "form"]
+    },
+    {
+      "name": "cloud_exposure",
+      "module": "backend.detection.cloud_exposure_detector",
+      "class": "CloudExposureDetector",
+      "enabled": true,
+      "category": "exposure",
+      "description": "Scans for sensitive file exposure, environment variable leaks, and cloud storage misconfigurations.",
+      "supports": ["path", "cloud", "config"]
     }
   ]
 }

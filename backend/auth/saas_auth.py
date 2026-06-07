@@ -4,11 +4,16 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
+import os
 import secrets
 import time
 import uuid
+import warnings
 from dataclasses import dataclass
 from datetime import datetime, timezone
+
+_log = logging.getLogger(__name__)
 
 from passlib.exc import MissingBackendError
 from passlib.hash import argon2, pbkdf2_sha256
@@ -17,9 +22,26 @@ from backend.database.db import create_auth_user, create_organization, create_re
 from backend.rbac.policy import ROLE_PERMISSIONS, rbac_overview
 
 
-JWT_SECRET = "adaptivescan-local-development-secret"
-ACCESS_TOKEN_TTL_SECONDS = 900
-REFRESH_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 14
+# ── JWT secret ───────────────────────────────────────────────────────────────
+# Load from environment. Never commit a real secret to source control.
+_RAW_JWT_SECRET = (
+    os.environ.get("ADAPTIVESCAN_JWT_SECRET")
+    or os.environ.get("SECRET_KEY")
+    or ""
+)
+if not _RAW_JWT_SECRET:
+    _FALLBACK = "adaptivescan-local-development-secret"
+    warnings.warn(
+        "\n\n[AdaptiveScan] ⚠️  ADAPTIVESCAN_JWT_SECRET is not set in your environment!\n"
+        f"  Using insecure fallback: '{_FALLBACK}'\n"
+        "  Set ADAPTIVESCAN_JWT_SECRET=<64 random hex chars> in your .env file before deployment.",
+        stacklevel=1,
+    )
+    _RAW_JWT_SECRET = _FALLBACK
+
+JWT_SECRET: str = _RAW_JWT_SECRET
+ACCESS_TOKEN_TTL_SECONDS = 900       # 15 minutes
+REFRESH_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 7   # 7 days (was 14)
 
 
 @dataclass(frozen=True)

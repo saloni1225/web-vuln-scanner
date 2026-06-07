@@ -1,23 +1,82 @@
+# Python
 __pycache__/
 *.py[cod]
+*.pyd
+*.pyo
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
+.pytype/
+.pyre/
+
+# Virtual environments
 .venv/
 venv/
+env/
+ENV/
 
+# Node / Frontend
 node_modules/
 dist/
+build/
+.next/
+.nuxt/
 
-scanner.db
-backend/reports/exports/*.html
-backend/.scan_state/
-*-server.log
-*-server.err
-
+# Environment & secrets — NEVER commit these
+.env
 .env.local
 .env.*.local
-.env
-venv/
-.venv/
-__pycache__/
-.env
+.env.production
+.env.staging
+secrets.yaml
+secrets.json
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+
+# Database files — contain real scan data
+scanner.db
+*.db
+*.sqlite
+*.sqlite3
+
+# Scan artifacts & reports
+backend/reports/exports/*.html
+backend/reports/exports/*.pdf
+backend/reports/exports/*.json
+backend/.scan_state/
+
+# Logs
+*-server.log
+*-server.err
+*.log
+logs/
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Coverage reports
+.coverage
+htmlcov/
+coverage.xml
+
+# Build artifacts
+*.egg-info/
+*.egg
+dist/
+*.tar.gz
+*.whl
+
+# Screenshots & QA artifacts (large binary files)
+*-qa.png
+*-redesign-qa.png

@@ -1,0 +1,1 @@
+# AdaptiveScan Security Layer
