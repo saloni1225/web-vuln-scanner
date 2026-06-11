@@ -88,9 +88,25 @@ class Settings(BaseSettings):
     adaptivescan_seed_admin: bool = False
     adaptivescan_seed_email: str = "admin@localhost"
     adaptivescan_seed_password: str = ""  # Must be set explicitly; empty = seed skipped
+    # ── Non-production founder seed ─────────────────────────────────────────
+    enable_founder_seed: bool = False
+    founder_email: str = "test@test.com"
+    founder_password: str = "Test@1234"
+    # ── OTP delivery ────────────────────────────────────────────────────────
+    otp_delivery_provider: str = "dev"  # dev, console, smtp, disabled
+    otp_email_from: str = "no-reply@adaptivescan.local"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_use_tls: bool = True
+    expose_dev_otp: bool = True
 
-
-    model_config = SettingsConfigDict(env_file=ROOT_DIR / ".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=ROOT_DIR / ".env",
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
 
 
 @lru_cache

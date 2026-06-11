@@ -169,7 +169,7 @@ export function ContactPage() {
 }
 
 export function AuthPage({ mode = "login", onNavigate }) {
-  const { login } = useAuth();
+  const { login, completeMfa, checkSession } = useAuth();
   const [form, setForm] = useState(() => ({
     first_name: "",
     last_name: "",
@@ -223,6 +223,16 @@ export function AuthPage({ mode = "login", onNavigate }) {
     }, 1000);
     return () => clearInterval(interval);
   }, [isOtp]);
+
+  // Sync email field with local storage when transitioning to OTP/MFA modes
+  useEffect(() => {
+    if (mode === "otp" || mode === "mfa") {
+      const pending = window.localStorage.getItem("adaptiveScan.pendingEmail");
+      if (pending) {
+        setForm((prev) => ({ ...prev, email: prev.email || pending }));
+      }
+    }
+  }, [mode]);
 
   useEffect(() => {
     const handleMessage = (event) => {
@@ -411,15 +421,27 @@ export function AuthPage({ mode = "login", onNavigate }) {
         setMessage(`Workspace created successfully. Dev OTP: ${result.verification?.dev_code ?? "sent"}`);
         onNavigate("otp");
       } else if (isOtp) {
-        const result = await verifyOtp({
-          email: form.email || form.work_email,
-          code: form.code,
-          purpose: mode === "mfa" ? "login_mfa" : "email_verification"
-        });
-        setMessage(result.verified ? "MFA Verification successful." : "The passcode is invalid. Please try again.");
-        if (result.verified) {
-          window.localStorage.removeItem("adaptiveScan.pendingEmail");
-          onNavigate(mode === "mfa" ? "home" : "onboarding");
+        if (mode === "mfa") {
+          const result = await completeMfa(form.email || form.work_email, form.code);
+          if (result.success) {
+            setMessage("MFA Verification successful.");
+            window.localStorage.removeItem("adaptiveScan.pendingEmail");
+            onNavigate("home");
+          } else {
+            setMessage(result.message || "MFA validation failed.");
+          }
+        } else {
+          const result = await verifyOtp({
+            email: form.email || form.work_email,
+            code: form.code,
+            purpose: "email_verification"
+          });
+          setMessage(result.verified ? "MFA Verification successful." : "The passcode is invalid. Please try again.");
+          if (result.verified) {
+            window.localStorage.removeItem("adaptiveScan.pendingEmail");
+            await checkSession();
+            onNavigate("onboarding");
+          }
         }
       } else if (isForgot) {
         const result = await requestPasswordReset({ email: form.email });

@@ -1,18 +1,35 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Shared fetch helper — all API calls go through this to ensure:
 //   1. credentials: "include" (sends httpOnly JWT cookie on every request)
 //   2. Consistent 401/403 handling (redirect to login on session expiry)
 // ---------------------------------------------------------------------------
 async function apiFetch(path, options = {}) {
+  const method = (options.method || "GET").toUpperCase();
+  const headers = {
+    "Content-Type": "application/json",
+    ...options.headers,
+  };
+
+  if (["POST", "PUT", "DELETE", "PATCH"].includes(method)) {
+    const csrfToken = getCookie("adaptivescan_csrf");
+    if (csrfToken) {
+      headers["X-CSRF-Token"] = csrfToken;
+    }
+  }
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
+    headers,
   });
 
   if (response.status === 401) {
@@ -26,8 +43,24 @@ async function apiFetch(path, options = {}) {
   }
 
   if (response.status === 403) {
-    window.dispatchEvent(new CustomEvent("adaptivescan:access-denied", { detail: { path } }));
-    throw new Error("Access restricted. Insufficient permissions.");
+    let isMfaRequired = false;
+    try {
+      const clone = response.clone();
+      const body = await clone.json();
+      if (body.detail === "mfa_required" || body.detail?.error === "mfa_required" || (typeof body.detail === "string" && body.detail.includes("mfa_required"))) {
+        isMfaRequired = true;
+      }
+    } catch {
+      // Ignore body parsing errors
+    }
+
+    if (isMfaRequired) {
+      window.dispatchEvent(new CustomEvent("adaptivescan:mfa-required"));
+      throw new Error("MFA verification required.");
+    } else {
+      window.dispatchEvent(new CustomEvent("adaptivescan:access-denied", { detail: { path } }));
+      throw new Error("Access restricted. Insufficient permissions.");
+    }
   }
 
   if (!response.ok) {
@@ -284,4 +317,15 @@ export async function fetchMonitoringWorkflows() {
 
 export async function fetchTrustCenter() {
   return apiFetch("/trust");
+}
+
+export async function enrollMfa() {
+  return apiFetch("/auth/mfa/enroll", { method: "POST" });
+}
+
+export async function verifyMfa(code) {
+  return apiFetch("/auth/mfa/verify", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
 }

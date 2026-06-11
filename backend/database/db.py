@@ -6,14 +6,127 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from backend.config.settings import ROOT_DIR
+from backend.config.settings import ROOT_DIR, settings
+
+# Parse the database path dynamically from the configured database_url settings.
+_db_url = settings.database_url
+if _db_url.startswith("sqlite:///"):
+    DB_PATH = Path(_db_url.replace("sqlite:///", ""))
+else:
+    DB_PATH = ROOT_DIR / "scanner.db"
 
 
-DB_PATH = ROOT_DIR / "scanner.db"
+class CompatibleCursor:
+    def __init__(self, cursor, is_postgres=False):
+        self.cursor = cursor
+        self.is_postgres = is_postgres
+
+    def execute(self, sql: str, params: tuple = ()):
+        translated_sql = self._translate_sql(sql)
+        self.cursor.execute(translated_sql, params)
+        return self
+
+    def fetchone(self):
+        return self.cursor.fetchone()
+
+    def fetchall(self):
+        return self.cursor.fetchall()
+
+    @property
+    def rowcount(self):
+        return self.cursor.rowcount
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if hasattr(self.cursor, "__exit__"):
+            self.cursor.__exit__(exc_type, exc_val, exc_tb)
+
+    def _translate_sql(self, sql: str) -> str:
+        if not self.is_postgres:
+            return sql
+        # Replace placeholders
+        sql = sql.replace("?", "%s")
+        # Translate autoincrement and integer primary key
+        sql = sql.replace("AUTOINCREMENT", "")
+        sql = sql.replace("INTEGER PRIMARY KEY", "SERIAL PRIMARY KEY")
+        
+        # Translate inserts/upserts
+        if "INSERT OR REPLACE INTO scans" in sql:
+            sql = """
+                INSERT INTO scans (scan_id, target_url, started_at, finished_at, findings_count, raw_json)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (scan_id) DO UPDATE SET
+                    target_url = EXCLUDED.target_url,
+                    started_at = EXCLUDED.started_at,
+                    finished_at = EXCLUDED.finished_at,
+                    findings_count = EXCLUDED.findings_count,
+                    raw_json = EXCLUDED.raw_json
+            """
+        elif "INSERT OR REPLACE INTO finding_lifecycle" in sql:
+            sql = """
+                INSERT INTO finding_lifecycle (scan_id, finding_index, state, owner, sla_due_at, comments_json, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (scan_id, finding_index) DO UPDATE SET
+                    state = EXCLUDED.state,
+                    owner = EXCLUDED.owner,
+                    sla_due_at = EXCLUDED.sla_due_at,
+                    comments_json = EXCLUDED.comments_json,
+                    updated_at = EXCLUDED.updated_at
+            """
+        return sql
 
 
-def get_connection() -> sqlite3.Connection:
-    return sqlite3.connect(DB_PATH)
+class CompatibleConnection:
+    def __init__(self, conn, is_postgres=False):
+        self.conn = conn
+        self.is_postgres = is_postgres
+
+    def cursor(self):
+        return CompatibleCursor(self.conn.cursor(), self.is_postgres)
+
+    def execute(self, sql: str, params: tuple = ()):
+        cur = self.cursor()
+        cur.execute(sql, params)
+        return cur
+
+    def commit(self):
+        self.conn.commit()
+
+    def rollback(self):
+        self.conn.rollback()
+
+    def close(self):
+        self.conn.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is not None:
+            self.conn.rollback()
+        else:
+            self.conn.commit()
+
+
+def get_connection() -> CompatibleConnection:
+    if settings.database_url.startswith("postgresql"):
+        try:
+            import psycopg2
+            conn = psycopg2.connect(settings.database_url)
+            return CompatibleConnection(conn, is_postgres=True)
+        except Exception as exc:
+            if settings.execution_mode != "local-dev":
+                raise RuntimeError(f"FATAL: PostgreSQL database is configured but unavailable in production: {exc}")
+            # Fall back to SQLite for local dev
+            import sqlite3
+            conn = sqlite3.connect(DB_PATH)
+            return CompatibleConnection(conn, is_postgres=False)
+    else:
+        import sqlite3
+        conn = sqlite3.connect(DB_PATH)
+        return CompatibleConnection(conn, is_postgres=False)
 
 
 def init_db() -> None:
@@ -52,6 +165,7 @@ def init_db() -> None:
                 actor TEXT NOT NULL,
                 target TEXT NOT NULL,
                 details_json TEXT NOT NULL,
+                correlation_id TEXT NOT NULL DEFAULT '',
                 created_at TEXT NOT NULL
             )
             """
@@ -117,6 +231,8 @@ def init_db() -> None:
                 role TEXT NOT NULL,
                 password_hash TEXT NOT NULL,
                 mfa_enabled INTEGER NOT NULL,
+                totp_secret TEXT NOT NULL DEFAULT '',
+                recovery_codes TEXT NOT NULL DEFAULT '',
                 created_at TEXT NOT NULL,
                 last_login_at TEXT NOT NULL,
                 FOREIGN KEY (org_id) REFERENCES organizations(org_id)
@@ -155,6 +271,20 @@ def init_db() -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_api_keys_workspace ON api_keys(workspace_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_auth_users_email ON auth_users(email)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_otp_email_purpose ON auth_otp_challenges(email, purpose, expires_at)")
+
+        # Schema migration stubs for existing local SQLite databases:
+        try:
+            conn.execute("ALTER TABLE auth_users ADD COLUMN totp_secret TEXT NOT NULL DEFAULT ''")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE auth_users ADD COLUMN recovery_codes TEXT NOT NULL DEFAULT ''")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE audit_logs ADD COLUMN correlation_id TEXT NOT NULL DEFAULT ''")
+        except Exception:
+            pass
 
 
 def save_scan(scan: dict[str, object]) -> None:
@@ -354,13 +484,15 @@ def add_finding_comment(
 
 def write_audit_log(event_type: str, *, actor: str, target: str, details: dict[str, object]) -> None:
     init_db()
+    from backend.utils.correlation import get_correlation_id
+    correlation_id = get_correlation_id()
     with get_connection() as conn:
         conn.execute(
             """
-            INSERT INTO audit_logs (event_type, actor, target, details_json, created_at)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO audit_logs (event_type, actor, target, details_json, correlation_id, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (event_type, actor, target, json.dumps(details), datetime.now(timezone.utc).isoformat()),
+            (event_type, actor, target, json.dumps(details), correlation_id, datetime.now(timezone.utc).isoformat()),
         )
 
 
@@ -369,7 +501,7 @@ def list_audit_logs(limit: int = 100) -> list[dict[str, object]]:
     with get_connection() as conn:
         rows = conn.execute(
             """
-            SELECT event_type, actor, target, details_json, created_at
+            SELECT event_type, actor, target, details_json, correlation_id, created_at
             FROM audit_logs
             ORDER BY id DESC
             LIMIT ?
@@ -382,7 +514,8 @@ def list_audit_logs(limit: int = 100) -> list[dict[str, object]]:
             "actor": row[1],
             "target": row[2],
             "details": json.loads(row[3] or "{}"),
-            "created_at": row[4],
+            "correlation_id": row[4],
+            "created_at": row[5],
         }
         for row in rows
     ]
@@ -595,6 +728,8 @@ def create_auth_user(
     role: str,
     password_hash_value: str,
     mfa_enabled: bool = True,
+    totp_secret: str = "",
+    recovery_codes: str = "",
 ) -> dict[str, object]:
     init_db()
     created_at = datetime.now(timezone.utc).isoformat()
@@ -602,8 +737,8 @@ def create_auth_user(
         conn.execute(
             """
             INSERT INTO auth_users
-            (user_id, org_id, email, first_name, last_name, company_name, role, password_hash, mfa_enabled, created_at, last_login_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (user_id, org_id, email, first_name, last_name, company_name, role, password_hash, mfa_enabled, totp_secret, recovery_codes, created_at, last_login_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 user_id,
@@ -615,6 +750,8 @@ def create_auth_user(
                 role,
                 password_hash_value,
                 1 if mfa_enabled else 0,
+                totp_secret,
+                recovery_codes,
                 created_at,
                 "",
             ),
@@ -628,6 +765,8 @@ def create_auth_user(
         "company_name": company_name,
         "role": role,
         "mfa_required": mfa_enabled,
+        "totp_secret": totp_secret,
+        "recovery_codes": recovery_codes,
         "created_at": created_at,
     }
 
@@ -637,7 +776,7 @@ def get_auth_user_by_email(email: str) -> dict[str, object] | None:
     with get_connection() as conn:
         row = conn.execute(
             """
-            SELECT user_id, org_id, email, first_name, last_name, company_name, role, password_hash, mfa_enabled, created_at, last_login_at
+            SELECT user_id, org_id, email, first_name, last_name, company_name, role, password_hash, mfa_enabled, totp_secret, recovery_codes, created_at, last_login_at
             FROM auth_users
             WHERE email = ?
             """,
@@ -655,9 +794,25 @@ def get_auth_user_by_email(email: str) -> dict[str, object] | None:
         "role": row[6],
         "password_hash": row[7],
         "mfa_required": bool(row[8]),
-        "created_at": row[9],
-        "last_login_at": row[10],
+        "totp_secret": row[9],
+        "recovery_codes": row[10],
+        "created_at": row[11],
+        "last_login_at": row[12],
     }
+
+
+def update_user_mfa(email: str, totp_secret: str, recovery_codes: str = "", mfa_enabled: bool = False) -> bool:
+    init_db()
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE auth_users
+            SET totp_secret = ?, recovery_codes = ?, mfa_enabled = ?
+            WHERE email = ?
+            """,
+            (totp_secret, recovery_codes, 1 if mfa_enabled else 0, email),
+        )
+    return cursor.rowcount > 0
 
 
 def mark_auth_user_login(email: str) -> None:

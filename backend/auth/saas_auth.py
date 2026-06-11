@@ -18,6 +18,7 @@ _log = logging.getLogger(__name__)
 from passlib.exc import MissingBackendError
 from passlib.hash import argon2, pbkdf2_sha256
 
+from backend.auth.otp_delivery import deliver_otp
 from backend.database.db import create_auth_user, create_organization, create_refresh_session, create_workspace, consume_otp_challenge, get_auth_user_by_email, mark_auth_user_login, store_otp_challenge, update_auth_user_password, write_audit_log
 from backend.rbac.policy import ROLE_PERMISSIONS, rbac_overview
 from backend.config.settings import settings
@@ -78,14 +79,67 @@ def verify_password(password: str, stored_hash: str) -> bool:
     return hmac.compare_digest(candidate, digest)
 
 
+def seed_founder_user() -> None:
+    # Seeding must be environment-gated and strictly forbidden in production.
+    if settings.execution_mode == "production" or not settings.enable_founder_seed:
+        return
+
+    email = settings.founder_email
+    password = settings.founder_password
+    if not email or not password:
+        _log.warning("founder_seed_skipped", extra={"reason": "missing_credentials"})
+        return
+
+    user = get_auth_user_by_email(email)
+    if user is not None:
+        return
+
+    # User does not exist, seed them
+    org = create_organization("Founder Organization", plan="enterprise", actor="system")
+    create_workspace(org["org_id"], "Production Workspace", default_allowlist=[], actor="system")
+    
+    user_id = str(uuid.uuid4())
+    create_auth_user(
+        user_id=user_id,
+        org_id=org["org_id"],
+        email=email,
+        first_name="Founder",
+        last_name="Admin",
+        company_name="Founder Organization",
+        role="owner",
+        password_hash_value=password_hash(password),
+        mfa_enabled=False,
+    )
+    _log.info("founder_seeded", extra={"email": email, "role": "owner"})
+
+
 def issue_otp(email: str, purpose: str) -> dict[str, object]:
     code = f"{secrets.randbelow(1_000_000):06d}"
     expires_at = int(time.time()) + 600
     challenge = store_otp_challenge(email=email, purpose=purpose, code_hash=_otp_hash(email, purpose, code), expires_at=expires_at)
+    challenge_id = str(challenge["challenge_id"])
     write_audit_log("auth.otp.issued", actor=email, target=email, details={"purpose": purpose, "expires_at": expires_at})
-    # NOTE: dev_code intentionally NOT returned — codes are delivered out-of-band (email/TOTP).
-    # To test locally, query the auth_otp_challenges table directly or check server logs.
-    return {"delivery": "email", "email": email, "purpose": purpose, "challenge_id": challenge["challenge_id"], "expires_at": expires_at}
+    _log.info("otp_generated", extra={"email": email, "purpose": purpose, "challenge_id": challenge_id, "expires_at": expires_at})
+    _log.info("otp_challenge_stored", extra={"email": email, "purpose": purpose, "challenge_id": challenge_id, "expires_at": expires_at})
+    
+    try:
+        delivery = deliver_otp(email=email, purpose=purpose, code=code, challenge_id=challenge_id, expires_at=expires_at)
+        _log.info("otp_send_success", extra={"email": email, "purpose": purpose, "challenge_id": challenge_id, "provider": delivery.provider})
+    except Exception as exc:
+        _log.error("otp_send_failure", extra={"email": email, "purpose": purpose, "challenge_id": challenge_id, "error": str(exc)})
+        raise
+
+    res = {
+        "delivery": "email",
+        "delivery_provider": delivery.provider,
+        "delivery_destination": delivery.destination,
+        "dev_visible": delivery.dev_visible,
+        "email": email,
+        "purpose": purpose,
+        "challenge_id": challenge_id,
+        "expires_at": expires_at,
+    }
+    return res
 
 
 def verify_otp(email: str, code: str, purpose: str) -> dict[str, object]:
@@ -96,6 +150,11 @@ def verify_otp(email: str, code: str, purpose: str) -> dict[str, object]:
         code_hash=_otp_hash(email, purpose, normalized),
         now=int(time.time()),
     )
+    if valid:
+        _log.info("otp_verify_success", extra={"email": email, "purpose": purpose})
+    else:
+        _log.warning("otp_verify_failure", extra={"email": email, "purpose": purpose})
+    _log.info("otp_verify_result", extra={"email": email, "purpose": purpose, "valid": valid})
     write_audit_log("auth.otp.verified", actor=email, target=email, details={"purpose": purpose, "valid": valid})
     return {"verified": valid, "email": email, "purpose": purpose}
 
@@ -134,7 +193,7 @@ def create_registration(payload: dict[str, str]) -> dict[str, object]:
     }
 
 
-def issue_tokens(email: str, role: str = "owner", organization_id: str = "local-org") -> dict[str, object]:
+def issue_tokens(email: str, role: str = "owner", organization_id: str = "local-org", mfa_verified: bool = False) -> dict[str, object]:
     now = int(time.time())
     access_payload = {
         "sub": email,
@@ -143,6 +202,7 @@ def issue_tokens(email: str, role: str = "owner", organization_id: str = "local-
         "organization_id": organization_id,
         "iat": now,
         "exp": now + ACCESS_TOKEN_TTL_SECONDS,
+        "mfa_verified": mfa_verified,
     }
     refresh_payload = {
         "sub": email,
@@ -151,6 +211,7 @@ def issue_tokens(email: str, role: str = "owner", organization_id: str = "local-
         "organization_id": organization_id,
         "iat": now,
         "exp": now + REFRESH_TOKEN_TTL_SECONDS,
+        "mfa_verified": mfa_verified,
         "jti": str(uuid.uuid4()),
     }
     access_token = _encode_jwt(access_payload)
@@ -184,11 +245,24 @@ def login_response(email: str, password: str | None = None, passwordless: bool =
     mark_auth_user_login(email)
     write_audit_log("auth.login.succeeded", actor=email, target=str(user["user_id"]), details={"role": user["role"]})
 
-    mfa_required = bool(user.get("mfa_required") or user.get("mfa_enabled"))
+    is_founder = (email.lower() == settings.founder_email.lower()) and (settings.execution_mode != "production")
+
+    # If the user has TOTP configured, enforce TOTP MFA:
+    if user.get("totp_secret") and not is_founder:
+        return {
+            "authenticated": False,
+            "requires_mfa": True,
+            "mfa": {"methods": ["totp", "backup_code"]},
+            "pending_mfa_email": email,
+        }
+
+    # Otherwise, if mfa_required or mfa_enabled is true, use email OTP fallback
+    mfa_required = bool(user.get("mfa_required") or user.get("mfa_enabled")) and not is_founder
 
     if mfa_required:
         # SECURITY: Do NOT issue real tokens until MFA step is completed.
         # Return a short-lived MFA challenge; real tokens are issued after OTP verification.
+        _log.info("mfa_required_triggered", extra={"email": email})
         return {
             "authenticated": False,
             "requires_mfa": True,
@@ -197,11 +271,12 @@ def login_response(email: str, password: str | None = None, passwordless: bool =
             "pending_mfa_email": email,
         }
 
-    # No MFA — issue tokens immediately
+    # No MFA — issue tokens immediately (mark mfa_verified=True for non-admins and the non-production founder since they don't require MFA)
+    mfa_verified = (user["role"] not in ("owner", "admin")) or is_founder
     return {
         "authenticated": True,
         "requires_mfa": False,
-        "tokens": issue_tokens(email, role=str(user["role"]), organization_id=str(user["organization_id"])),
+        "tokens": issue_tokens(email, role=str(user["role"]), organization_id=str(user["organization_id"]), mfa_verified=mfa_verified),
         "user": {"email": email, "role": str(user["role"]), "first_name": str(user.get("first_name", ""))},
     }
 
@@ -340,3 +415,74 @@ def _b64_json(value: dict[str, object]) -> str:
 
 def _otp_hash(email: str, purpose: str, code: str) -> str:
     return hashlib.sha256(f"{email.lower()}:{purpose}:{code}:{JWT_SECRET}".encode("utf-8")).hexdigest()
+
+
+def enroll_mfa(email: str) -> dict[str, object]:
+    import pyotp
+    from backend.database.db import update_user_mfa
+    totp_secret = pyotp.random_base32()
+    totp = pyotp.TOTP(totp_secret)
+    provisioning_uri = totp.provisioning_uri(name=email, issuer_name="AdaptiveScan")
+    # Store TOTP secret in DB but keep mfa_enabled = False until verified
+    update_user_mfa(email, totp_secret, recovery_codes="", mfa_enabled=False)
+    write_audit_log("auth.mfa.enrollment.started", actor=email, target=email, details={})
+    return {"totp_secret": totp_secret, "provisioning_uri": provisioning_uri}
+
+
+def verify_mfa(email: str, code: str) -> dict[str, object]:
+    import pyotp
+    import secrets
+    from backend.database.db import get_auth_user_by_email, update_user_mfa
+    user = get_auth_user_by_email(email)
+    if not user or not user.get("totp_secret"):
+        return {"verified": False, "reason": "MFA enrollment not initialized."}
+    
+    totp = pyotp.TOTP(str(user["totp_secret"]))
+    if not totp.verify(code.strip(), valid_window=1):
+        write_audit_log("auth.mfa.verification.failed", actor=email, target=email, details={"reason": "invalid_code"})
+        return {"verified": False, "reason": "Invalid TOTP code."}
+
+    # Generate 8 recovery codes formatted as xxxx-xxxx
+    codes = [f"{secrets.token_hex(2)}-{secrets.token_hex(2)}" for _ in range(8)]
+    update_user_mfa(email, str(user["totp_secret"]), recovery_codes=",".join(codes), mfa_enabled=True)
+    write_audit_log("auth.mfa.enabled", actor=email, target=email, details={"method": "totp"})
+    return {"verified": True, "recovery_codes": codes}
+
+
+def verify_mfa_login(email: str, code: str) -> dict[str, object]:
+    import pyotp
+    from backend.database.db import get_auth_user_by_email, update_user_mfa, mark_auth_user_login
+    user = get_auth_user_by_email(email)
+    if not user or not user.get("totp_secret"):
+        return {"authenticated": False, "reason": "MFA is not configured for this user."}
+
+    # Verify TOTP code
+    totp = pyotp.TOTP(str(user["totp_secret"]))
+    if totp.verify(code.strip(), valid_window=1):
+        mark_auth_user_login(email)
+        write_audit_log("auth.mfa.login.succeeded", actor=email, target=str(user["user_id"]), details={"method": "totp"})
+        tokens = issue_tokens(email, role=str(user["role"]), organization_id=str(user["organization_id"]), mfa_verified=True)
+        return {
+            "authenticated": True,
+            "tokens": tokens,
+            "user": {"email": email, "role": str(user["role"]), "first_name": str(user.get("first_name", ""))},
+        }
+
+    # Verify recovery code
+    recovery_codes_str = user.get("recovery_codes", "")
+    if recovery_codes_str:
+        codes_list = [c.strip() for c in recovery_codes_str.split(",") if c.strip()]
+        if code.strip() in codes_list:
+            codes_list.remove(code.strip())
+            update_user_mfa(email, str(user["totp_secret"]), recovery_codes=",".join(codes_list), mfa_enabled=True)
+            mark_auth_user_login(email)
+            write_audit_log("auth.mfa.login.succeeded", actor=email, target=str(user["user_id"]), details={"method": "recovery_code"})
+            tokens = issue_tokens(email, role=str(user["role"]), organization_id=str(user["organization_id"]), mfa_verified=True)
+            return {
+                "authenticated": True,
+                "tokens": tokens,
+                "user": {"email": email, "role": str(user["role"]), "first_name": str(user.get("first_name", ""))},
+            }
+
+    write_audit_log("auth.mfa.login.failed", actor=email, target=str(user["user_id"]), details={"reason": "invalid_code"})
+    return {"authenticated": False, "reason": "Invalid TOTP or recovery code."}

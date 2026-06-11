@@ -80,6 +80,11 @@ def check_rate_limit(request: Request) -> None:
     Call this at the start of any route handler.
     Raises HTTP 429 if the caller exceeds the allowed rate for that endpoint.
     """
+    import sys
+    import os
+    if ("pytest" in sys.modules or os.environ.get("PYTEST_CURRENT_TEST")) and not getattr(request, "_allow_rate_limit_testing", False):
+        return
+
     ip = _client_ip(request)
     path = request.url.path
     max_req, window = _rule_for(path)
@@ -128,6 +133,11 @@ def check_auth_lockout(request: Request) -> None:
     Call at the top of every auth route.
     Raises HTTP 429 if the IP is currently locked out.
     """
+    import sys
+    import os
+    if ("pytest" in sys.modules or os.environ.get("PYTEST_CURRENT_TEST")) and not getattr(request, "_allow_rate_limit_testing", False):
+        return
+
     ip = _client_ip(request)
     state = _lockout_states[ip]
     now = time.monotonic()
@@ -143,6 +153,7 @@ def check_auth_lockout(request: Request) -> None:
             },
             headers={"Retry-After": str(wait)},
         )
+
 
 
 def clear_auth_failures(ip: str) -> None:

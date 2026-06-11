@@ -2070,24 +2070,7 @@ a { color: inherit; text-decoration: none; }
   background: var(--surface-2) !important;
 }
 
-/* Custom Cyberpunk Pointer/Cursor Theme */
-:root[data-theme="cyberpunk-dark"],
-:root[data-theme="cyberpunk-dark"] * {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23ff007f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='4' fill='%2300ffff' fill-opacity='0.6'/%3E%3Cpath d='M12 2v4M12 18v4M2 12h4M18 12h4'/%3E%3C/svg%3E") 12 12, auto !important;
-}
-
-:root[data-theme="cyberpunk-dark"] a,
-:root[data-theme="cyberpunk-dark"] button,
-:root[data-theme="cyberpunk-dark"] input,
-:root[data-theme="cyberpunk-dark"] select,
-:root[data-theme="cyberpunk-dark"] textarea,
-:root[data-theme="cyberpunk-dark"] [role="button"],
-:root[data-theme="cyberpunk-dark"] summary,
-:root[data-theme="cyberpunk-dark"] a *,
-:root[data-theme="cyberpunk-dark"] button *,
-:root[data-theme="cyberpunk-dark"] [role="button"] * {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2300ffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='6' fill='%23ff007f' fill-opacity='0.6'/%3E%3Cpath d='M12 2v3M12 19v3M2 12h3M19 12h3'/%3E%3C/svg%3E") 12 12, pointer !important;
-}
+/* Custom Cyberpunk Pointer/Cursor Theme Disabled for clean enterprise styling */
 
 /* Interactive Cyberpunk Lighting Up and Active States */
 :root[data-theme="cyberpunk-dark"] .stat-card,

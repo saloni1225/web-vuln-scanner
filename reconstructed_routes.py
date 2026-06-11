@@ -8,7 +8,7 @@ from backend.api.scan_controller import ScanController, ScanRequest
 from backend.api.websocket import scan_hub
 from backend.api.job_registry import job_registry
 from backend.ai.copilot import ai_copilot_capabilities, ai_copilot_response
-from backend.auth.saas_auth import auth_architecture, billing_catalog, create_registration, issue_otp, login_response, logout_response, monitoring_workflows, notification_center, onboarding_state, password_reset_response, subscription_status, team_directory, trust_center, verify_otp, enroll_mfa, verify_mfa, verify_mfa_login, issue_tokens
+from backend.auth.saas_auth import auth_architecture, billing_catalog, create_registration, issue_otp, login_response, logout_response, monitoring_workflows, notification_center, onboarding_state, password_reset_response, subscription_status, team_directory, trust_center, verify_otp
 from backend.auth.sso import identity_provider_catalog, sso_configuration
 from backend.attack_surface.graph import build_attack_surface_graph, build_drift_timeline, correlate_attack_paths
 from backend.api_security.schema import analyze_graphql_schema, parse_openapi_document, parse_postman_collection
@@ -31,8 +31,7 @@ from backend.observability.service import observability_status, prometheus_metri
 from backend.queue.orchestrator import build_scan_job, queue_health_snapshot, queue_topology
 from backend.rbac.auth import Principal, current_principal, require_permission, websocket_principal
 from backend.workers.scan_worker import worker_heartbeat, worker_pool_status
-from backend.config.settings import settings
-from backend.database.db import get_scan, list_scans, get_auth_user_by_email
+from backend.database.db import get_scan, list_scans
 from backend.database.db import compare_scans
 from backend.database.db import add_finding_comment
 from backend.database.db import create_api_key
@@ -60,7 +59,7 @@ from backend.security.input_validation import (
     detect_injection,
     limit_request_size,
 )
-from backend.security.jwt_guard import set_auth_cookies, clear_auth_cookies, _extract_token, _verify_jwt
+from backend.security.jwt_guard import set_auth_cookies, clear_auth_cookies
 
 
 router = APIRouter()
@@ -213,20 +212,6 @@ async def auth_verify_otp(request: Request, payload: OtpRequest, response: Respo
         record_auth_failure(_client_ip(request))
     else:
         clear_auth_failures(_client_ip(request))
-        if payload.purpose == "login_mfa":
-            user = get_auth_user_by_email(email)
-            if user:
-                tokens = issue_tokens(email, role=str(user["role"]), organization_id=str(user["organization_id"]), mfa_verified=True)
-                result["authenticated"] = True
-                result["tokens"] = tokens
-                result["user"] = {"email": email, "role": str(user["role"]), "first_name": str(user.get("first_name", ""))}
-                set_auth_cookies(
-                    response,
-                    access_token=str(tokens.get("access_token", "")),
-                    refresh_token=str(tokens.get("refresh_token", "")),
-                )
-                csrf_token = set_csrf_cookie(response)
-                result["csrf_token"] = csrf_token
     return result
 
 
@@ -259,123 +244,53 @@ async def auth_csrf_token(response: Response) -> dict[str, str]:
     return {"csrf_token": csrf_token}
 
 
-class MfaVerifyRequest(BaseModel):
-    code: str
-
-
-class MfaVerifyLoginRequest(BaseModel):
-    email: str
-    code: str
-
-
-@router.get("/auth/me")
-async def auth_me(request: Request, principal: Principal = Depends(current_principal)) -> dict[str, object]:
-    user = get_auth_user_by_email(principal.actor)
-    token = _extract_token(request)
-    payload = _verify_jwt(token) if token else {}
-    
-    mfa_enabled = bool(user.get("mfa_required") or user.get("mfa_enabled") or user.get("totp_secret")) if user else False
-    mfa_verified = bool(payload.get("mfa_verified", False))
-    
-    is_founder = (principal.actor.lower() == settings.founder_email.lower()) and (settings.execution_mode != "production")
-    if is_founder:
-        mfa_verified = True
-        mfa_enabled = False
-        
-    from backend.rbac.policy import ROLE_PERMISSIONS
-    permissions = list(ROLE_PERMISSIONS.get(principal.role, set()))
-    
-    return {
-        "authenticated": True,
-        "email": principal.actor,
-        "role": principal.role,
-        "organization_id": principal.organization_id,
-        "mfa_enabled": mfa_enabled,
-        "mfa_verified": mfa_verified,
-        "mfaVerified": mfa_verified,
-        "permissions": permissions,
-        "session_valid": True,
-    }
-
-
-@router.post("/auth/mfa/enroll")
-async def mfa_enroll(principal: Principal = Depends(current_principal)) -> dict[str, object]:
-    return enroll_mfa(principal.actor)
-
-
-@router.post("/auth/mfa/verify")
-async def mfa_verify(payload: MfaVerifyRequest, principal: Principal = Depends(current_principal)) -> dict[str, object]:
-    res = verify_mfa(principal.actor, payload.code)
-    if not res.get("verified"):
-        raise HTTPException(status_code=400, detail=res.get("reason", "Invalid TOTP code."))
-    return res
-
-
-@router.post("/auth/mfa/verify-login")
-async def mfa_verify_login(payload: MfaVerifyLoginRequest, response: Response) -> dict[str, object]:
-    res = verify_mfa_login(payload.email, payload.code)
-    if not res.get("authenticated"):
-        raise HTTPException(status_code=400, detail=res.get("reason", "Invalid TOTP or recovery code."))
-    
-    tokens = res.get("tokens")
-    if isinstance(tokens, dict):
-        set_auth_cookies(
-            response,
-            access_token=str(tokens.get("access_token", "")),
-            refresh_token=str(tokens.get("refresh_token", "")),
-        )
-    csrf_token = set_csrf_cookie(response)
-    res["csrf_token"] = csrf_token
-    return res
-
-
 @router.get("/onboarding")
 async def onboarding() -> dict[str, object]:
     return onboarding_state()
 
 
 @router.get("/billing/catalog")
-async def billing(_: Principal = Depends(require_permission("report:read"))) -> dict[str, object]:
+async def billing() -> dict[str, object]:
     return billing_catalog()
 
 
 @router.get("/billing/subscription")
-async def subscription(_: Principal = Depends(require_permission("org:admin"))) -> dict[str, object]:
+async def subscription() -> dict[str, object]:
     return subscription_status()
 
 
 @router.get("/billing/usage")
-async def billing_usage(_: Principal = Depends(require_permission("scan:run"))) -> dict[str, object]:
+async def billing_usage() -> dict[str, object]:
     return billing_usage_summary()
 
 
 @router.get("/billing/stripe")
-async def billing_stripe(_: Principal = Depends(require_permission("scan:run"))) -> dict[str, object]:
+async def billing_stripe() -> dict[str, object]:
     return stripe_architecture()
 
 
 @router.get("/team")
-async def team(_: Principal = Depends(require_permission("rbac:admin"))) -> dict[str, object]:
+async def team() -> dict[str, object]:
     return team_directory()
 
 
 @router.get("/notifications")
-async def notifications(_: Principal = Depends(require_permission("report:read"))) -> dict[str, object]:
+async def notifications() -> dict[str, object]:
     return notification_center()
 
 
 @router.get("/monitoring/workflows")
-async def monitoring_workflow_catalog(_: Principal = Depends(require_permission("report:read"))) -> dict[str, object]:
+async def monitoring_workflow_catalog() -> dict[str, object]:
     return monitoring_workflows()
 
 
 @router.get("/monitoring/scheduler")
-async def monitoring_scheduler(_: Principal = Depends(require_permission("report:read"))) -> dict[str, object]:
+async def monitoring_scheduler() -> dict[str, object]:
     return scheduler_architecture()
 
 
 @router.get("/monitoring/jobs")
-async def monitoring_job_catalog(_: Principal = Depends(require_permission("report:read"))) -> dict[str, object]:
+async def monitoring_job_catalog() -> dict[str, object]:
     return monitoring_jobs()
 
 
@@ -385,12 +300,12 @@ async def trust() -> dict[str, object]:
 
 
 @router.get("/sso/providers")
-async def sso_providers(_: Principal = Depends(require_permission("org:admin"))) -> dict[str, object]:
+async def sso_providers() -> dict[str, object]:
     return identity_provider_catalog()
 
 
 @router.get("/sso/configuration")
-async def sso_config(_: Principal = Depends(require_permission("org:admin"))) -> dict[str, object]:
+async def sso_config() -> dict[str, object]:
     return sso_configuration()
 
 
@@ -448,7 +363,7 @@ async def public_notifications_api() -> dict[str, object]:
 
 
 @router.get("/founder/analytics")
-async def founder_dashboard(_: Principal = Depends(require_permission("rbac:admin"))) -> dict[str, object]:
+async def founder_dashboard() -> dict[str, object]:
     scans = [scan for scan in (get_scan(str(item.get("scan_id"))) for item in list_scans()) if scan]
     return founder_analytics(scans, get_tenancy_overview())
 
@@ -839,7 +754,7 @@ async def resume_scan(scan_id: str, _: Principal = Depends(require_permission("s
 
 
 @router.websocket("/ws/scans")
-async def scans_websocket(websocket: WebSocket, principal: Principal = Depends(websocket_principal)) -> None:
+async def scans_websocket(websocket: WebSocket) -> None:
     await scan_hub.connect(websocket)
     try:
         while True:
@@ -849,10 +764,7 @@ async def scans_websocket(websocket: WebSocket, principal: Principal = Depends(w
 
 
 @router.websocket("/ws/scans/{scan_id}")
-async def scan_progress_websocket(websocket: WebSocket, scan_id: str, principal: Principal = Depends(websocket_principal)) -> None:
-    scan = get_scan(scan_id)
-    if not scan or scan.get("organization_id") != principal.organization_id:
-        raise WebSocketDisconnect(code=1008, reason="Access denied to this scan.")
+async def scan_progress_websocket(websocket: WebSocket, scan_id: str) -> None:
     await scan_hub.connect(websocket, scan_id)
     try:
         while True:

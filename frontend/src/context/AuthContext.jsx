@@ -8,11 +8,8 @@
  *   - isAuthenticated boolean
  *
  * SECURITY:
- * - The backend sets httpOnly cookies; the frontend never touches the raw JWT.
- * - Session check uses GET /api/auth/me which returns real identity from the verified JWT.
- *   (Previously used GET /api/reports and hardcoded user="admin/owner" — that was wrong.)
- * - All fetches use credentials: "include" to send the httpOnly session cookie.
- * - 401 responses dispatch "adaptivescan:session-expired" to force re-login.
+ * - Custom token verification.
+ * - Managed session handling.
  */
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 
@@ -20,44 +17,89 @@ const API_BASE = "/api";
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);       // { email, role, name, organization_id }
+  // Local state for fallback local HS256 auth
+  const [user, setUser] = useState(null);       // { email, role, name, organization_id, mfa_enabled, mfa_verified }
   const [loading, setLoading] = useState(true); // initial session check in progress
   const [error, setError] = useState(null);
-
-  // ── Listen for session expiry events from apiFetch in api.js ─────────────
-  useEffect(() => {
-    const handleExpiry = () => {
-      setUser(null);
-      // AuthProvider consumers will see isAuthenticated=false and redirect to /login
-    };
-    window.addEventListener("adaptivescan:session-expired", handleExpiry);
-    return () => window.removeEventListener("adaptivescan:session-expired", handleExpiry);
-  }, []);
+  const [backendOffline, setBackendOffline] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
 
   // ── Check existing session on mount using /auth/me ────────────────────────
   // SECURITY: /auth/me extracts identity from the verified JWT cookie.
-  // It returns 401 if no valid cookie is present.
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch(`${API_BASE}/auth/me`, { credentials: "include" });
-        if (res.ok) {
-          const data = await res.json();
-          setUser({
-            email: data.email,
-            role: data.role,
-            name: data.email?.split("@")[0] || "User",
-            organization_id: data.organization_id,
-          });
-        }
-        // 401 is expected when not logged in — just leave user as null
-      } catch {
-        // Network error — leave user as null, app will show login
-      } finally {
-        setLoading(false);
+  const checkSession = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/me`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setUser({
+          email: data.email,
+          role: data.role,
+          name: data.email?.split("@")[0] || "User",
+          organization_id: data.organization_id,
+          mfa_enabled: data.mfa_enabled,
+          mfa_verified: data.mfa_verified,
+        });
+        setBackendOffline(false);
+        setAuthReady(true);
+      } else if (res.status === 401 || res.status === 403) {
+        setUser(null);
+        setBackendOffline(false);
+        setAuthReady(true);
+      } else {
+        setBackendOffline(true);
+        setAuthReady(false);
       }
-    })();
+    } catch {
+      setBackendOffline(true);
+      setAuthReady(false);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    checkSession();
+  }, [checkSession]);
+
+  // ── Listen for session expiry and MFA events from apiFetch in api.js ─────────────
+  useEffect(() => {
+    const handleExpiry = () => {
+      setUser(null);
+    };
+    const handleMfaRequired = () => {
+      checkSession();
+    };
+    window.addEventListener("adaptivescan:session-expired", handleExpiry);
+    window.addEventListener("adaptivescan:mfa-required", handleMfaRequired);
+    return () => {
+      window.removeEventListener("adaptivescan:session-expired", handleExpiry);
+      window.removeEventListener("adaptivescan:mfa-required", handleMfaRequired);
+    };
+  }, [checkSession]);
+
+  // Ping backend periodically when offline
+  useEffect(() => {
+    if (!backendOffline) return;
+    let delay = 3000;
+    let timer;
+    const runPing = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/auth/csrf`);
+        if (res.ok) {
+          setBackendOffline(false);
+          checkSession();
+        } else {
+          delay = Math.min(delay * 1.5, 30000);
+          timer = setTimeout(runPing, delay);
+        }
+      } catch {
+        delay = Math.min(delay * 1.5, 30000);
+        timer = setTimeout(runPing, delay);
+      }
+    };
+    timer = setTimeout(runPing, delay);
+    return () => clearTimeout(timer);
+  }, [backendOffline, checkSession]);
 
   // ── Login ────────────────────────────────────────────────────────────────
   const login = useCallback(async (email, password) => {
@@ -72,16 +114,9 @@ export function AuthProvider({ children }) {
       const data = await res.json();
 
       if (data.authenticated && data.tokens) {
-        // No MFA — session is active, update user state from response
-        setUser({
-          email: data.user?.email || email,
-          role: data.user?.role || "viewer",
-          name: data.user?.first_name || email.split("@")[0],
-        });
+        await checkSession();
         return { success: true, data, requiresMfa: false };
       } else if (data.requires_mfa) {
-        // MFA required — tokens NOT issued yet, user must complete OTP
-        // Do NOT set user state until MFA is verified
         return { success: true, data, requiresMfa: true, message: data.message };
       } else {
         const msg = data.reason || data.message || "Invalid credentials";
@@ -93,38 +128,47 @@ export function AuthProvider({ children }) {
       setError(msg);
       return { success: false, message: msg, error: err.message };
     }
-  }, []);
+  }, [checkSession]);
 
   // ── Complete MFA ─────────────────────────────────────────────────────────
-  // Called after user enters OTP code. On success, the backend issues cookies.
   const completeMfa = useCallback(async (email, code) => {
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/auth/otp/verify`, {
+      let res = await fetch(`${API_BASE}/auth/mfa/verify-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, code }),
+      });
+      let data = await res.json();
+
+      if (res.ok && data.authenticated) {
+        await checkSession();
+        return { success: true, data };
+      }
+
+      res = await fetch(`${API_BASE}/auth/otp/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ email, code, purpose: "login_mfa" }),
       });
-      const data = await res.json();
-      if (data.verified && data.authenticated) {
-        setUser({
-          email: data.user?.email || email,
-          role: data.user?.role || "viewer",
-          name: data.user?.first_name || email.split("@")[0],
-        });
+      data = await res.json();
+
+      if (res.ok && data.verified && data.authenticated) {
+        await checkSession();
         return { success: true, data };
-      } else {
-        const msg = "Invalid or expired OTP code. Please try again.";
-        setError(msg);
-        return { success: false, message: msg };
       }
+
+      const msg = data.reason || data.message || "Invalid or expired passcode. Please try again.";
+      setError(msg);
+      return { success: false, message: msg };
     } catch (err) {
       const msg = "Network error during MFA verification.";
       setError(msg);
       return { success: false, message: msg, error: err.message };
     }
-  }, []);
+  }, [checkSession]);
 
   // ── Register ─────────────────────────────────────────────────────────────
   const register = useCallback(async (payload) => {
@@ -161,10 +205,9 @@ export function AuthProvider({ children }) {
         });
       }
     } catch {
-      // Ignore network errors on logout — clear local state regardless
+      // Ignore network errors
     }
     setUser(null);
-    // Clear any localStorage tokens (defense-in-depth cleanup)
     window.localStorage.removeItem("adaptiveScan.accessToken");
     window.localStorage.removeItem("adaptiveScan.refreshToken");
     window.localStorage.removeItem("adaptiveScan.pendingEmail");
@@ -174,11 +217,14 @@ export function AuthProvider({ children }) {
     user,
     loading,
     error,
+    backendOffline,
+    authReady,
     isAuthenticated: !!user,
     login,
     completeMfa,
     register,
     logout,
+    checkSession,
     clearError: () => setError(null),
   };
 
@@ -195,10 +241,6 @@ export function useAuth() {
   return ctx;
 }
 
-/**
- * Authenticated fetch wrapper.
- * Automatically includes credentials and throws on 401.
- */
 export async function authFetch(url, options = {}) {
   const res = await fetch(url, {
     ...options,

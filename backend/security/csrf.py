@@ -12,7 +12,8 @@ import hmac
 import os
 import secrets
 
-from fastapi import Cookie, Header, HTTPException, Request, Response, status
+from typing import Union
+from fastapi import Cookie, Header, HTTPException, Request, Response, WebSocket, status
 
 # All methods that mutate state require CSRF validation
 _CSRF_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
@@ -48,25 +49,29 @@ def _verify_csrf_token(token: str) -> bool:
     return hmac.compare_digest(expected, sig)
 
 
+from backend.config.settings import settings
+
 def set_csrf_cookie(response: Response) -> str:
     """
     Issue a new CSRF token, set it in a SameSite=Lax cookie,
     and return the raw token string to embed in the API response.
     """
     token = generate_csrf_token()
+    secure_flag = settings.execution_mode != "local-dev"
     response.set_cookie(
         key=CSRF_COOKIE_NAME,
         value=token,
         httponly=False,      # JS needs to read this to put it in the header
-        samesite="lax",
-        secure=False,        # Change to True when serving over HTTPS
+        samesite="Lax",
+        secure=secure_flag,
         path="/",
     )
     return token
 
 
 async def enforce_csrf(
-    request: Request,
+    request: Request = None,
+    websocket: WebSocket = None,
     csrf_cookie: str | None = Cookie(default=None, alias=CSRF_COOKIE_NAME),
     csrf_header: str | None = Header(default=None, alias=CSRF_HEADER_NAME),
 ) -> None:
@@ -75,7 +80,24 @@ async def enforce_csrf(
     Validates that the X-CSRF-Token header matches the csrf cookie.
     Safe methods (GET, HEAD, OPTIONS) are skipped automatically.
     """
+    if websocket is not None:
+        return
+    if request is None:
+        return
     if request.method not in _CSRF_METHODS:
+        return
+
+    # Bypass CSRF checks for initial authentication routes to avoid lockouts:
+    path = request.url.path
+    if path in (
+        "/api/auth/login",
+        "/api/auth/register",
+        "/api/auth/otp/send",
+        "/api/auth/otp/verify",
+        "/api/auth/forgot-password",
+        "/api/auth/password-reset",
+        "/api/auth/mfa/verify-login",
+    ):
         return
 
     # Skip CSRF for pure-JSON API clients that set Content-Type application/json

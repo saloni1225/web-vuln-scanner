@@ -3,19 +3,19 @@ from __future__ import annotations
 
 ROLE_PERMISSIONS = {
     "owner": {
-        "org:admin", "workspace:admin", "scan:run", "scan:read", "finding:manage", "report:read", "api_key:manage",
+        "org:admin", "workspace:admin", "workspace:read", "scan:run", "scan:read", "finding:manage", "report:read", "api_key:manage",
         "exposure:read", "attack_graph:read", "attack_path:read", "drift:read", "telemetry:read", "orchestration:read",
-        "threat_intel:read", "ai:read", "compliance:read", "integration:manage", "devsecops:read", "rbac:admin",
+        "threat_intel:read", "ai:read", "compliance:read", "integration:manage", "devsecops:read", "rbac:admin", "monitoring:read",
     },
     "admin": {
-        "workspace:admin", "scan:run", "scan:read", "finding:manage", "report:read", "api_key:manage",
+        "workspace:admin", "workspace:read", "scan:run", "scan:read", "finding:manage", "report:read", "api_key:manage",
         "exposure:read", "attack_graph:read", "attack_path:read", "drift:read", "telemetry:read", "orchestration:read",
-        "threat_intel:read", "ai:read", "compliance:read", "integration:manage", "devsecops:read",
+        "threat_intel:read", "ai:read", "compliance:read", "integration:manage", "devsecops:read", "monitoring:read",
     },
     "security_engineer": {
         "workspace:read", "scan:run", "scan:read", "finding:manage", "report:read",
         "exposure:read", "attack_graph:read", "attack_path:read", "drift:read", "telemetry:read",
-        "threat_intel:read", "ai:read", "devsecops:read",
+        "threat_intel:read", "ai:read", "devsecops:read", "monitoring:read",
     },
     "analyst": {"workspace:read", "scan:run", "scan:read", "finding:manage", "report:read", "monitoring:read"},
     "viewer": {"workspace:read", "scan:read", "report:read", "monitoring:read"},

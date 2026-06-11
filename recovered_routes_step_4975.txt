@@ -1,0 +1,25 @@
+Created At: 2026-06-11T05:17:13Z
+Completed At: 2026-06-11T05:17:13Z
+File Path: `file:///c:/Users/Anmol/OneDrive/Desktop/web_scanner/adaptive-web-vuln-scanner/backend/api/routes.py`
+Total Lines: 1007
+Total Bytes: 42818
+Showing lines 284 to 300
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+284: @router.get("/auth/dev/otp")
+285: async def auth_dev_otp_mailbox() -> dict[str, object]:
+286:     if settings.execution_mode not in {"local-dev", "staging", "test"} or not settings.expose_dev_otp:
+287:         raise HTTPException(status_code=404, detail="Dev OTP mailbox is not available.")
+288:     return dev_mailbox()
+289: 
+290: 
+291: @router.post("/auth/password-reset")
+292: async def auth_password_reset(request: Request, payload: PasswordResetRequest) -> dict[str, object]:
+293:     check_rate_limit(request)
+294:     check_auth_lockout(request)
+295:     validate_password_strength(payload.new_password)
+296:     return password_reset_response(payload.email.strip().lower(), payload.code, payload.new_password)
+297: 
+298: 
+299: @router.post("/auth/logout")
+300: async def auth_logout(request: Request, payload: LogoutRequest, response: Response) -> dict[str, object]:
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

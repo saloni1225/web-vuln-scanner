@@ -1,0 +1,64 @@
+Created At: 2026-06-11T05:17:08Z
+Completed At: 2026-06-11T05:17:09Z
+File Path: `file:///c:/Users/Anmol/OneDrive/Desktop/web_scanner/adaptive-web-vuln-scanner/backend/api/routes.py`
+Total Lines: 1007
+Total Bytes: 42818
+Showing lines 230 to 285
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+230:     return result
+231: 
+232: 
+233: @router.post("/auth/otp/send")
+234: async def auth_send_otp(request: Request, payload: OtpRequest) -> dict[str, object]:
+235:     check_rate_limit(request)
+236:     check_auth_lockout(request)
+237:     email = validate_email(payload.email)
+238:     try:
+239:         return issue_otp(email, payload.purpose)
+240:     except OtpDeliveryError as exc:
+241:         raise HTTPException(status_code=503, detail={"error": "otp_delivery_failed", "message": str(exc)}) from exc
+242: 
+243: 
+244: @router.post("/auth/otp/verify")
+245: async def auth_verify_otp(request: Request, payload: OtpRequest, response: Response) -> dict[str, object]:
+246:     check_rate_limit(request)
+247:     check_auth_lockout(request)
+248:     email = validate_email(payload.email)
+249:     result = verify_otp(email, payload.code, payload.purpose)
+250:     if not result.get("verified"):
+251:         record_auth_failure(_client_ip(request))
+252:     else:
+253:         clear_auth_failures(_client_ip(request))
+254:         # Issue tokens and set cookies if verifying email or login MFA
+255:         if payload.purpose in ("login_mfa", "passwordless_login", "email_verification"):
+256:             from backend.database.db import get_auth_user_by_email
+257:             user = get_auth_user_by_email(email)
+258:             if user:
+259:                 from backend.auth.saas_auth import issue_tokens
+260:                 mfa_verified = payload.purpose in ("login_mfa", "passwordless_login")
+261:                 tokens = issue_tokens(email, role=str(user["role"]), organization_id=str(user["organization_id"]), mfa_verified=mfa_verified)
+262:                 set_auth_cookies(
+263:                     response,
+264:                     access_token=str(tokens.get("access_token", "")),
+265:                     refresh_token=str(tokens.get("refresh_token", "")),
+266:                 )
+267:                 result["tokens"] = tokens
+268:                 result["user"] = {"email": email, "role": str(user["role"]), "first_name": str(user.get("first_name", ""))}
+269:                 result["authenticated"] = True
+270:     return result
+271: 
+272: 
+273: @router.post("/auth/forgot-password")
+274: async def auth_forgot_password(request: Request, payload: ForgotPasswordRequest) -> dict[str, object]:
+275:     check_rate_limit(request)
+276:     check_auth_lockout(request)
+277:     email = validate_email(payload.email)
+278:     try:
+279:         return {"reset": issue_otp(email, "password_reset"), "next_step": "verify-reset-otp"}
+280:     except OtpDeliveryError as exc:
+281:         raise HTTPException(status_code=503, detail={"error": "otp_delivery_failed", "message": str(exc)}) from exc
+282: 
+283: 
+284: @router.get("/auth/dev/otp")
+285: async def auth_dev_otp_mailbox() -> dict[str, object]:
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

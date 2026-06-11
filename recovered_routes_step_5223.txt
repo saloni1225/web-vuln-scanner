@@ -1,0 +1,78 @@
+Created At: 2026-06-11T05:34:28Z
+Completed At: 2026-06-11T05:34:28Z
+File Path: `file:///c:/Users/Anmol/OneDrive/Desktop/web_scanner/adaptive-web-vuln-scanner/backend/api/routes.py`
+Total Lines: 1007
+Total Bytes: 42749
+Showing lines 1 to 800
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: import uuid
+2: 
+3: from fastapi import APIRouter, Depends, HTTPException, Request, Response, WebSocket, status
+4: from pydantic import BaseModel, Field
+5: from starlette.websockets import WebSocketDisconnect
+6: 
+7: from backend.api.scan_controller import ScanController, ScanRequest
+8: from backend.api.websocket import scan_hub
+9: from backend.api.job_registry import job_registry
+10: from backend.ai.copilot import ai_copilot_capabilities, ai_copilot_response
+11: from backend.auth.otp_delivery import OtpDeliveryError, dev_mailbox
+12: from backend.auth.saas_auth import (
+13:     auth_architecture,
+14:     billing_catalog,
+15:     create_registration,
+16:     issue_otp,
+17:     login_response,
+18:     logout_response,
+19:     monitoring_workflows,
+20:     notification_center,
+21:     onboarding_state,
+22:     password_reset_response,
+23:     subscription_status,
+24:     team_directory,
+25:     trust_center,
+26:     verify_otp,
+27:     enroll_mfa,
+28:     verify_mfa,
+29:     verify_mfa_login,
+30: )
+31: from backend.auth.sso import identity_provider_catalog, sso_configuration
+32: from backend.attack_surface.graph import build_attack_surface_graph, build_drift_timeline, correlate_attack_paths
+33: from backend.api_security.schema import analyze_graphql_schema, parse_openapi_document, parse_postman_collection
+34: from backend.billing import billing_usage_summary, stripe_architecture
+35: from backend.commercial_platform import founder_analytics, implementation_report, marketplace_architecture, public_api_catalog, p
+<truncated 33775 bytes>
+require_permission("report:read"))) -> dict[str, object]:
+768:     scan = get_scan(scan_id)
+769:     if scan is None:
+770:         raise HTTPException(status_code=404, detail="Scan report not found")
+771:     findings = list(scan.get("findings", []))
+772:     if finding_index < 0 or finding_index >= len(findings):
+773:         raise HTTPException(status_code=404, detail="Finding not found")
+774:     return get_finding_lifecycle(scan_id, finding_index)
+775: 
+776: 
+777: @router.put("/findings/{scan_id}/{finding_index}/lifecycle")
+778: async def update_lifecycle(scan_id: str, finding_index: int, update: FindingLifecycleUpdate, _: Principal = Depends(require_permission("finding:manage"))) -> dict[str, object]:
+779:     allowed_states = {"open", "triaged", "assigned", "retesting", "resolved", "closed"}
+780:     if update.state not in allowed_states:
+781:         raise HTTPException(status_code=400, detail="Unsupported lifecycle state")
+782:     scan = get_scan(scan_id)
+783:     if scan is None:
+784:         raise HTTPException(status_code=404, detail="Scan report not found")
+785:     findings = list(scan.get("findings", []))
+786:     if finding_index < 0 or finding_index >= len(findings):
+787:         raise HTTPException(status_code=404, detail="Finding not found")
+788:     return update_finding_lifecycle(
+789:         scan_id,
+790:         finding_index,
+791:         state=update.state,
+792:         owner=update.owner,
+793:         sla_due_at=update.sla_due_at,
+794:         actor=update.actor,
+795:     )
+796: 
+797: 
+798: @router.post("/findings/{scan_id}/{finding_index}/comments")
+799: async def add_lifecycle_comment(scan_id: str, finding_index: int, comment: FindingCommentCreate, _: Principal = Depends(require_permission("finding:manage"))) -> dict[str, object]:
+800:     if not comment.body.strip():
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

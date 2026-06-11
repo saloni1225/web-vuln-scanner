@@ -239,6 +239,7 @@ class TestRateLimiter:
         mock_request = MagicMock()
         mock_request.client.host = test_ip
         mock_request.headers.get.return_value = None
+        mock_request._allow_rate_limit_testing = True
 
         with pytest.raises(HTTPException) as exc_info:
             check_auth_lockout(mock_request)

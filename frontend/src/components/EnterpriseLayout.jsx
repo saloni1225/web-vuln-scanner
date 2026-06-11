@@ -35,6 +35,8 @@ import {
   Telescope,
   Users,
   X,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { fetchActiveScans, fetchOperationsIntelligence, fetchReports, startScan } from "../services/api.js";
 import { Logo } from "./Logo.jsx";
@@ -128,19 +130,19 @@ function SidebarButton({ children, className = "", magnetic = true, ...props }) 
 
 const ROLE_PERMISSIONS = {
   owner: new Set([
-    "org:admin", "workspace:admin", "scan:run", "scan:read", "finding:manage", "report:read", "api_key:manage",
+    "org:admin", "workspace:admin", "workspace:read", "scan:run", "scan:read", "finding:manage", "report:read", "api_key:manage",
     "exposure:read", "attack_graph:read", "attack_path:read", "drift:read", "telemetry:read", "orchestration:read",
-    "threat_intel:read", "ai:read", "compliance:read", "integration:manage", "devsecops:read", "rbac:admin"
+    "threat_intel:read", "ai:read", "compliance:read", "integration:manage", "devsecops:read", "rbac:admin", "monitoring:read"
   ]),
   admin: new Set([
-    "workspace:admin", "scan:run", "scan:read", "finding:manage", "report:read", "api_key:manage",
+    "workspace:admin", "workspace:read", "scan:run", "scan:read", "finding:manage", "report:read", "api_key:manage",
     "exposure:read", "attack_graph:read", "attack_path:read", "drift:read", "telemetry:read", "orchestration:read",
-    "threat_intel:read", "ai:read", "compliance:read", "integration:manage", "devsecops:read"
+    "threat_intel:read", "ai:read", "compliance:read", "integration:manage", "devsecops:read", "monitoring:read"
   ]),
   security_engineer: new Set([
     "workspace:read", "scan:run", "scan:read", "finding:manage", "report:read",
     "exposure:read", "attack_graph:read", "attack_path:read", "drift:read", "telemetry:read",
-    "threat_intel:read", "ai:read", "devsecops:read"
+    "threat_intel:read", "ai:read", "devsecops:read", "monitoring:read"
   ]),
   analyst: new Set(["workspace:read", "scan:run", "scan:read", "finding:manage", "report:read", "monitoring:read"]),
   viewer: new Set(["workspace:read", "scan:read", "report:read", "monitoring:read"]),
@@ -180,6 +182,8 @@ const PAGE_PERMISSIONS = {
   team: "rbac:admin",
   billing: "org:admin",
   settings: "workspace:admin",
+  "audit-logs": "rbac:admin",
+  "system-health": "orchestration:read",
 };
 
 export function EnterpriseLayout({ page, onNavigate, theme = "dark", onChangeTheme, children }) {
@@ -204,7 +208,9 @@ export function EnterpriseLayout({ page, onNavigate, theme = "dark", onChangeThe
   const [jwtToken, setJwtToken] = useState("");
   const [authHeader, setAuthHeader] = useState("");
   const [toast, setToast] = useState("");
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const [wsConnected, setWsConnected] = useState(false);
+
   const userRole = user?.role || "viewer";
 
   const filteredNavSections = useMemo(() => {
@@ -236,7 +242,7 @@ export function EnterpriseLayout({ page, onNavigate, theme = "dark", onChangeThe
   const notifications = useMemo(() => buildNotifications(operations), [operations]);
   const activities = useMemo(() => buildActivities(operations, reports, activeScans, progress), [operations, reports, activeScans, progress]);
   const unreadCount = notifications.filter((item) => item.status === "unread").length;
-  const commandItems = useMemo(() => buildCommandItems(operations, reports, activeScans, launchScan), [operations, reports, activeScans]);
+  const commandItems = useMemo(() => buildCommandItems(operations, reports, activeScans, launchScan, userRole), [operations, reports, activeScans, userRole]);
   const filteredCommands = useMemo(() => {
     const value = paletteQuery.trim().toLowerCase();
     if (!value) return commandItems.slice(0, 9);
@@ -275,31 +281,36 @@ export function EnterpriseLayout({ page, onNavigate, theme = "dark", onChangeThe
   }, []);
 
   useEffect(() => {
-    const socket = createScanSocket((event) => {
-      if (event.progress !== undefined || event.message) {
-        setProgress((currentProgress) => ({
-          progress: event.progress ?? currentProgress.progress,
-          status: event.status ?? currentProgress.status,
-          message: event.message ?? currentProgress.message,
-        }));
-      }
-      if (event.event === "scan_started") {
-        setIsRunning(true);
-        setActivePanel("activity");
-      }
-      if (event.event === "scan_completed") {
-        setIsRunning(false);
-        setProgress({ progress: 100, status: "completed", message: event.message ?? "Intelligence run completed." });
-        onNavigate("attack-surface");
-        refreshOperations();
-      }
-      if (event.status === "failed") {
-        setIsRunning(false);
-        setActivePanel("activity");
-      }
-    });
+    const socket = createScanSocket(
+      (event) => {
+        if (event.progress !== undefined || event.message) {
+          setProgress((currentProgress) => ({
+            progress: event.progress ?? currentProgress.progress,
+            status: event.status ?? currentProgress.status,
+            message: event.message ?? currentProgress.message,
+          }));
+        }
+        if (event.event === "scan_started") {
+          setIsRunning(true);
+          setActivePanel("activity");
+        }
+        if (event.event === "scan_completed") {
+          setIsRunning(false);
+          setProgress({ progress: 100, status: "completed", message: event.message ?? "Intelligence run completed." });
+          onNavigate("attack-surface");
+          refreshOperations();
+        }
+        if (event.status === "failed") {
+          setIsRunning(false);
+          setActivePanel("activity");
+        }
+      },
+      () => setWsConnected(true),
+      () => setWsConnected(false)
+    );
     return () => socket.close();
   }, [onNavigate]);
+
 
   async function refreshOperations() {
     try {
@@ -461,16 +472,35 @@ export function EnterpriseLayout({ page, onNavigate, theme = "dark", onChangeThe
               )}
             </div>
           ))}
+          <SidebarButton
+            type="button"
+            className="sidebar-link logout-button-sidebar"
+            onClick={logout}
+            title="Logout"
+            style={{ marginTop: "12px", borderTop: "1px dashed var(--border-soft)", width: "100%" }}
+          >
+            <KeyRound size={16} />
+            <span>Logout</span>
+          </SidebarButton>
         </nav>
 
-        <div className="theme-selector-container" style={{ display: "flex", flexDirection: "column", gap: "4px", padding: "8px 18px", borderTop: "1px solid var(--border-soft)", marginBottom: "8px" }}>
+        <div className="ws-status-container" style={{ display: "flex", flexDirection: "column", gap: "4px", padding: "8px 18px", borderTop: "1px solid var(--border-soft)", marginBottom: "8px" }}>
           {!collapsed && (
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#00ffcc", textShadow: "0 0 8px rgba(0, 255, 204, 0.4)", fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>
-              <span style={{ display: "inline-block", width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "#00ffcc", boxShadow: "0 0 6px #00ffcc" }}></span>
-              Cyberpunk Edition
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", color: wsConnected ? "#00ffff" : "#ff0055", fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+              <span style={{
+                display: "inline-block",
+                width: "6px",
+                height: "6px",
+                borderRadius: "50%",
+                backgroundColor: wsConnected ? "#00ffff" : "#ff0055",
+                boxShadow: wsConnected ? "0 0 8px #00ffff" : "0 0 8px #ff0055",
+                animation: wsConnected ? "none" : "blink 1s infinite alternate"
+              }} />
+              Telemetry Feed: {wsConnected ? "ONLINE" : "OFFLINE"}
             </div>
           )}
         </div>
+
 
         {!collapsed && (
           <div className="sidebar-copyright-recoxy" style={{ padding: "8px 18px", fontSize: "0.7rem", color: "var(--subtle)", borderTop: "1px solid var(--border-soft)", marginBottom: "4px" }}>
@@ -522,6 +552,7 @@ export function EnterpriseLayout({ page, onNavigate, theme = "dark", onChangeThe
             </section>
           )}
           <div className="topbar-actions">
+
             {hasPermission(userRole, "scan:run") && (
               <button type="button" className="quick-scan" title="Open scan drawer" onClick={() => setDrawerOpen(true)}><Rocket size={17} /></button>
             )}
@@ -847,7 +878,7 @@ function buildActivities(operations, reports, activeScans, progress) {
   ];
 }
 
-function buildCommandItems(operations, reports, activeScans, launchScan) {
+function buildCommandItems(operations, reports, activeScans, launchScan, userRole) {
   const pageItems = navSections.flatMap((section) => {
     if (section.route) {
       return [{ label: section.label, group: "Page", route: section.route, icon: section.icon, keywords: "overview executive dashboard" }];
@@ -860,12 +891,12 @@ function buildCommandItems(operations, reports, activeScans, launchScan) {
       keywords: `${section.label} page navigation`,
     }));
   });
-  const scanItems = [
+  const scanItems = hasPermission(userRole, "scan:run") ? [
     { label: "Start quick scan", group: "Scans", icon: Radar, action: () => launchScan("quick"), keywords: "launch intelligence target" },
     { label: "Start deep exposure analysis", group: "Scans", icon: Shield, action: () => launchScan("deep"), keywords: "launch exposure target" },
     { label: "Start API intelligence scan", group: "Scans", icon: Code2, action: () => launchScan("api"), keywords: "api launch target" },
     { label: "Start continuous monitoring", group: "Scans", icon: MonitorDot, action: () => launchScan("monitoring"), keywords: "monitoring launch target" },
-  ];
+  ] : [];
   const preservedRouteItems = [
     { label: "Offensive Research", group: "Advanced", route: "research", icon: Telescope, keywords: "research offensive exploit intelligence" },
     { label: "Platform Architecture", group: "Advanced", route: "platform", icon: Layers3, keywords: "platform architecture internals" },

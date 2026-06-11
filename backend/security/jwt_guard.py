@@ -17,6 +17,7 @@ import hmac
 import json
 import os
 import time
+import jwt
 
 from fastapi import Cookie, Depends, Header, HTTPException, Request, Response, status
 
@@ -27,6 +28,10 @@ from backend.rbac.policy import can
 # Secret key — loaded from settings (which reads .env), never hardcoded
 # ---------------------------------------------------------------------------
 from backend.config.settings import settings as _settings
+
+if _settings.execution_mode != "local-dev":
+    if not _settings.adaptivescan_jwt_secret or _settings.adaptivescan_jwt_secret == "adaptivescan-local-development-secret" or len(_settings.adaptivescan_jwt_secret) < 32:
+        raise RuntimeError("FATAL: Insecure JWT secret configured in production mode.")
 
 _RAW_SECRET = _settings.adaptivescan_jwt_secret or os.environ.get("SECRET_KEY") or "adaptivescan-local-development-secret"
 
@@ -41,7 +46,7 @@ ACCESS_COOKIE  = "adaptivescan_access"
 REFRESH_COOKIE = "adaptivescan_refresh"
 
 # Use secure=True in production (HTTPS)
-_COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "false").lower() == "true"
+_COOKIE_SECURE = (_settings.execution_mode != "local-dev") or (os.environ.get("COOKIE_SECURE", "false").lower() == "true")
 
 
 # ---------------------------------------------------------------------------
@@ -69,9 +74,8 @@ def _verify_jwt(token: str) -> dict:
                             detail={"error": "invalid_token", "message": "Malformed JWT."})
 
     header_b64, payload_b64, sig_b64 = parts
-    signing_input = f"{header_b64}.{payload_b64}".encode()
 
-    # Verify header — reject alg:none
+    # Verify header
     try:
         header = json.loads(_b64url_decode(header_b64))
     except Exception:
@@ -79,6 +83,7 @@ def _verify_jwt(token: str) -> dict:
                             detail={"error": "invalid_token", "message": "JWT header unreadable."})
 
     alg = header.get("alg", "").upper()
+
     if alg == "NONE" or not alg:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                             detail={"error": "alg_none_rejected",
@@ -89,6 +94,7 @@ def _verify_jwt(token: str) -> dict:
                                     "message": f"Only HS256 is supported. Got {alg}."})
 
     # Verify signature (constant-time)
+    signing_input = f"{header_b64}.{payload_b64}".encode()
     expected_sig = hmac.new(JWT_SECRET, signing_input, hashlib.sha256).digest()
     try:
         actual_sig = _b64url_decode(sig_b64)
@@ -166,8 +172,14 @@ async def verified_principal(request: Request) -> VerifiedPrincipal:
 
 def require_verified_permission(permission: str):
     """Dependency factory: require a verified JWT + specific permission."""
-    async def dep(principal: VerifiedPrincipal = Depends(verified_principal)) -> VerifiedPrincipal:
+    async def dep(request: Request, principal: VerifiedPrincipal = Depends(verified_principal)) -> VerifiedPrincipal:
         if not principal.can(permission):
+            import logging
+            logger = logging.getLogger("backend.security.jwt_guard")
+            logger.warning(
+                f"Access Denied: User ID '{principal.actor}' with role '{principal.role}' "
+                f"failed permission check for '{permission}' on endpoint '{request.method} {request.url.path}'"
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail={
@@ -190,12 +202,14 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str) 
     Set tokens as httpOnly, SameSite=Strict cookies instead of returning
     them in the response body (mitigates XSS token theft).
     """
+    from backend.config.settings import settings
+    cookie_secure = (settings.execution_mode != "local-dev") or (os.environ.get("COOKIE_SECURE", "false").lower() == "true")
     response.set_cookie(
         key=ACCESS_COOKIE,
         value=access_token,
         httponly=True,
-        samesite="strict",
-        secure=_COOKIE_SECURE,
+        samesite="Strict",
+        secure=cookie_secure,
         max_age=ACCESS_TOKEN_TTL,
         path="/",
     )
@@ -203,8 +217,8 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str) 
         key=REFRESH_COOKIE,
         value=refresh_token,
         httponly=True,
-        samesite="strict",
-        secure=_COOKIE_SECURE,
+        samesite="Strict",
+        secure=cookie_secure,
         max_age=REFRESH_TOKEN_TTL,
         path="/api/auth",   # Scope refresh token to auth routes only
     )

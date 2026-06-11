@@ -96,3 +96,41 @@ def test_new_admin_and_read_rbac_enforcement():
 
     assert owner.get("/api/audit-logs").status_code != 403
     assert owner.get("/api/tenancy/overview").status_code != 403
+
+
+def test_secondary_endpoints_rbac_enforcement():
+    """Verify that billing subscription/usage, team, sso, and founder analytics are correctly protected under RBAC."""
+    viewer = authenticated_client("viewer")
+    analyst = authenticated_client("analyst")
+    owner = authenticated_client("owner")
+
+    # 1. Viewer is blocked (403) from org/workspace admin & billing & sso endpoints
+    assert viewer.get("/api/billing/subscription").status_code == 403
+    assert viewer.get("/api/billing/usage").status_code == 403
+    assert viewer.get("/api/billing/stripe").status_code == 403
+    assert viewer.get("/api/team").status_code == 403
+    assert viewer.get("/api/sso/providers").status_code == 403
+    assert viewer.get("/api/sso/configuration").status_code == 403
+    assert viewer.get("/api/founder/analytics").status_code == 403
+
+    # 2. Viewer is allowed on catalog and monitoring (has monitoring:read, workspace:read, etc.)
+    assert viewer.get("/api/billing/catalog").status_code != 403
+    assert viewer.get("/api/notifications").status_code != 403
+    assert viewer.get("/api/monitoring/workflows").status_code != 403
+    assert viewer.get("/api/monitoring/scheduler").status_code != 403
+    assert viewer.get("/api/monitoring/jobs").status_code != 403
+
+    # 3. Analyst is blocked (403) from org admin, billing, sso, and team (needs org:admin, workspace:admin, rbac:admin)
+    assert analyst.get("/api/billing/subscription").status_code == 403
+    assert analyst.get("/api/team").status_code == 403
+    assert analyst.get("/api/sso/providers").status_code == 403
+    assert analyst.get("/api/founder/analytics").status_code == 403
+
+    # 4. Owner has full permissions (no 403)
+    assert owner.get("/api/billing/subscription").status_code != 403
+    assert owner.get("/api/billing/usage").status_code != 403
+    assert owner.get("/api/billing/stripe").status_code != 403
+    assert owner.get("/api/team").status_code != 403
+    assert owner.get("/api/sso/providers").status_code != 403
+    assert owner.get("/api/sso/configuration").status_code != 403
+    assert owner.get("/api/founder/analytics").status_code != 403

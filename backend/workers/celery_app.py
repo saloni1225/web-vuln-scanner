@@ -16,6 +16,22 @@ except Exception:  # pragma: no cover - keeps local test environments lightweigh
 def create_celery_app():
     if Celery is None:
         return None
+    # Startup validation for celery worker in production:
+    jwt_secret = settings.adaptivescan_jwt_secret
+    dev_fallback = "adaptivescan-local-development-secret"
+    is_dev = settings.execution_mode == "local-dev"
+
+    if not jwt_secret or jwt_secret == dev_fallback or len(jwt_secret) < 32:
+        if not is_dev:
+            import sys
+            import logging
+            logger = logging.getLogger("adaptivescan")
+            logger.critical(
+                "FATAL ERROR: ADAPTIVESCAN_JWT_SECRET is missing, weak, or set to the fallback value in production mode! "
+                "The Celery worker cannot start."
+            )
+            sys.exit(1)
+
     app = Celery(
         "adaptivescan",
         broker=settings.redis_url,
