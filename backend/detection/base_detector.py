@@ -74,6 +74,7 @@ class Finding:
     attack_chain_ids: list[str] | None = None
     title: str | None = None
     description: str | None = None
+    affected_asset: str | None = None
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
